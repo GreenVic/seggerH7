@@ -1,36 +1,51 @@
 #include "stm32h7xx_nucleo_144.h"
-
-#define __STM32H7xx_NUCLEO_BSP_VERSION_MAIN   (0x01) /*!< [31:24] main version */
-#define __STM32H7xx_NUCLEO_BSP_VERSION_SUB1   (0x02) /*!< [23:16] sub1 version */
-#define __STM32H7xx_NUCLEO_BSP_VERSION_SUB2   (0x00) /*!< [15:8]  sub2 version */
-#define __STM32H7xx_NUCLEO_BSP_VERSION_RC     (0x00) /*!< [7:0]  release candidate */
-#define __STM32H7xx_NUCLEO_BSP_VERSION        ((__STM32H7xx_NUCLEO_BSP_VERSION_MAIN << 24)\
-                                             |(__STM32H7xx_NUCLEO_BSP_VERSION_SUB1 << 16)\
-                                             |(__STM32H7xx_NUCLEO_BSP_VERSION_SUB2 << 8 )\
-                                             |(__STM32H7xx_NUCLEO_BSP_VERSION_RC))
-
+//{{{  defines
 #define SD_DUMMY_BYTE            0xFF
 #define SD_NO_RESPONSE_EXPECTED  0x80
 
-GPIO_TypeDef* GPIO_PORT[LEDn] = {LED1_GPIO_PORT, LED2_GPIO_PORT, LED3_GPIO_PORT};
+#define LED1_PIN                                GPIO_PIN_0
+#define LED1_GPIO_PORT                          GPIOB
+#define LED1_GPIO_CLK_ENABLE()                  __HAL_RCC_GPIOB_CLK_ENABLE()
+#define LED1_GPIO_CLK_DISABLE()                 __HAL_RCC_GPIOB_CLK_DISABLE()
 
-const uint16_t GPIO_PIN[LEDn] = {LED1_PIN, LED2_PIN, LED3_PIN};
+#define LED2_PIN                                GPIO_PIN_7
+#define LED2_GPIO_PORT                          GPIOB
+#define LED2_GPIO_CLK_ENABLE()                  __HAL_RCC_GPIOB_CLK_ENABLE()
+#define LED2_GPIO_CLK_DISABLE()                 __HAL_RCC_GPIOB_CLK_DISABLE()
+
+#define LED3_PIN                                GPIO_PIN_14
+#define LED3_GPIO_PORT                          GPIOB
+#define LED3_GPIO_CLK_ENABLE()                  __HAL_RCC_GPIOB_CLK_ENABLE()
+#define LED3_GPIO_CLK_DISABLE()                 __HAL_RCC_GPIOB_CLK_DISABLE()
+
+#define LEDx_GPIO_CLK_ENABLE(__INDEX__)   do { if((__INDEX__) == 0) {__HAL_RCC_GPIOB_CLK_ENABLE();} else\
+                                                                    {__HAL_RCC_GPIOB_CLK_ENABLE();   }} while(0)
+#define LEDx_GPIO_CLK_DISABLE(__INDEX__)  do { if((__INDEX__) == 0) {__HAL_RCC_GPIOB_CLK_DISABLE();} else\
+                                                                    {__HAL_RCC_GPIOB_CLK_DISABLE();   }} while(0)
+#define USER_BUTTON_GPIO_PORT                    GPIOC
+#define USER_BUTTON_GPIO_CLK_ENABLE()            __HAL_RCC_GPIOC_CLK_ENABLE()
+#define USER_BUTTON_GPIO_CLK_DISABLE()           __HAL_RCC_GPIOC_CLK_DISABLE()
+#define USER_BUTTON_EXTI_LINE                    GPIO_PIN_13
+#define USER_BUTTON_EXTI_IRQn                    EXTI15_10_IRQn
+
+#define BUTTONx_GPIO_CLK_ENABLE(__INDEX__)      USER_BUTTON_GPIO_CLK_ENABLE()
+#define BUTTONx_GPIO_CLK_DISABLE(__INDEX__)     USER_BUTTON_GPIO_CLK_DISABLE()
+
+/* Aliases */
+#define KEY_BUTTON_PIN                       USER_BUTTON_PIN
+#define KEY_BUTTON_GPIO_PORT                 USER_BUTTON_GPIO_PORT
+#define KEY_BUTTON_GPIO_CLK_ENABLE()         USER_BUTTON_GPIO_CLK_ENABLE()
+#define KEY_BUTTON_GPIO_CLK_DISABLE()        USER_BUTTON_GPIO_CLK_DISABLE()
+#define KEY_BUTTON_EXTI_LINE                 USER_BUTTON_EXTI_LINE
+#define KEY_BUTTON_EXTI_IRQn                 USER_BUTTON_EXTI_IRQn
+//}}}
+
+GPIO_TypeDef* GPIO_PORT [LEDn] = { LED1_GPIO_PORT, LED2_GPIO_PORT, LED3_GPIO_PORT };
+const uint16_t GPIO_PIN [LEDn] = { LED1_PIN, LED2_PIN, LED3_PIN };
 
 GPIO_TypeDef* BUTTON_PORT[BUTTONn] = {USER_BUTTON_GPIO_PORT};
 const uint16_t BUTTON_PIN[BUTTONn] = {USER_BUTTON_PIN};
 const uint8_t BUTTON_IRQn[BUTTONn] = {USER_BUTTON_EXTI_IRQn};
-
-//{{{
-/**
-  * @brief  This method returns the STM32H7xx NUCLEO BSP Driver revision
-  * @retval version: 0xXYZR (8bits for each decimal, R for RC)
-  */
-uint32_t BSP_GetVersion(void)
-{
-  return __STM32H7xx_NUCLEO_BSP_VERSION;
-}
-
-//}}}
 
 //{{{
 /**
@@ -42,7 +57,7 @@ uint32_t BSP_GetVersion(void)
   *     @arg  LED3
   * @retval None
   */
-void BSP_LED_Init(Led_TypeDef Led)
+void BSP_LED_Init (Led_TypeDef Led)
 {
   GPIO_InitTypeDef  GPIO_InitStruct;
 
@@ -70,7 +85,7 @@ void BSP_LED_Init(Led_TypeDef Led)
   * @note Led DeInit does not disable the GPIO clock nor disable the Mfx
   * @retval None
   */
-void BSP_LED_DeInit(Led_TypeDef Led)
+void BSP_LED_DeInit (Led_TypeDef Led)
 {
   GPIO_InitTypeDef  gpio_init_structure;
 
@@ -91,7 +106,7 @@ void BSP_LED_DeInit(Led_TypeDef Led)
   *     @arg LED2
   * @retval None
   */
-void BSP_LED_On(Led_TypeDef Led)
+void BSP_LED_On (Led_TypeDef Led)
 {
   HAL_GPIO_WritePin(GPIO_PORT[Led], GPIO_PIN[Led], GPIO_PIN_SET);
 }
@@ -106,7 +121,7 @@ void BSP_LED_On(Led_TypeDef Led)
   *     @arg  LED3
   * @retval None
   */
-void BSP_LED_Off(Led_TypeDef Led)
+void BSP_LED_Off (Led_TypeDef Led)
 {
   HAL_GPIO_WritePin(GPIO_PORT[Led], GPIO_PIN[Led], GPIO_PIN_RESET);
 }
@@ -121,7 +136,7 @@ void BSP_LED_Off(Led_TypeDef Led)
   *     @arg  LED3
   * @retval None
   */
-void BSP_LED_Toggle(Led_TypeDef Led)
+void BSP_LED_Toggle (Led_TypeDef Led)
 {
   HAL_GPIO_TogglePin(GPIO_PORT[Led], GPIO_PIN[Led]);
 }
@@ -139,7 +154,7 @@ void BSP_LED_Toggle(Led_TypeDef Led)
   *                            generation capability
   * @retval None
   */
-void BSP_PB_Init(Button_TypeDef Button, ButtonMode_TypeDef ButtonMode)
+void BSP_PB_Init (Button_TypeDef Button, ButtonMode_TypeDef ButtonMode)
 {
   GPIO_InitTypeDef GPIO_InitStruct;
 
@@ -178,7 +193,7 @@ void BSP_PB_Init(Button_TypeDef Button, ButtonMode_TypeDef ButtonMode)
   * @note PB DeInit does not disable the GPIO clock
   * @retval None
   */
-void BSP_PB_DeInit(Button_TypeDef Button)
+void BSP_PB_DeInit (Button_TypeDef Button)
 {
     GPIO_InitTypeDef gpio_init_structure;
 
@@ -187,7 +202,6 @@ void BSP_PB_DeInit(Button_TypeDef Button)
     HAL_GPIO_DeInit(BUTTON_PORT[Button], gpio_init_structure.Pin);
 }
 //}}}
-
 //{{{
 /**
   * @brief  Returns the selected Button state.
@@ -195,7 +209,7 @@ void BSP_PB_DeInit(Button_TypeDef Button)
   *   This parameter should be: BUTTON_USER
   * @retval The Button GPIO pin value.
   */
-uint32_t BSP_PB_GetState(Button_TypeDef Button)
+uint32_t BSP_PB_GetState (Button_TypeDef Button)
 {
   return HAL_GPIO_ReadPin(BUTTON_PORT[Button], BUTTON_PIN[Button]);
 }

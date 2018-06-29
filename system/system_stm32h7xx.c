@@ -1,12 +1,5 @@
 #include "stm32h7xx.h"
 
-#define HSE_VALUE    ((uint32_t)25000000) /*!< Value of the External oscillator in Hz */
-#define CSI_VALUE    ((uint32_t)4000000) /*!< Value of the Internal oscillator in Hz*/
-#define HSI_VALUE    ((uint32_t)64000000) /*!< Value of the Internal oscillator in Hz*/
-
-#if defined(DATA_IN_ExtSRAM) && defined(DATA_IN_ExtSDRAM)
- #error "Please select DATA_IN_ExtSRAM or DATA_IN_ExtSDRAM "
-#endif /* DATA_IN_ExtSRAM && DATA_IN_ExtSDRAM */
 #define VECT_TAB_OFFSET  0x00       /*!< Vector Table base offset field.
                                       This value must be a multiple of 0x200. */
 uint32_t SystemCoreClock = 64000000;

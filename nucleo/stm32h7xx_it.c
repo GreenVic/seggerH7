@@ -14,5 +14,5 @@ void SysTick_Handler() {
   }
 
 void EXTI15_10_IRQHandler() {
-  HAL_GPIO_EXTI_IRQHandler(USER_BUTTON_PIN);
+  HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN);
   }

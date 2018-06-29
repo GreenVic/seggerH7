@@ -36,6 +36,7 @@
       <file file_name="main.c" />
       <file file_name="stm32h7xx_nucleo_144.c" />
       <file file_name="stm32h7xx_it.c" />
+      <file file_name="../system/system_stm32h7xx.c" />
     </folder>
     <folder Name="RTT Files">
       <configuration Name="Common" macros="STLport=No" />

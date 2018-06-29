@@ -6,6 +6,7 @@
 
 void main() {
 
+  HAL_Init();
   BSP_LED_Init (LED_GREEN);
   BSP_LED_Init (LED_BLUE);
   BSP_LED_Init (LED_RED);
@@ -13,7 +14,7 @@ void main() {
   int i;
   for (i = 0; i < 100; i++) {
     printf("Hello World %d!\n", i);
-    //HAL_Delay (200);
+    HAL_Delay (200);
     BSP_LED_Toggle (LED_GREEN);
     BSP_LED_Toggle (LED_BLUE);
     BSP_LED_Toggle (LED_RED);
