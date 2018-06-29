@@ -1,0 +1,72 @@
+<!DOCTYPE CrossStudio_Project_File>
+<solution Name="nucleo" target="8" version="2">
+  <project Name="nucleo">
+    <configuration
+      Name="Common"
+      STLport="Yes"
+      arm_architecture="v7EM"
+      arm_core_type="Cortex-M7"
+      arm_endian="Little"
+      arm_fp_abi="Hard"
+      arm_fpu_type="FPv5-SP-D16"
+      arm_linker_heap_size="1024"
+      arm_linker_process_stack_size="0"
+      arm_linker_stack_size="1024"
+      arm_simulator_memory_simulation_parameter="RX 08000000,00200000,FFFFFFFF;RWX 24000000,00080000,CDCDCDCD"
+      arm_target_device_name="STM32H743ZI"
+      arm_target_interface_type="SWD"
+      c_user_include_directories=".;../CMSIS;../RTT;../system;../drivers/Inc"
+      debug_target_connection="J-Link"
+      debug_type_file="$(StudioDir)/bin/STLport.xml"
+      gcc_c_language_standard="c11"
+      gcc_cplusplus_language_standard="c++11"
+      linker_output_format="hex"
+      linker_printf_fp_enabled="Float"
+      linker_printf_width_precision_supported="Yes"
+      linker_section_placement_file="$(ProjectDir)/flash_placement.xml"
+      linker_section_placements_segments="FLASH RX 0x08000000 0x00200000;SRAM RWX 0x24000000 0x00080000"
+      macros="STLport=No"
+      project_directory=""
+      project_type="Executable" />
+    <folder Name="Source Files">
+      <configuration
+        Name="Common"
+        filter="c;cpp;cxx;cc;h;s;asm;inc"
+        macros="STLport=No" />
+      <file file_name="main.c" />
+      <file file_name="stm32h7xx_nucleo_144.c" />
+      <file file_name="stm32h7xx_it.c" />
+    </folder>
+    <folder Name="RTT Files">
+      <configuration Name="Common" macros="STLport=No" />
+      <file file_name="../RTT/SEGGER_RTT.c" />
+      <file file_name="../RTT/SEGGER_RTT.h" />
+      <file file_name="../RTT/SEGGER_RTT_Conf.h" />
+      <file file_name="../RTT/SEGGER_RTT_Syscalls_SES.c" />
+    </folder>
+    <folder Name="System Files">
+      <configuration Name="Common" macros="STLport=No" />
+      <file file_name="../system/Cortex_M_Startup.s" />
+      <file file_name="../system/HardFaultHandler.S" />
+      <file file_name="../system/SEGGER_HardFaultHandler.c" />
+      <file file_name="../system/thumb_crt0.s" />
+    </folder>
+    <configuration Name="Release" gcc_optimization_level="Level 3" />
+    <folder Name="inc">
+      <file file_name="stm32h7xx_hal_conf.h" />
+      <file file_name="stm32h7xx_it.h" />
+      <file file_name="stm32h7xx_nucleo_144.h" />
+    </folder>
+  </project>
+  <configuration
+    Name="Debug"
+    c_preprocessor_definitions="DEBUG"
+    gcc_debugging_level="Level 3"
+    gcc_optimization_level="None" />
+  <configuration
+    Name="Release"
+    c_preprocessor_definitions="NDEBUG"
+    gcc_debugging_level="None"
+    gcc_omit_frame_pointer="Yes"
+    gcc_optimization_level="Level 1" />
+</solution>
