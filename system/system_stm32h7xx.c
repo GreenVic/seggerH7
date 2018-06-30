@@ -12,8 +12,6 @@ const  uint8_t D1CorePrescTable[16] = {0, 0, 0, 0, 1, 2, 3, 4, 1, 2, 3, 4, 6, 7,
   *         Called in startup_stm32h7xx.s before jump to main.
   *         This function configures the external memories (SRAM/SDRAM)
   *         This SRAM/SDRAM will be used as program data memory (including heap and stack).
-  * @param  None
-  * @retval None
   */
 void SystemInit_ExtMemCtl() {
 
@@ -121,9 +119,7 @@ void SystemInit_ExtMemCtl() {
   FMC_Bank5_6->SDCMR = 0x00000009;
   tmpreg = FMC_Bank5_6->SDSR & 0x00000020;
   while((tmpreg != 0) && (timeout-- > 0))
-  {
     tmpreg = FMC_Bank5_6->SDSR & 0x00000020;
-  }
 
   /* Delay */
   for (index = 0; index<1000; index++);
@@ -132,23 +128,17 @@ void SystemInit_ExtMemCtl() {
     FMC_Bank5_6->SDCMR = 0x0000000A;
   timeout = 0xFFFF;
   while((tmpreg != 0) && (timeout-- > 0))
-  {
     tmpreg = FMC_Bank5_6->SDSR & 0x00000020;
-  }
 
   FMC_Bank5_6->SDCMR = 0x000000EB;
   timeout = 0xFFFF;
   while((tmpreg != 0) && (timeout-- > 0))
-  {
     tmpreg = FMC_Bank5_6->SDSR & 0x00000020;
-  }
 
   FMC_Bank5_6->SDCMR = 0x0004400C;
   timeout = 0xFFFF;
   while((tmpreg != 0) && (timeout-- > 0))
-  {
     tmpreg = FMC_Bank5_6->SDSR & 0x00000020;
-  }
   /* Set refresh count */
   tmpreg = FMC_Bank5_6->SDRTR;
   FMC_Bank5_6->SDRTR = (tmpreg | (0x00000603<<1));
@@ -165,10 +155,9 @@ void SystemInit_ExtMemCtl() {
 //{{{
 void SystemInit() {
 
-  /* FPU settings ------------------------------------------------------------*/
-  #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
-    SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));  /* set CP10 and CP11 Full Access */
-  #endif
+  /* set CP10 and CP11 Full Access */
+  SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));  
+
   /* Reset the RCC clock configuration to the default reset state ------------*/
   /* Set HSION bit */
   RCC->CR |= RCC_CR_HSION;
@@ -202,7 +191,6 @@ void SystemInit() {
   RCC->PLL2DIVR = 0x00000000;
 
   /* Reset PLL2FRACR register */
-
   RCC->PLL2FRACR = 0x00000000;
   /* Reset PLL3DIVR register */
   RCC->PLL3DIVR = 0x00000000;

@@ -33,17 +33,20 @@
         Name="Common"
         filter="c;cpp;cxx;cc;h;s;asm;inc"
         macros="STLport=No" />
-      <file file_name="main.c" />
       <file file_name="stm32h7xx_nucleo_144.c" />
       <file file_name="stm32h7xx_it.c" />
       <file file_name="../system/system_stm32h7xx.c" />
+      <file file_name="main.cpp" />
+      <file file_name="sdram.c" />
     </folder>
     <folder Name="RTT Files">
       <configuration Name="Common" macros="STLport=No" />
       <file file_name="../RTT/SEGGER_RTT.c" />
-      <file file_name="../RTT/SEGGER_RTT.h" />
-      <file file_name="../RTT/SEGGER_RTT_Conf.h" />
       <file file_name="../RTT/SEGGER_RTT_Syscalls_SES.c" />
+      <folder Name="inc">
+        <file file_name="../RTT/SEGGER_RTT.h" />
+        <file file_name="../RTT/SEGGER_RTT_Conf.h" />
+      </folder>
     </folder>
     <folder Name="System Files">
       <configuration Name="Common" macros="STLport=No" />
@@ -57,6 +60,7 @@
       <file file_name="stm32h7xx_hal_conf.h" />
       <file file_name="stm32h7xx_it.h" />
       <file file_name="stm32h7xx_nucleo_144.h" />
+      <file file_name="sdram.h" />
     </folder>
     <folder Name="drivers">
       <folder Name="inc">

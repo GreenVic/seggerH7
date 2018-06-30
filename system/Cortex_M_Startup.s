@@ -218,14 +218,4 @@ _vectors_end:
   ldr r0, =__SRAM_segment_end__
   mov sp, r0
   bl SystemInit
-
-#if !defined(__SOFTFP__)
-  // Enable CP11 and CP10 with CPACR |= (0xf<<20)
-  movw r0, 0xED88
-  movt r0, 0xE000
-  ldr r1, [r0]
-  orrs r1, r1, #(0xf << 20)
-  str r1, [r0]
-#endif
-
   b _start
