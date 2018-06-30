@@ -1,8 +1,8 @@
 --start-group
-"Output/nucleo Debug/Obj/main.o"
 "Output/nucleo Debug/Obj/stm32h7xx_nucleo_144.o"
 "Output/nucleo Debug/Obj/stm32h7xx_it.o"
 "Output/nucleo Debug/Obj/system_stm32h7xx.o"
+"Output/nucleo Debug/Obj/main.o"
 "Output/nucleo Debug/Obj/SEGGER_RTT.o"
 "Output/nucleo Debug/Obj/SEGGER_RTT_Syscalls_SES.o"
 "Output/nucleo Debug/Obj/Cortex_M_Startup.o"
