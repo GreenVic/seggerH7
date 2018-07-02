@@ -94,7 +94,7 @@ void sdRamInit() {
   sdramHandle.Instance = FMC_SDRAM_DEVICE;
   sdramHandle.Init.SDBank             = FMC_SDRAM_BANK2;
   sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_3;
-  sdramHandle.Init.ReadBurst          = FMC_SDRAM_RBURST_DISABLE;  // FMC_SDRAM_RBURST_ENABLE
+  sdramHandle.Init.ReadBurst          = FMC_SDRAM_RBURST_ENABLE;
   sdramHandle.Init.CASLatency         = FMC_SDRAM_CAS_LATENCY_2;
   sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_9;
   sdramHandle.Init.RowBitsNumber      = FMC_SDRAM_ROW_BITS_NUM_12;
@@ -102,6 +102,7 @@ void sdRamInit() {
   sdramHandle.Init.InternalBankNumber = FMC_SDRAM_INTERN_BANKS_NUM_4;
   sdramHandle.Init.WriteProtection    = FMC_SDRAM_WRITE_PROTECTION_DISABLE;
   sdramHandle.Init.ReadPipeDelay      = FMC_SDRAM_RPIPE_DELAY_0;
+
   FMC_SDRAM_TimingTypeDef Timing;
   Timing.LoadToActiveDelay    = 2;
   Timing.ExitSelfRefreshDelay = 7;
@@ -113,40 +114,32 @@ void sdRamInit() {
   if (HAL_SDRAM_Init (&sdramHandle, &Timing) != HAL_OK)
     printf ("HAL_SDRAM_Init failed\n");
 
+  #define kClockEnable  FMC_SDRAM_CMD_CLK_ENABLE | FMC_SDRAM_CMD_TARGET_BANK2;
 
-  FMC_SDRAM_CommandTypeDef Command;
-  Command.CommandMode            = FMC_SDRAM_CMD_CLK_ENABLE;
-  Command.CommandTarget          = FMC_SDRAM_CMD_TARGET_BANK2;
-  Command.AutoRefreshNumber      = 1;
-  Command.ModeRegisterDefinition = 0;
-  HAL_SDRAM_SendCommand (&sdramHandle, &Command, SDRAM_TIMEOUT);
+  #define kPreChargeAll FMC_SDRAM_CMD_PALL | FMC_SDRAM_CMD_TARGET_BANK2;
+
+  #define kAutoRefresh  FMC_SDRAM_CMD_AUTOREFRESH_MODE | FMC_SDRAM_CMD_TARGET_BANK2 | \
+                        ((8-1) << 5)
+
+  #define kLoadMode     FMC_SDRAM_CMD_LOAD_MODE | FMC_SDRAM_CMD_TARGET_BANK2 | \
+                        ((SDRAM_MODEREG_WRITEBURST_MODE_SINGLE | \
+                          SDRAM_MODEREG_CAS_LATENCY_2 | \
+                          SDRAM_MODEREG_BURST_LENGTH_8) << 9)
+
+  FMC_SDRAM_DEVICE->SDCMR = kClockEnable;
+  while (HAL_IS_BIT_SET (FMC_SDRAM_DEVICE->SDSR, FMC_SDSR_MODES2)) {}
   HAL_Delay (2);
 
-  Command.CommandMode            = FMC_SDRAM_CMD_PALL;
-  Command.CommandTarget          = FMC_SDRAM_CMD_TARGET_BANK2;
-  Command.AutoRefreshNumber      = 1;
-  Command.ModeRegisterDefinition = 0;
-  HAL_SDRAM_SendCommand(&sdramHandle, &Command, SDRAM_TIMEOUT);
+  FMC_SDRAM_DEVICE->SDCMR = kPreChargeAll;
+  while (HAL_IS_BIT_SET (FMC_SDRAM_DEVICE->SDSR, FMC_SDSR_MODES2)) {}
 
-  Command.CommandMode            = FMC_SDRAM_CMD_AUTOREFRESH_MODE;
-  Command.CommandTarget          = FMC_SDRAM_CMD_TARGET_BANK2;
-  Command.AutoRefreshNumber      = 8;
-  Command.ModeRegisterDefinition = 0;
-  HAL_SDRAM_SendCommand (&sdramHandle, &Command, SDRAM_TIMEOUT);
+  FMC_SDRAM_DEVICE->SDCMR = kAutoRefresh;
+  while (HAL_IS_BIT_SET (FMC_SDRAM_DEVICE->SDSR, FMC_SDSR_MODES2)) {}
 
-  __IO uint32_t tmpmrd = (uint32_t)SDRAM_MODEREG_BURST_LENGTH_1          |
-                     SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL   |
-                     SDRAM_MODEREG_CAS_LATENCY_2           |
-                     SDRAM_MODEREG_OPERATING_MODE_STANDARD |
-                     SDRAM_MODEREG_WRITEBURST_MODE_SINGLE;
+  FMC_SDRAM_DEVICE->SDCMR =  kLoadMode;
+  while (HAL_IS_BIT_SET (FMC_SDRAM_DEVICE->SDSR, FMC_SDSR_MODES2)) {}
 
-  Command.CommandMode            = FMC_SDRAM_CMD_LOAD_MODE;
-  Command.CommandTarget          = FMC_SDRAM_CMD_TARGET_BANK2;
-  Command.AutoRefreshNumber      = 1;
-  Command.ModeRegisterDefinition = tmpmrd;
-  HAL_SDRAM_SendCommand (&sdramHandle, &Command, SDRAM_TIMEOUT);
-
-  HAL_SDRAM_ProgramRefreshRate (&sdramHandle, REFRESH_COUNT);
+  FMC_SDRAM_DEVICE->SDRTR = REFRESH_COUNT << 1;
   }
 //}}}
 //{{{
