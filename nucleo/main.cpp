@@ -61,8 +61,7 @@ void sdRamInit() {
   __HAL_RCC_GPIOG_CLK_ENABLE();
   __HAL_RCC_FMC_CLK_ENABLE();
   //}}}
-
-  /* Common GPIO configuration */
+  //{{{  GPIO config
   GPIO_InitTypeDef gpio_init_structure;
   gpio_init_structure.Mode      = GPIO_MODE_AF_PP;
   gpio_init_structure.Pull      = GPIO_PULLUP;
@@ -89,11 +88,20 @@ void sdRamInit() {
 
   gpio_init_structure.Pin   = GPIO_PIN_0 | GPIO_PIN_1 |GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_8 | GPIO_PIN_15;
   HAL_GPIO_Init (GPIOG, &gpio_init_structure);
+  //}}}
 
   SDRAM_HandleTypeDef sdramHandle;
   sdramHandle.Instance = FMC_SDRAM_DEVICE;
-
-  /* Timing configuration for 100Mhz as SDRAM clock frequency (System clock is up to 200Mhz) */
+  sdramHandle.Init.SDBank             = FMC_SDRAM_BANK2;
+  sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_3;
+  sdramHandle.Init.ReadBurst          = FMC_SDRAM_RBURST_DISABLE;  // FMC_SDRAM_RBURST_ENABLE
+  sdramHandle.Init.CASLatency         = FMC_SDRAM_CAS_LATENCY_2;
+  sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_9;
+  sdramHandle.Init.RowBitsNumber      = FMC_SDRAM_ROW_BITS_NUM_12;
+  sdramHandle.Init.MemoryDataWidth    = FMC_SDRAM_MEM_BUS_WIDTH_16;
+  sdramHandle.Init.InternalBankNumber = FMC_SDRAM_INTERN_BANKS_NUM_4;
+  sdramHandle.Init.WriteProtection    = FMC_SDRAM_WRITE_PROTECTION_DISABLE;
+  sdramHandle.Init.ReadPipeDelay      = FMC_SDRAM_RPIPE_DELAY_0;
   FMC_SDRAM_TimingTypeDef Timing;
   Timing.LoadToActiveDelay    = 2;
   Timing.ExitSelfRefreshDelay = 7;
@@ -102,51 +110,33 @@ void sdRamInit() {
   Timing.WriteRecoveryTime    = 2;
   Timing.RPDelay              = 2;
   Timing.RCDDelay             = 2;
-
-  sdramHandle.Init.SDBank             = FMC_SDRAM_BANK2;
-  sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_3;
-  sdramHandle.Init.ReadBurst          = FMC_SDRAM_RBURST_ENABLE;
-  sdramHandle.Init.CASLatency         = FMC_SDRAM_CAS_LATENCY_3;
-
-  sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_9;
-  sdramHandle.Init.RowBitsNumber      = FMC_SDRAM_ROW_BITS_NUM_12;
-  sdramHandle.Init.MemoryDataWidth    = FMC_SDRAM_MEM_BUS_WIDTH_16;
-  sdramHandle.Init.InternalBankNumber = FMC_SDRAM_INTERN_BANKS_NUM_4;
-  sdramHandle.Init.WriteProtection    = FMC_SDRAM_WRITE_PROTECTION_DISABLE;
-  sdramHandle.Init.ReadPipeDelay      = FMC_SDRAM_RPIPE_DELAY_0;
-
   if (HAL_SDRAM_Init (&sdramHandle, &Timing) != HAL_OK)
-    printf ("HAL_SDRAM_Init fialed\n");
+    printf ("HAL_SDRAM_Init failed\n");
 
-  __IO uint32_t tmpmrd = 0;
 
-  /* Step 1: Configure a clock configuration enable command */
   FMC_SDRAM_CommandTypeDef Command;
   Command.CommandMode            = FMC_SDRAM_CMD_CLK_ENABLE;
   Command.CommandTarget          = FMC_SDRAM_CMD_TARGET_BANK2;
   Command.AutoRefreshNumber      = 1;
   Command.ModeRegisterDefinition = 0;
   HAL_SDRAM_SendCommand (&sdramHandle, &Command, SDRAM_TIMEOUT);
-  HAL_Delay(1);
+  HAL_Delay (2);
 
-  /* Step 3: Configure a PALL (precharge all) command */
   Command.CommandMode            = FMC_SDRAM_CMD_PALL;
   Command.CommandTarget          = FMC_SDRAM_CMD_TARGET_BANK2;
   Command.AutoRefreshNumber      = 1;
   Command.ModeRegisterDefinition = 0;
   HAL_SDRAM_SendCommand(&sdramHandle, &Command, SDRAM_TIMEOUT);
 
-  /* Step 4: Configure an Auto Refresh command */
   Command.CommandMode            = FMC_SDRAM_CMD_AUTOREFRESH_MODE;
   Command.CommandTarget          = FMC_SDRAM_CMD_TARGET_BANK2;
   Command.AutoRefreshNumber      = 8;
   Command.ModeRegisterDefinition = 0;
   HAL_SDRAM_SendCommand (&sdramHandle, &Command, SDRAM_TIMEOUT);
 
-  /* Step 5: Program the external memory mode register */
-  tmpmrd = (uint32_t)SDRAM_MODEREG_BURST_LENGTH_1          |
+  __IO uint32_t tmpmrd = (uint32_t)SDRAM_MODEREG_BURST_LENGTH_1          |
                      SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL   |
-                     SDRAM_MODEREG_CAS_LATENCY_3           |
+                     SDRAM_MODEREG_CAS_LATENCY_2           |
                      SDRAM_MODEREG_OPERATING_MODE_STANDARD |
                      SDRAM_MODEREG_WRITEBURST_MODE_SINGLE;
 
@@ -240,12 +230,12 @@ void sdRamTest (uint32_t fromValue, uint32_t toValue, uint16_t* addr, uint32_t l
     auto readAddress = addr;
     for (uint32_t j = 0; j < len / 2; j++) {
       uint16_t readWord1 = *readAddress++;
-      if ((readWord1 & 0x00FF) == ((j+i) & 0x00FF))
+      if ((readWord1 & 0xFFFF) == ((j+i) & 0xFFFF))
         readOk++;
       else {
         if (readErr < 4)
-          printf ("- error %p %02x %d - r:%04x != %04x\n", readAddress, i, readErr,
-                                                           readWord1 & 0x00FF, (j+i) & 0x00FF);
+          printf ("- error %p %02x %d - r:%04x != %04x\n",
+                  readAddress, i, readErr, readWord1 & 0xFFFF, (j+i) & 0xFFFF);
         readErr++;
         }
       }
