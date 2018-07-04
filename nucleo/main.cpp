@@ -36,7 +36,7 @@ void sdRamInit() {
   //
   //  FMC_A0:A5   PF00:PF05
   //  FMC_A6:A9   PF12:PF15
-  //  FMC_A10:A11 PG00:PG01
+  //  FMC_A10:A12 PG00:PG02
   //  FMC_BA0:BA1 PG04:PG05
   //
   //  FMC_SDCLK   PG08
@@ -74,19 +74,23 @@ void sdRamInit() {
   gpio_init_structure.Pin   = GPIO_PIN_0;
   HAL_GPIO_Init (GPIOC, &gpio_init_structure);
 
-  gpio_init_structure.Pin   = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_8| GPIO_PIN_9 | GPIO_PIN_10 |
+  gpio_init_structure.Pin   = GPIO_PIN_0  | GPIO_PIN_1 | 
+                              GPIO_PIN_8  | GPIO_PIN_9 | GPIO_PIN_10 |
                               GPIO_PIN_14 | GPIO_PIN_15;
   HAL_GPIO_Init (GPIOD, &gpio_init_structure);
 
-  gpio_init_structure.Pin   = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9 |
-                              GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
+  gpio_init_structure.Pin   = GPIO_PIN_0  | GPIO_PIN_1  | 
+                              GPIO_PIN_7  | GPIO_PIN_8  | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | 
+                              GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
   HAL_GPIO_Init (GPIOE, &gpio_init_structure);
 
-  gpio_init_structure.Pin   = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2| GPIO_PIN_3 | GPIO_PIN_4 |
+  gpio_init_structure.Pin   = GPIO_PIN_0 | GPIO_PIN_1  | GPIO_PIN_2  | GPIO_PIN_3  | GPIO_PIN_4 |
                               GPIO_PIN_5 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
   HAL_GPIO_Init (GPIOF, &gpio_init_structure);
 
-  gpio_init_structure.Pin   = GPIO_PIN_0 | GPIO_PIN_1 |GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_8 | GPIO_PIN_15;
+  gpio_init_structure.Pin   = GPIO_PIN_0 | GPIO_PIN_1  | GPIO_PIN_2  | GPIO_PIN_4  | GPIO_PIN_5 |
+                              GPIO_PIN_8 | 
+                              GPIO_PIN_15;
   HAL_GPIO_Init (GPIOG, &gpio_init_structure);
   //}}}
 
