@@ -3,30 +3,9 @@
 #include <stdlib.h>
 #include "stm32h7xx_hal.h"
 #include "stm32h7xx_nucleo_144.h"
-//{{{  defines
-#define SDRAM_OK     ((uint8_t)0x00)
-#define SDRAM_ERROR  ((uint8_t)0x01)
 
 #define SDRAM_DEVICE_ADDR  ((uint32_t)0xD0000000)
 #define SDRAM_DEVICE_SIZE  ((uint32_t)0x01000000)
-
-#define REFRESH_COUNT                    ((uint32_t)0x0603)   /* SDRAM refresh counter (100Mhz FMC clock) */
-#define SDRAM_TIMEOUT                    ((uint32_t)0xFFFF)
-
-#define SDRAM_MODEREG_BURST_LENGTH_1             ((uint16_t)0x0000)
-#define SDRAM_MODEREG_BURST_LENGTH_2             ((uint16_t)0x0001)
-#define SDRAM_MODEREG_BURST_LENGTH_4             ((uint16_t)0x0002)
-#define SDRAM_MODEREG_BURST_LENGTH_8             ((uint16_t)0x0004)
-#define SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL      ((uint16_t)0x0000)
-#define SDRAM_MODEREG_BURST_TYPE_INTERLEAVED     ((uint16_t)0x0008)
-
-#define SDRAM_MODEREG_CAS_LATENCY_2              ((uint16_t)0x0020)
-#define SDRAM_MODEREG_CAS_LATENCY_3              ((uint16_t)0x0030)
-
-#define SDRAM_MODEREG_OPERATING_MODE_STANDARD    ((uint16_t)0x0000)
-#define SDRAM_MODEREG_WRITEBURST_MODE_PROGRAMMED ((uint16_t)0x0000)
-#define SDRAM_MODEREG_WRITEBURST_MODE_SINGLE     ((uint16_t)0x0200)
-//}}}
 
 //{{{
 void sdRamInit() {
@@ -52,6 +31,34 @@ void sdRamInit() {
   //  FMC_NBL0    PE00
   //  FMC_NBL1    PE01
   //}}}
+  //{{{  defines
+  #define REFRESH_COUNT                    ((uint32_t)0x0603)
+  #define SDRAM_TIMEOUT                    ((uint32_t)0xFFFF)
+
+  #define SDRAM_MODEREG_BURST_LENGTH_1             ((uint16_t)0x0000)
+  #define SDRAM_MODEREG_BURST_LENGTH_2             ((uint16_t)0x0001)
+  #define SDRAM_MODEREG_BURST_LENGTH_4             ((uint16_t)0x0002)
+  #define SDRAM_MODEREG_BURST_LENGTH_8             ((uint16_t)0x0004)
+  #define SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL      ((uint16_t)0x0000)
+  #define SDRAM_MODEREG_BURST_TYPE_INTERLEAVED     ((uint16_t)0x0008)
+
+  #define SDRAM_MODEREG_CAS_LATENCY_2              ((uint16_t)0x0020)
+  #define SDRAM_MODEREG_CAS_LATENCY_3              ((uint16_t)0x0030)
+
+  #define SDRAM_MODEREG_OPERATING_MODE_STANDARD    ((uint16_t)0x0000)
+  #define SDRAM_MODEREG_WRITEBURST_MODE_PROGRAMMED ((uint16_t)0x0000)
+  #define SDRAM_MODEREG_WRITEBURST_MODE_SINGLE     ((uint16_t)0x0200)
+  //}}}
+
+  //{{{  clocks
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
+  __HAL_RCC_GPIOG_CLK_ENABLE();
+  __HAL_RCC_FMC_CLK_ENABLE();
+  //}}}
   //{{{  clocks
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
@@ -74,13 +81,13 @@ void sdRamInit() {
   gpio_init_structure.Pin   = GPIO_PIN_0;
   HAL_GPIO_Init (GPIOC, &gpio_init_structure);
 
-  gpio_init_structure.Pin   = GPIO_PIN_0  | GPIO_PIN_1 | 
+  gpio_init_structure.Pin   = GPIO_PIN_0  | GPIO_PIN_1 |
                               GPIO_PIN_8  | GPIO_PIN_9 | GPIO_PIN_10 |
                               GPIO_PIN_14 | GPIO_PIN_15;
   HAL_GPIO_Init (GPIOD, &gpio_init_structure);
 
-  gpio_init_structure.Pin   = GPIO_PIN_0  | GPIO_PIN_1  | 
-                              GPIO_PIN_7  | GPIO_PIN_8  | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | 
+  gpio_init_structure.Pin   = GPIO_PIN_0  | GPIO_PIN_1  |
+                              GPIO_PIN_7  | GPIO_PIN_8  | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 |
                               GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
   HAL_GPIO_Init (GPIOE, &gpio_init_structure);
 
@@ -89,7 +96,7 @@ void sdRamInit() {
   HAL_GPIO_Init (GPIOF, &gpio_init_structure);
 
   gpio_init_structure.Pin   = GPIO_PIN_0 | GPIO_PIN_1  | GPIO_PIN_2  | GPIO_PIN_4  | GPIO_PIN_5 |
-                              GPIO_PIN_8 | 
+                              GPIO_PIN_8 |
                               GPIO_PIN_15;
   HAL_GPIO_Init (GPIOG, &gpio_init_structure);
   //}}}
@@ -100,8 +107,8 @@ void sdRamInit() {
   sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_3;
   sdramHandle.Init.ReadBurst          = FMC_SDRAM_RBURST_ENABLE;
   sdramHandle.Init.CASLatency         = FMC_SDRAM_CAS_LATENCY_2;
-  sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_9;
-  sdramHandle.Init.RowBitsNumber      = FMC_SDRAM_ROW_BITS_NUM_12;
+  sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_11;
+  sdramHandle.Init.RowBitsNumber      = FMC_SDRAM_ROW_BITS_NUM_13;
   sdramHandle.Init.MemoryDataWidth    = FMC_SDRAM_MEM_BUS_WIDTH_16;
   sdramHandle.Init.InternalBankNumber = FMC_SDRAM_INTERN_BANKS_NUM_4;
   sdramHandle.Init.WriteProtection    = FMC_SDRAM_WRITE_PROTECTION_DISABLE;
@@ -214,36 +221,32 @@ void systemClockConfig() {
   }
 //}}}
 //{{{
-void sdRamTest (uint32_t fromValue, uint32_t toValue, uint16_t* addr, uint32_t len) {
+uint32_t sdRamTest (int offset, uint16_t* addr, uint32_t len) {
 
-  for (uint32_t i = fromValue; i <= toValue; i++) {
-    uint16_t data = i;
-    auto writeAddress = addr;
-    for (uint32_t j = 0; j < len/2; j++)
-      *writeAddress++ = data++;
+  uint32_t readOk = 0;
+  uint32_t readErr = 0;
 
-    uint32_t readOk = 0;
-    uint32_t readErr = 0;
-    auto readAddress = addr;
-    for (uint32_t j = 0; j < len / 2; j++) {
-      uint16_t readWord1 = *readAddress++;
-      if ((readWord1 & 0xFFFF) == ((j+i) & 0xFFFF))
-        readOk++;
-      else {
-        if (readErr < 4)
-          printf ("- error %p %02x %d - r:%04x != %04x\n",
-                  readAddress, i, readErr, readWord1 & 0xFFFF, (j+i) & 0xFFFF);
-        readErr++;
-        }
+  uint16_t data = offset;
+  auto writeAddress = addr;
+  for (uint32_t j = 0; j < len/2; j++)
+    *writeAddress++ = data++;
+
+  auto readAddress = addr;
+  for (uint32_t j = 0; j < len / 2; j++) {
+    uint16_t readWord1 = *readAddress++;
+    if ((readWord1 & 0xFFFF) == ((j+offset) & 0xFFFF))
+      readOk++;
+    else {
+      if (readErr < 4)
+        printf ("- error %p %02x %d - r:%04x != %04x\n",
+                readAddress, offset, readErr, readWord1 & 0xFFFF, (j+offset) & 0xFFFF);
+      readErr++;
       }
-    printf ("%p i:%x ok:%x error:%x %d\n", addr, i, readOk, readErr, (readOk * 100) / (len/2));
-    //lcd->info ("ok " +
-    //           hex ((uint32_t)addr) + " " +
-    //           dec (i) + " " +
-    //           hex (readOk) + " " +
-    //           hex (readErr) + " " +
-    //           dec ((readOk * 100) / (len/2)));
+
     }
+
+  printf ("%p i:%x ok:%x error:%x %d\n", addr, offset, readOk, readErr, (readOk * 100) / (len/2));
+  return readErr;
   }
 //}}}
 
@@ -263,13 +266,17 @@ int main() {
   int i = 0;
   while (true) {
     printf ("Hello World %d!\n", i++);
-    HAL_Delay (100);
-    BSP_LED_Toggle (LED_GREEN);
-    HAL_Delay (100);
-    BSP_LED_Toggle (LED_BLUE);
-    HAL_Delay (100);
-    BSP_LED_Toggle (LED_RED);
-    sdRamTest (i, i, (uint16_t*)0xD0000000, 0x01000000);
+    for (int j = 0; j < 4; j++) {
+      BSP_LED_Toggle (LED_GREEN);
+      if (sdRamTest (i, (uint16_t*)(0xD0000000 + (j * 0x02000000)), 0x02000000) == 0) {
+        BSP_LED_On (LED_BLUE);
+        BSP_LED_Off (LED_RED);
+        }
+      else {
+        BSP_LED_On (LED_RED);
+        BSP_LED_Off (LED_BLUE);
+        }
+      }
     }
 
   return 0;
