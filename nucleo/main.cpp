@@ -1,7 +1,4 @@
 // main.cpp
-#include <stdio.h>
-#include <stdlib.h>
-#include "stm32h7xx_hal.h"
 #include "stm32h7xx_nucleo_144.h"
 
 #define SDRAM_DEVICE_ADDR  ((uint32_t)0xD0000000)
@@ -264,11 +261,12 @@ int main() {
   BSP_LED_Init (LED_RED);
 
   int i = 0;
+  int k = 0;
   while (true) {
     printf ("Hello World %d!\n", i++);
     for (int j = 0; j < 4; j++) {
       BSP_LED_Toggle (LED_GREEN);
-      if (sdRamTest (i, (uint16_t*)(0xD0000000 + (j * 0x02000000)), 0x02000000) == 0) {
+      if (sdRamTest (k++, (uint16_t*)(0xD0000000 + (j * 0x02000000)), 0x02000000) == 0) {
         BSP_LED_On (LED_BLUE);
         BSP_LED_Off (LED_RED);
         }
