@@ -1,8 +1,8 @@
 // main.cpp
 #include "stm32h7xx_nucleo_144.h"
 
-#define SDRAM_DEVICE_ADDR  ((uint32_t)0xD0000000)
-#define SDRAM_DEVICE_SIZE  ((uint32_t)0x01000000)
+#define SDRAM_DEVICE_ADDR ((uint32_t)0xD0000000)
+#define SDRAM_DEVICE_SIZE ((uint32_t)0x08000000)
 
 //{{{
 void sdRamInit() {
@@ -111,15 +111,15 @@ void sdRamInit() {
   sdramHandle.Init.WriteProtection    = FMC_SDRAM_WRITE_PROTECTION_DISABLE;
   sdramHandle.Init.ReadPipeDelay      = FMC_SDRAM_RPIPE_DELAY_0;
 
-  FMC_SDRAM_TimingTypeDef Timing;
-  Timing.LoadToActiveDelay    = 2;
-  Timing.ExitSelfRefreshDelay = 7;
-  Timing.SelfRefreshTime      = 4;
-  Timing.RowCycleDelay        = 7;
-  Timing.WriteRecoveryTime    = 2;
-  Timing.RPDelay              = 2;
-  Timing.RCDDelay             = 2;
-  if (HAL_SDRAM_Init (&sdramHandle, &Timing) != HAL_OK)
+  FMC_SDRAM_TimingTypeDef timing;
+  timing.LoadToActiveDelay    = 2;
+  timing.ExitSelfRefreshDelay = 7;
+  timing.SelfRefreshTime      = 4;
+  timing.RowCycleDelay        = 7;
+  timing.WriteRecoveryTime    = 2;
+  timing.RPDelay              = 2;
+  timing.RCDDelay             = 2;
+  if (HAL_SDRAM_Init (&sdramHandle, &timing) != HAL_OK)
     printf ("HAL_SDRAM_Init failed\n");
 
   #define kClockEnable  FMC_SDRAM_CMD_CLK_ENABLE | FMC_SDRAM_CMD_TARGET_BANK2;
@@ -135,18 +135,10 @@ void sdRamInit() {
                           SDRAM_MODEREG_BURST_LENGTH_8) << 9)
 
   FMC_SDRAM_DEVICE->SDCMR = kClockEnable;
-  while (HAL_IS_BIT_SET (FMC_SDRAM_DEVICE->SDSR, FMC_SDSR_MODES2)) {}
-  HAL_Delay (2);
-
+  HAL_Delay (1);
   FMC_SDRAM_DEVICE->SDCMR = kPreChargeAll;
-  while (HAL_IS_BIT_SET (FMC_SDRAM_DEVICE->SDSR, FMC_SDSR_MODES2)) {}
-
   FMC_SDRAM_DEVICE->SDCMR = kAutoRefresh;
-  while (HAL_IS_BIT_SET (FMC_SDRAM_DEVICE->SDSR, FMC_SDSR_MODES2)) {}
-
-  FMC_SDRAM_DEVICE->SDCMR =  kLoadMode;
-  while (HAL_IS_BIT_SET (FMC_SDRAM_DEVICE->SDSR, FMC_SDSR_MODES2)) {}
-
+  FMC_SDRAM_DEVICE->SDCMR = kLoadMode;
   FMC_SDRAM_DEVICE->SDRTR = REFRESH_COUNT << 1;
   }
 //}}}
@@ -173,7 +165,7 @@ void systemClockConfig() {
 
   // Voltage scaling allows optimizing the power consumption when the device is
   // clocked below the maximum system frequency, to update the voltage scaling value
-  // regarding system frequency refer to product datasheet.  */
+  // regarding system frequency refer to product datasheet
   __HAL_PWR_VOLTAGESCALING_CONFIG (PWR_REGULATOR_VOLTAGE_SCALE1);
 
   while (!__HAL_PWR_GET_FLAG (PWR_FLAG_VOSRDY)) {}
@@ -181,7 +173,7 @@ void systemClockConfig() {
   // Enable D2 domain SRAM3 Clock (0x30040000 AXI)
   __HAL_RCC_D2SRAM3_CLK_ENABLE();
 
-  // enable HSE Oscillator and activate PLL with HSE as source
+  // enable HSE Oscillator, activate PLL HSE source
   RCC_OscInitTypeDef RCC_OscInitStruct;
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
@@ -201,7 +193,7 @@ void systemClockConfig() {
   if (HAL_RCC_OscConfig (&RCC_OscInitStruct) != HAL_OK)
     while (true);
 
-  // select PLL as system clock source and configure  bus clocks dividers
+  // select PLL system clock source. config bus clocks dividers
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
   RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK  | RCC_CLOCKTYPE_HCLK |
                                  RCC_CLOCKTYPE_D1PCLK1 | RCC_CLOCKTYPE_PCLK1 |
@@ -263,7 +255,7 @@ int main() {
   int i = 0;
   int k = 0;
   while (true) {
-    printf ("Hello World %d!\n", i++);
+    printf ("Ram test iteration %d\n", i++);
     for (int j = 0; j < 4; j++) {
       BSP_LED_Toggle (LED_GREEN);
       if (sdRamTest (k++, (uint16_t*)(0xD0000000 + (j * 0x02000000)), 0x02000000) == 0) {
