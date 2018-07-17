@@ -2,7 +2,7 @@
 //{{{  includes
 #include "cLcd.h"
 #include "../freetype/FreeSansBold.h"
-//#include "cpuUsage.h"
+#include "cpuUsage.h"
 //}}}
 //{{{  screen resolution defines
 #ifdef NEXXY_SCREEN
