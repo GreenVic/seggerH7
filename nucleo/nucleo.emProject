@@ -263,6 +263,19 @@
       <file file_name="../FreeRTOS/timers.c" />
       <file file_name="../FreeRTOS/portable/GCC/ARM_CM4F/port.c" />
       <file file_name="../FreeRTOS/CMSIS_RTOS/cmsis_os.c" />
+      <folder Name="inc">
+        <file file_name="../FreeRTOS/include/FreeRTOS.h" />
+        <file file_name="../FreeRTOS/include/croutine.h" />
+        <file file_name="../FreeRTOS/include/event_groups.h" />
+        <file file_name="../FreeRTOS/include/list.h" />
+        <file file_name="../FreeRTOS/include/portable.h" />
+        <file file_name="../FreeRTOS/include/queue.h" />
+        <file file_name="../FreeRTOS/include/semphr.h" />
+        <file file_name="../FreeRTOS/include/task.h" />
+        <file file_name="../FreeRTOS/include/timers.h" />
+        <file file_name="../FreeRTOS/include/cpuUsage.h" />
+      </folder>
+      <file file_name="../FreeRTOS/cpuUsage.c" />
     </folder>
   </project>
   <configuration
