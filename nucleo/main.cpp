@@ -250,6 +250,7 @@ uint32_t sdRamTest (int offset, uint16_t* addr, uint32_t len) {
 //{{{
 void displayThread (void* arg) {
 
+  printf ("displayThread start\n");
   lcd->render();
   lcd->display (50);
 
@@ -258,7 +259,9 @@ void displayThread (void* arg) {
     lcd->clear (COL_BLACK);
     lcd->drawInfo();
     lcd->present();
-    vTaskDelay (1);
+    vTaskDelay (100);
+    printf ("displayThread\n");
+    BSP_LED_Toggle (LED_BLUE);
     }
   }
 //}}}
