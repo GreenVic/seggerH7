@@ -5,9 +5,9 @@ void NMI_Handler() {}
 void MemManage_Handler() { while (1) { } }
 void BusFault_Handler() { while (1) { } }
 void UsageFault_Handler() { while (1) { } }
-void SVC_Handler() { }
 void DebugMon_Handler() { }
-void PendSV_Handler() { }
+//void PendSV_Handler() { }
+//void SVC_Handler() { }
 
 void SysTick_Handler() {
   HAL_IncTick();

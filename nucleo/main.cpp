@@ -1,8 +1,17 @@
 // main.cpp
+#include "cmsis_os.h"
 #include "stm32h7xx_nucleo_144.h"
+#include "cLcd.h"
 
 #define SDRAM_DEVICE_ADDR ((uint32_t)0xD0000000)
 #define SDRAM_DEVICE_SIZE ((uint32_t)0x08000000)
+
+const std::string kHello = std::string(__TIME__) + " " + std::string(__DATE__);
+const HeapRegion_t kHeapRegions[] = {
+  {(uint8_t*)SDRAM_DEVICE_ADDR + (LCD_WIDTH*LCD_HEIGHT*4), SDRAM_DEVICE_SIZE - (LCD_WIDTH*LCD_HEIGHT*4) },
+  { nullptr, 0 } };
+
+cLcd* lcd = nullptr;
 
 //{{{
 void sdRamInit() {
@@ -238,6 +247,21 @@ uint32_t sdRamTest (int offset, uint16_t* addr, uint32_t len) {
   return readErr;
   }
 //}}}
+//{{{
+void displayThread (void* arg) {
+
+  lcd->render();
+  lcd->display (50);
+
+  while (true) {
+    lcd->start();
+    lcd->clear (COL_BLACK);
+    lcd->drawInfo();
+    lcd->present();
+    vTaskDelay (1);
+    }
+  }
+//}}}
 
 int main() {
 
@@ -252,22 +276,30 @@ int main() {
   BSP_LED_Init (LED_BLUE);
   BSP_LED_Init (LED_RED);
 
-  int i = 0;
-  int k = 0;
-  while (true) {
-    printf ("Ram test iteration %d\n", i++);
-    for (int j = 0; j < 4; j++) {
-      BSP_LED_Toggle (LED_GREEN);
-      if (sdRamTest (k++, (uint16_t*)(0xD0000000 + (j * 0x02000000)), 0x02000000) == 0) {
-        BSP_LED_On (LED_BLUE);
-        BSP_LED_Off (LED_RED);
-        }
-      else {
-        BSP_LED_On (LED_RED);
-        BSP_LED_Off (LED_BLUE);
-        }
-      }
-    }
+  vPortDefineHeapRegions (kHeapRegions);
+  lcd = new cLcd ((uint16_t*)0xD0000000, (uint16_t*)0xD0000000 + LCD_WIDTH*LCD_HEIGHT);
+  lcd->init (kHello);
+
+  TaskHandle_t displayHandle;
+  xTaskCreate ((TaskFunction_t)displayThread, "app", 1024, 0, 4, &displayHandle);
+  vTaskStartScheduler();
+
+  //int i = 0;
+  //int k = 0;
+  //while (true) {
+  //  printf ("Ram test iteration %d\n", i++);
+  //  for (int j = 1; j < 4; j++) {
+  //    BSP_LED_Toggle (LED_GREEN);
+  //    if (sdRamTest (k++, (uint16_t*)(0xD0000000 + (j * 0x02000000)), 0x02000000) == 0) {
+  //      BSP_LED_On (LED_BLUE);
+  //      BSP_LED_Off (LED_RED);
+  //      }
+  //    else {
+  //      BSP_LED_On (LED_RED);
+  //      BSP_LED_Off (LED_BLUE);
+  //      }
+  //    }
+  //  }
 
   return 0;
   }

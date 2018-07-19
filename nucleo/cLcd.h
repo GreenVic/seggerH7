@@ -58,11 +58,11 @@ public:
          uint16_t x, uint16_t y, uint16_t width, uint16_t height)
      :  mPiccy((uint32_t)piccy), mComponents(components), mPitch(pitch), mX(x), mY(y), mWidth(width), mHeight(height) {
    if (components == 2)
-     mFormat = DMA2D_RGB565;
+     mFormat = DMA2D_INPUT_RGB565;
    else if (components == 3)
-     mFormat = DMA2D_RGB888;
+     mFormat = DMA2D_INPUT_RGB888;
    else
-     mFormat = DMA2D_ARGB8888;
+     mFormat = DMA2D_INPUT_ARGB8888;
     };
 
   void free() {

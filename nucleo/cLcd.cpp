@@ -107,14 +107,14 @@ cLcd::cLcd (uint16_t* buffer0, uint16_t* buffer1)  {
   mLcd = this;
 
   // consts
-  rectRegs[0] = DMA2D_RGB565;
+  rectRegs[0] = DMA2D_OUTPUT_RGB565;
 
   stampRegs[1] = 0;
-  stampRegs[6] = DMA2D_RGB565;
+  stampRegs[6] = DMA2D_INPUT_RGB565;
   stampRegs[7] = 0;
   stampRegs[8] = 0;
   stampRegs[9] = 0;
-  stampRegs[10] = DMA2D_RGB565;
+  stampRegs[10] = DMA2D_OUTPUT_RGB565;
   stampRegs[11] = 0;
   }
 //}}}
@@ -330,7 +330,7 @@ void cLcd::copy (cTile* srcTile, cPoint p) {
   DMA2D->FGPFCCR = srcTile->mFormat;
   DMA2D->FGMAR = (uint32_t)srcTile->mPiccy;
   DMA2D->FGOR = srcTile->mPitch - width;
-  DMA2D->OPFCCR = DMA2D_RGB565;
+  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
   DMA2D->OMAR = uint32_t(mBuffer[mDrawBuffer] + p.y * getWidth() + p.x);
   DMA2D->OOR = getWidth() - srcTile->mWidth;
   DMA2D->NLR = (width << 16) | height;
@@ -347,7 +347,7 @@ void cLcd::copy90 (cTile* srcTile, cPoint p) {
   ready();
   DMA2D->FGPFCCR = srcTile->mFormat;
   DMA2D->FGOR = 0;
-  DMA2D->OPFCCR = DMA2D_RGB565;
+  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
   DMA2D->OOR = getWidth() - 1;
   DMA2D->NLR = 0x10000 | (srcTile->mWidth);
 
@@ -676,15 +676,17 @@ void cLcd::display (int brightness) {
 //{{{
 void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
 
-  // PLLSAI_VCO Input  = HSE_VALUE / PLL_M = 1mhz
-  // PLLSAI_VCO Output = PLLSAI_VCO Input * PLLSAIN     = 130mhz
-  // PLLLCDCLK         = PLLSAI_VCO Output / PLLSAIR    = 130/2 = 65mhz
-  // LTDC clock        = PLLLCDCLK / LTDC_PLLSAI_DIVR_2 = 65/2  = 32.5mhz
+  // PLL3_VCO Input = HSE_VALUE/PLL3M = 1 Mhz
+  // PLL3_VCO Output = PLL3_VCO Input * PLL3N = 130 Mhz
+  // PLLLCDCLK = PLL3_VCO Output/PLL3R = 130/4 = 32.Mhz
+  // LTDC clock frequency = PLLLCDCLK = 9.08 Mhz
   RCC_PeriphCLKInitTypeDef rccPeriphClkInit;
   rccPeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_LTDC;
-  rccPeriphClkInit.PLLSAI.PLLSAIN = LTDC_CLOCK_4;  // hclk = 192mhz, 138/4 = 34.5mhz
-  rccPeriphClkInit.PLLSAI.PLLSAIR = 2;
-  rccPeriphClkInit.PLLSAIDivR = RCC_PLLSAIDIVR_2;
+  rccPeriphClkInit.PLL3.PLL3M = 8;
+  rccPeriphClkInit.PLL3.PLL3N = 130;
+  rccPeriphClkInit.PLL3.PLL3R = 4;
+  rccPeriphClkInit.PLL3.PLL3P = 2;
+  rccPeriphClkInit.PLL3.PLL3Q = 7;
   HAL_RCCEx_PeriphCLKConfig (&rccPeriphClkInit);
 
   //{{{  config clocks
@@ -709,6 +711,7 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   //  R5 <-> PA.12   G5 <-> PB.11   B5 <-> PA.03
   //  R6 <-> PB.01   G6 <-> PC.07   B6 <-> PB.08
   //  R7 <-> PG.06   G7 <-> PD.03   B7 <-> PB.09
+  //
   //  CK <-> PG.07
   //  DE <-> PF.10
   // ADJ <-> PD.13
@@ -752,40 +755,40 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   HAL_GPIO_Init (GPIOG, &GPIO_InitStructure);
   //}}}
   //{{{  config TIM4 chan2 PWM to PD13
-  // adj  - PD13
-  GPIO_InitStructure.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStructure.Pull = GPIO_NOPULL;
-  GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStructure.Alternate = GPIO_AF2_TIM4;
-  GPIO_InitStructure.Pin = GPIO_PIN_13;
-  HAL_GPIO_Init (GPIOD, &GPIO_InitStructure);
+  //// adj  - PD13
+  //GPIO_InitStructure.Mode = GPIO_MODE_AF_PP;
+  //GPIO_InitStructure.Pull = GPIO_NOPULL;
+  //GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  //GPIO_InitStructure.Alternate = GPIO_AF2_TIM4;
+  //GPIO_InitStructure.Pin = GPIO_PIN_13;
+  //HAL_GPIO_Init (GPIOD, &GPIO_InitStructure);
 
-  __HAL_RCC_TIM4_CLK_ENABLE();
+  //__HAL_RCC_TIM4_CLK_ENABLE();
 
-  mTimHandle.Instance = TIM4;
-  mTimHandle.Init.Period = 10000 - 1;
-  mTimHandle.Init.Prescaler = 1;
-  mTimHandle.Init.ClockDivision = 0;
-  mTimHandle.Init.CounterMode = TIM_COUNTERMODE_UP;
+  //mTimHandle.Instance = TIM4;
+  //mTimHandle.Init.Period = 10000 - 1;
+  //mTimHandle.Init.Prescaler = 1;
+  //mTimHandle.Init.ClockDivision = 0;
+  //mTimHandle.Init.CounterMode = TIM_COUNTERMODE_UP;
 
-  if (HAL_TIM_Base_Init (&mTimHandle))
-    printf ("HAL_TIM_Base_Init failed\n");
+  //if (HAL_TIM_Base_Init (&mTimHandle))
+    //printf ("HAL_TIM_Base_Init failed\n");
 
-  // init timOcInit
-  TIM_OC_InitTypeDef timOcInit = {0};
-  timOcInit.OCMode       = TIM_OCMODE_PWM1;
-  timOcInit.OCPolarity   = TIM_OCPOLARITY_HIGH;
-  timOcInit.OCFastMode   = TIM_OCFAST_DISABLE;
-  timOcInit.OCNPolarity  = TIM_OCNPOLARITY_HIGH;
-  timOcInit.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  timOcInit.OCIdleState  = TIM_OCIDLESTATE_RESET;
-  timOcInit.Pulse = 10000 / 2;
+  //// init timOcInit
+  //TIM_OC_InitTypeDef timOcInit = {0};
+  //timOcInit.OCMode       = TIM_OCMODE_PWM1;
+  //timOcInit.OCPolarity   = TIM_OCPOLARITY_HIGH;
+  //timOcInit.OCFastMode   = TIM_OCFAST_DISABLE;
+  //timOcInit.OCNPolarity  = TIM_OCNPOLARITY_HIGH;
+  //timOcInit.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  //timOcInit.OCIdleState  = TIM_OCIDLESTATE_RESET;
+  //timOcInit.Pulse = 10000 / 2;
 
-  if (HAL_TIM_PWM_ConfigChannel (&mTimHandle, &timOcInit, TIM_CHANNEL_2))
-    printf ("HAL_TIM_PWM_ConfigChannel failed\n");
+  //if (HAL_TIM_PWM_ConfigChannel (&mTimHandle, &timOcInit, TIM_CHANNEL_2))
+    //printf ("HAL_TIM_PWM_ConfigChannel failed\n");
 
-  if (HAL_TIM_PWM_Start (&mTimHandle, TIM_CHANNEL_2))
-    printf ("HAL_TIM_PWM_Start TIM4 ch2 failed\n");
+  //if (HAL_TIM_PWM_Start (&mTimHandle, TIM_CHANNEL_2))
+    //printf ("HAL_TIM_PWM_Start TIM4 ch2 failed\n");
   //}}}
 
   mLtdcHandle.Instance = LTDC;
