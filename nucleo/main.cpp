@@ -254,6 +254,14 @@ void displayThread (void* arg) {
   lcd->render();
   lcd->display (50);
 
+  lcd->info (COL_WHITE, "Hello colin white\n");
+  lcd->info (COL_RED, "Hello colin red\n");
+  lcd->info (COL_GREEN, "Hello colin green\n");
+  lcd->info (COL_BLUE, "Hello colin blue\n");
+  lcd->info (COL_MAGENTA, "Hello colin magenta\n");
+  lcd->info (COL_CYAN, "Hello colin cyan\n");
+  lcd->info (COL_YELLOW, "Hello colin yelllow\n");
+
   while (true) {
     lcd->start();
     lcd->clear (COL_BLACK);
