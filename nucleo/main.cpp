@@ -1,15 +1,20 @@
 // main.cpp
+//{{{  includes
 #include "cmsis_os.h"
 #include "stm32h7xx_nucleo_144.h"
 #include "cLcd.h"
-
+//}}}
+//{{{  defines
 #define SDRAM_DEVICE_ADDR 0xD0000000
 #define SDRAM_DEVICE_SIZE 0x08000000
-
+//}}}
+//{{{  const
 const std::string kHello = std::string(__TIME__) + " " + std::string(__DATE__);
+
 const HeapRegion_t kHeapRegions[] = {
   {(uint8_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4), SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4 },
   { nullptr, 0 } };
+//}}}
 
 cLcd* lcd = nullptr;
 
@@ -247,6 +252,7 @@ uint32_t sdRamTest (int offset, uint16_t* addr, uint32_t len) {
   return readErr;
   }
 //}}}
+
 //{{{
 void displayThread (void* arg) {
 
@@ -290,6 +296,28 @@ void appThread (void* arg) {
     }
   }
 //}}}
+//{{{
+void testThread (void* arg) {
+
+  int i = 0;
+  int k = 0;
+  while (true) {
+    printf ("Ram test iteration %d\n", i++);
+    for (int j = 1; j < 4; j++) {
+      BSP_LED_Toggle (LED_GREEN);
+      if (sdRamTest (k++, (uint16_t*)(0xD0000000 + (j * 0x02000000)), 0x02000000) == 0) {
+        BSP_LED_On (LED_BLUE);
+        BSP_LED_Off (LED_RED);
+        }
+      else {
+        BSP_LED_On (LED_RED);
+        BSP_LED_Off (LED_BLUE);
+        }
+      vTaskDelay (100);
+      }
+    }
+  }
+//}}}
 
 int main() {
 
@@ -314,24 +342,9 @@ int main() {
   TaskHandle_t appHandle;
   xTaskCreate ((TaskFunction_t)appThread, "app", 1024, 0, 4, &appHandle);
 
+  //TaskHandle_t testHandle;
+  //xTaskCreate ((TaskFunction_t)testThread, "test", 1024, 0, 4, &testHandle);
   vTaskStartScheduler();
-
-  //int i = 0;
-  //int k = 0;
-  //while (true) {
-  //  printf ("Ram test iteration %d\n", i++);
-  //  for (int j = 1; j < 4; j++) {
-  //    BSP_LED_Toggle (LED_GREEN);
-  //    if (sdRamTest (k++, (uint16_t*)(0xD0000000 + (j * 0x02000000)), 0x02000000) == 0) {
-  //      BSP_LED_On (LED_BLUE);
-  //      BSP_LED_Off (LED_RED);
-  //      }
-  //    else {
-  //      BSP_LED_On (LED_RED);
-  //      BSP_LED_Off (LED_BLUE);
-  //      }
-  //    }
-  //  }
 
   return 0;
   }
