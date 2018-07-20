@@ -676,10 +676,10 @@ void cLcd::display (int brightness) {
 //{{{
 void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
 
-  // PLL3_VCO Input = HSE_VALUE/PLL3M = 1 Mhz
-  // PLL3_VCO Output = PLL3_VCO Input * PLL3N = 130 Mhz
-  // PLLLCDCLK = PLL3_VCO Output/PLL3R = 130/4 = 32.Mhz
-  // LTDC clock frequency = PLLLCDCLK = 9.08 Mhz
+  // PLL3_VCO In  = HSE_VALUE / PLL3M = 1 Mhz
+  // PLL3_VCO Out = PLL3_VCO In * PLL3N = 100 Mhz
+  // PLLLCDCLK    = PLL3_VCO Out / PLL3R = 100/4 = 25Mhz
+  // LTDC clock   = PLLLCDCLK = 25Mhz
   RCC_PeriphCLKInitTypeDef rccPeriphClkInit;
   rccPeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_LTDC;
   rccPeriphClkInit.PLL3.PLL3M = 8;
