@@ -3,12 +3,12 @@
 #include "stm32h7xx_nucleo_144.h"
 #include "cLcd.h"
 
-#define SDRAM_DEVICE_ADDR ((uint32_t)0xD0000000)
-#define SDRAM_DEVICE_SIZE ((uint32_t)0x08000000)
+#define SDRAM_DEVICE_ADDR 0xD0000000
+#define SDRAM_DEVICE_SIZE 0x08000000
 
 const std::string kHello = std::string(__TIME__) + " " + std::string(__DATE__);
 const HeapRegion_t kHeapRegions[] = {
-  {(uint8_t*)SDRAM_DEVICE_ADDR + (LCD_WIDTH*LCD_HEIGHT*4), SDRAM_DEVICE_SIZE - (LCD_WIDTH*LCD_HEIGHT*4) },
+  {(uint8_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4), SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4 },
   { nullptr, 0 } };
 
 cLcd* lcd = nullptr;
@@ -250,9 +250,20 @@ uint32_t sdRamTest (int offset, uint16_t* addr, uint32_t len) {
 //{{{
 void displayThread (void* arg) {
 
-  printf ("displayThread start\n");
   lcd->render();
   lcd->display (50);
+
+  while (true) {
+    lcd->start();
+    lcd->clear (COL_BLACK);
+    lcd->drawInfo();
+    lcd->present();
+    //vTaskDelay (20);
+    }
+  }
+//}}}
+//{{{
+void appThread (void* arg) {
 
   lcd->info (COL_WHITE, "Hello colin white\n");
   lcd->info (COL_RED, "Hello colin red\n");
@@ -262,13 +273,19 @@ void displayThread (void* arg) {
   lcd->info (COL_CYAN, "Hello colin cyan\n");
   lcd->info (COL_YELLOW, "Hello colin yelllow\n");
 
+  int i = 0;
   while (true) {
-    lcd->start();
-    lcd->clear (COL_BLACK);
-    lcd->drawInfo();
-    lcd->present();
-    vTaskDelay (20);
-    printf ("displayThread\n");
+    switch (i++ % 7) {
+      case 0 : lcd->info (COL_WHITE,   "Hello colin white\n"); break;
+      case 1 : lcd->info (COL_RED  ,   "Hello colin red abcdefghijklmn\n"); break;
+      case 2 : lcd->info (COL_GREEN,   "Hello colin green opqrstuvwxyz\n"); break;
+      case 3 : lcd->info (COL_BLUE,    "Hello colin blue zxcvbnm\n"); break;
+      case 4 : lcd->info (COL_MAGENTA, "Hello colin magenta 0123456789\n"); break;
+      case 5 : lcd->info (COL_CYAN,    "Hello colin cyan ?><:;@'()*&\n"); break;
+      case 6 : lcd->info (COL_YELLOW,  "Hello colin yellow ABCDEFGHIGJKNMONOPQRSTUVWXYZ\n"); break;
+      }
+
+    vTaskDelay (100);
     BSP_LED_Toggle (LED_BLUE);
     }
   }
@@ -288,11 +305,15 @@ int main() {
   BSP_LED_Init (LED_RED);
 
   vPortDefineHeapRegions (kHeapRegions);
-  lcd = new cLcd ((uint16_t*)0xD0000000, (uint16_t*)0xD0000000 + LCD_WIDTH*LCD_HEIGHT);
+  lcd = new cLcd ((uint16_t*)SDRAM_DEVICE_ADDR, (uint16_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*2));
   lcd->init (kHello);
 
   TaskHandle_t displayHandle;
-  xTaskCreate ((TaskFunction_t)displayThread, "app", 1024, 0, 4, &displayHandle);
+  xTaskCreate ((TaskFunction_t)displayThread, "display", 1024, 0, 4, &displayHandle);
+
+  TaskHandle_t appHandle;
+  xTaskCreate ((TaskFunction_t)appThread, "app", 1024, 0, 4, &appHandle);
+
   vTaskStartScheduler();
 
   //int i = 0;

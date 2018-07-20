@@ -5,6 +5,7 @@
       Name="Common"
       STLport="Yes"
       arm_architecture="v7EM"
+      arm_compiler_variant="gcc"
       arm_core_type="Cortex-M7"
       arm_endian="Little"
       arm_fp_abi="Hard"
@@ -281,6 +282,7 @@
       <file file_name="../FreeRTOS/queueMalloc.c" />
       <file file_name="../FreeRTOS/tasksMalloc.c" />
     </folder>
+    <configuration Name="Debug" gcc_optimization_level="Debug" />
   </project>
   <configuration
     Name="Debug"
