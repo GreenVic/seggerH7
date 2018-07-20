@@ -683,7 +683,7 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   RCC_PeriphCLKInitTypeDef rccPeriphClkInit;
   rccPeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_LTDC;
   rccPeriphClkInit.PLL3.PLL3M = 8;
-  rccPeriphClkInit.PLL3.PLL3N = 130;
+  rccPeriphClkInit.PLL3.PLL3N = 100;
   rccPeriphClkInit.PLL3.PLL3R = 4;
   rccPeriphClkInit.PLL3.PLL3P = 2;
   rccPeriphClkInit.PLL3.PLL3Q = 7;
@@ -755,40 +755,40 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   HAL_GPIO_Init (GPIOG, &GPIO_InitStructure);
   //}}}
   //{{{  config TIM4 chan2 PWM to PD13
-  //// adj  - PD13
-  //GPIO_InitStructure.Mode = GPIO_MODE_AF_PP;
-  //GPIO_InitStructure.Pull = GPIO_NOPULL;
-  //GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  //GPIO_InitStructure.Alternate = GPIO_AF2_TIM4;
-  //GPIO_InitStructure.Pin = GPIO_PIN_13;
-  //HAL_GPIO_Init (GPIOD, &GPIO_InitStructure);
+  // adj  - PD13
+  GPIO_InitStructure.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStructure.Pull = GPIO_NOPULL;
+  GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStructure.Alternate = GPIO_AF2_TIM4;
+  GPIO_InitStructure.Pin = GPIO_PIN_13;
+  HAL_GPIO_Init (GPIOD, &GPIO_InitStructure);
 
-  //__HAL_RCC_TIM4_CLK_ENABLE();
+  __HAL_RCC_TIM4_CLK_ENABLE();
 
-  //mTimHandle.Instance = TIM4;
-  //mTimHandle.Init.Period = 10000 - 1;
-  //mTimHandle.Init.Prescaler = 1;
-  //mTimHandle.Init.ClockDivision = 0;
-  //mTimHandle.Init.CounterMode = TIM_COUNTERMODE_UP;
+  mTimHandle.Instance = TIM4;
+  mTimHandle.Init.Period = 10000 - 1;
+  mTimHandle.Init.Prescaler = 1;
+  mTimHandle.Init.ClockDivision = 0;
+  mTimHandle.Init.CounterMode = TIM_COUNTERMODE_UP;
 
-  //if (HAL_TIM_Base_Init (&mTimHandle))
-    //printf ("HAL_TIM_Base_Init failed\n");
+  if (HAL_TIM_Base_Init (&mTimHandle))
+    printf ("HAL_TIM_Base_Init failed\n");
 
-  //// init timOcInit
-  //TIM_OC_InitTypeDef timOcInit = {0};
-  //timOcInit.OCMode       = TIM_OCMODE_PWM1;
-  //timOcInit.OCPolarity   = TIM_OCPOLARITY_HIGH;
-  //timOcInit.OCFastMode   = TIM_OCFAST_DISABLE;
-  //timOcInit.OCNPolarity  = TIM_OCNPOLARITY_HIGH;
-  //timOcInit.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  //timOcInit.OCIdleState  = TIM_OCIDLESTATE_RESET;
-  //timOcInit.Pulse = 10000 / 2;
+  // init timOcInit
+  TIM_OC_InitTypeDef timOcInit = {0};
+  timOcInit.OCMode       = TIM_OCMODE_PWM1;
+  timOcInit.OCPolarity   = TIM_OCPOLARITY_HIGH;
+  timOcInit.OCFastMode   = TIM_OCFAST_DISABLE;
+  timOcInit.OCNPolarity  = TIM_OCNPOLARITY_HIGH;
+  timOcInit.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  timOcInit.OCIdleState  = TIM_OCIDLESTATE_RESET;
+  timOcInit.Pulse = 10000 / 4;
 
-  //if (HAL_TIM_PWM_ConfigChannel (&mTimHandle, &timOcInit, TIM_CHANNEL_2))
-    //printf ("HAL_TIM_PWM_ConfigChannel failed\n");
+  if (HAL_TIM_PWM_ConfigChannel (&mTimHandle, &timOcInit, TIM_CHANNEL_2))
+    printf ("HAL_TIM_PWM_ConfigChannel failed\n");
 
-  //if (HAL_TIM_PWM_Start (&mTimHandle, TIM_CHANNEL_2))
-    //printf ("HAL_TIM_PWM_Start TIM4 ch2 failed\n");
+  if (HAL_TIM_PWM_Start (&mTimHandle, TIM_CHANNEL_2))
+    printf ("HAL_TIM_PWM_Start TIM4 ch2 failed\n");
   //}}}
 
   mLtdcHandle.Instance = LTDC;

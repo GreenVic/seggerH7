@@ -267,7 +267,7 @@ void displayThread (void* arg) {
     lcd->clear (COL_BLACK);
     lcd->drawInfo();
     lcd->present();
-    vTaskDelay (100);
+    vTaskDelay (20);
     printf ("displayThread\n");
     BSP_LED_Toggle (LED_BLUE);
     }
