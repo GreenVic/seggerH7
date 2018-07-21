@@ -188,6 +188,7 @@ void cLcd::rect (uint16_t colour, const cRect& r) {
 //__IO uint32_t OMAR    Output Memory Address Register, Address offset: 0x3C
 //__IO uint32_t OOR     Output Offset Register,         Address offset: 0x40
 //__IO uint32_t NLR     Number of Line Register,        Address offset: 0x44
+
   rectRegs[1] = colour;
   rectRegs[2] = uint32_t (mBuffer[mDrawBuffer] + r.top * getWidth() + r.left);
   rectRegs[3] = getWidth() - r.getWidth();

@@ -17,6 +17,13 @@ const HeapRegion_t kHeapRegions[] = {
 //}}}
 
 cLcd* lcd = nullptr;
+extern "C" { void EXTI0_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (GPIO_PIN_13); } }
+//{{{
+void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
+  if (GPIO_Pin == GPIO_PIN_13)
+    lcd->toggle();
+  }
+//}}}
 
 //{{{
 void systemClockConfig() {
@@ -288,17 +295,20 @@ void displayThread (void* arg) {
 //{{{
 void appThread (void* arg) {
 
+  //BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_GPIO);
+
   int i = 0;
   while (true) {
-    switch (i++ % 7) {
-      case 0 : lcd->info (COL_WHITE,   "Hello colin white\n"); break;
-      case 1 : lcd->info (COL_RED  ,   "Hello colin red abcdefghijklmn\n"); break;
-      case 2 : lcd->info (COL_GREEN,   "Hello colin green  opqrstuvwxyz\n"); break;
-      case 3 : lcd->info (COL_BLUE,    "Hello colin blue zxcvbnm\n"); break;
-      case 4 : lcd->info (COL_MAGENTA, "Hello colin magenta 0123456789\n"); break;
-      case 5 : lcd->info (COL_CYAN,    "Hello colin cyan ?><:;@'()*&\n"); break;
-      case 6 : lcd->info (COL_YELLOW,  "Hello colin yellow ABCDEFGHIGJKNMONOPQRSTUVWXYZ\n"); break;
-      }
+    //if (!BSP_PB_GetState (BUTTON_KEY))
+      switch (i++ % 7) {
+        case 0 : lcd->info (COL_WHITE,   "Hello colin white\n"); break;
+        case 1 : lcd->info (COL_RED  ,   "Hello colin red abcdefghijklmn\n"); break;
+        case 2 : lcd->info (COL_GREEN,   "Hello colin green  opqrstuvwxyz\n"); break;
+        case 3 : lcd->info (COL_BLUE,    "Hello colin blue zxcvbnm\n"); break;
+        case 4 : lcd->info (COL_MAGENTA, "Hello colin magenta 0123456789\n"); break;
+        case 5 : lcd->info (COL_CYAN,    "Hello colin cyan ?><:;@'()*&\n"); break;
+        case 6 : lcd->info (COL_YELLOW,  "Hello colin yellow ABCDEFGHIGJKNMONOPQRSTUVWXYZ\n"); break;
+        }
 
     vTaskDelay (100);
     BSP_LED_Toggle (LED_GREEN);
@@ -337,16 +347,17 @@ int main() {
   BSP_LED_Init (LED_GREEN);
   BSP_LED_Init (LED_BLUE);
   BSP_LED_Init (LED_RED);
+  //BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_EXTI);
 
   vPortDefineHeapRegions (kHeapRegions);
   lcd = new cLcd ((uint16_t*)SDRAM_DEVICE_ADDR, (uint16_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*2));
   lcd->init (kHello);
 
   TaskHandle_t displayHandle;
-  xTaskCreate ((TaskFunction_t)displayThread, "display", 1024, 0, 4, &displayHandle);
+  xTaskCreate ((TaskFunction_t)displayThread, "display", 2048, 0, 4, &displayHandle);
 
   TaskHandle_t appHandle;
-  xTaskCreate ((TaskFunction_t)appThread, "app", 1024, 0, 4, &appHandle);
+  xTaskCreate ((TaskFunction_t)appThread, "app", 2048, 0, 4, &appHandle);
 
   //TaskHandle_t testHandle;
   //xTaskCreate ((TaskFunction_t)sdRamTestThread, "test", 1024, 0, 4, &testHandle);
