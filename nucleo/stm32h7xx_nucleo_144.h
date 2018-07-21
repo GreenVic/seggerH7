@@ -54,15 +54,15 @@ typedef enum { BUTTON_MODE_GPIO = 0, BUTTON_MODE_EXTI = 1 } ButtonMode_TypeDef;
 #define SD_CS_GPIO_CLK_ENABLE()                  __HAL_RCC_GPIOF_CLK_ENABLE()
 #define SD_CS_GPIO_CLK_DISABLE()                 __HAL_RCC_GPIOF_CLK_DISABLE()
 
-void BSP_LED_Init(Led_TypeDef Led);
-void BSP_LED_DeInit(Led_TypeDef Led);
-void BSP_LED_On(Led_TypeDef Led);
-void BSP_LED_Off(Led_TypeDef Led);
-void BSP_LED_Toggle(Led_TypeDef Led);
+void BSP_LED_Init (Led_TypeDef Led);
+void BSP_LED_DeInit (Led_TypeDef Led);
+void BSP_LED_On (Led_TypeDef Led);
+void BSP_LED_Off (Led_TypeDef Led);
+void BSP_LED_Toggle (Led_TypeDef Led);
 
-void BSP_PB_Init(Button_TypeDef Button, ButtonMode_TypeDef ButtonMode);
-void BSP_PB_DeInit(Button_TypeDef Button);
-uint32_t BSP_PB_GetState(Button_TypeDef Button);
+void BSP_PB_Init (Button_TypeDef Button, ButtonMode_TypeDef ButtonMode);
+void BSP_PB_DeInit (Button_TypeDef Button);
+uint32_t BSP_PB_GetState (Button_TypeDef Button);
 
 //{{{
 #ifdef __cplusplus
