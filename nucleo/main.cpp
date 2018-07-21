@@ -254,20 +254,11 @@ void displayThread (void* arg) {
     lcd->clear (COL_BLACK);
     lcd->drawInfo();
     lcd->present();
-    //vTaskDelay (20);
     }
   }
 //}}}
 //{{{
 void appThread (void* arg) {
-
-  lcd->info (COL_WHITE, "Hello colin white\n");
-  lcd->info (COL_RED, "Hello colin red\n");
-  lcd->info (COL_GREEN, "Hello colin green\n");
-  lcd->info (COL_BLUE, "Hello colin blue\n");
-  lcd->info (COL_MAGENTA, "Hello colin magenta\n");
-  lcd->info (COL_CYAN, "Hello colin cyan\n");
-  lcd->info (COL_YELLOW, "Hello colin yelllow\n");
 
   int i = 0;
   while (true) {
@@ -287,7 +278,7 @@ void appThread (void* arg) {
   }
 //}}}
 //{{{
-void testThread (void* arg) {
+void sdRamTestThread (void* arg) {
 
   int i = 0;
   int k = 0;
@@ -333,7 +324,7 @@ int main() {
   xTaskCreate ((TaskFunction_t)appThread, "app", 1024, 0, 4, &appHandle);
 
   //TaskHandle_t testHandle;
-  //xTaskCreate ((TaskFunction_t)testThread, "test", 1024, 0, 4, &testHandle);
+  //xTaskCreate ((TaskFunction_t)sdRamTestThread, "test", 1024, 0, 4, &testHandle);
   vTaskStartScheduler();
 
   return 0;
