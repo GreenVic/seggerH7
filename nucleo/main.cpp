@@ -39,11 +39,8 @@ void systemClockConfig() {
 
   MODIFY_REG (PWR->CR3, PWR_CR3_SCUEN, 0);
 
-  // Voltage scaling allows optimizing the power consumption when the device is
-  // clocked below the maximum system frequency, to update the voltage scaling value
-  // regarding system frequency refer to product datasheet
+  // Voltage scaling optimises power consumption when clocked below maximum system frequency
   __HAL_PWR_VOLTAGESCALING_CONFIG (PWR_REGULATOR_VOLTAGE_SCALE1);
-
   while (!__HAL_PWR_GET_FLAG (PWR_FLAG_VOSRDY)) {}
 
   // Enable D2 domain SRAM3 Clock (0x30040000 AXI)
@@ -57,17 +54,14 @@ void systemClockConfig() {
   RCC_OscInitStruct.CSIState = RCC_CSI_OFF;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-
   RCC_OscInitStruct.PLL.PLLM = 4;
   RCC_OscInitStruct.PLL.PLLN = 400;
   RCC_OscInitStruct.PLL.PLLP = 2;
   RCC_OscInitStruct.PLL.PLLR = 2;
   RCC_OscInitStruct.PLL.PLLQ = 4;
-
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_2;
-  if (HAL_RCC_OscConfig (&RCC_OscInitStruct) != HAL_OK)
-    while (true);
+  HAL_RCC_OscConfig (&RCC_OscInitStruct);
 
   // select PLL system clock source. config bus clocks dividers
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
@@ -81,10 +75,23 @@ void systemClockConfig() {
   RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
-  if (HAL_RCC_ClockConfig (&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
-    while (true);
+  HAL_RCC_ClockConfig (&RCC_ClkInitStruct, FLASH_LATENCY_4);
+
+  // PLL3_VCO In  = HSE_VALUE / PLL3M = 1 Mhz
+  // PLL3_VCO Out = PLL3_VCO In * PLL3N = 100 Mhz
+  // PLLLCDCLK    = PLL3_VCO Out / PLL3R = 100/4 = 25Mhz
+  // LTDC clock   = PLLLCDCLK = 25Mhz
+  RCC_PeriphCLKInitTypeDef rccPeriphClkInit;
+  rccPeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_LTDC;
+  rccPeriphClkInit.PLL3.PLL3M = 8;
+  rccPeriphClkInit.PLL3.PLL3N = 100;
+  rccPeriphClkInit.PLL3.PLL3R = 4;
+  rccPeriphClkInit.PLL3.PLL3P = 2;
+  rccPeriphClkInit.PLL3.PLL3Q = 7;
+  HAL_RCCEx_PeriphCLKConfig (&rccPeriphClkInit);
   }
 //}}}
+
 //{{{
 void mpuConfig() {
 

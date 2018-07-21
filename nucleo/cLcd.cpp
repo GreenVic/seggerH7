@@ -676,19 +676,6 @@ void cLcd::display (int brightness) {
 //{{{
 void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
 
-  // PLL3_VCO In  = HSE_VALUE / PLL3M = 1 Mhz
-  // PLL3_VCO Out = PLL3_VCO In * PLL3N = 100 Mhz
-  // PLLLCDCLK    = PLL3_VCO Out / PLL3R = 100/4 = 25Mhz
-  // LTDC clock   = PLLLCDCLK = 25Mhz
-  RCC_PeriphCLKInitTypeDef rccPeriphClkInit;
-  rccPeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_LTDC;
-  rccPeriphClkInit.PLL3.PLL3M = 8;
-  rccPeriphClkInit.PLL3.PLL3N = 100;
-  rccPeriphClkInit.PLL3.PLL3R = 4;
-  rccPeriphClkInit.PLL3.PLL3P = 2;
-  rccPeriphClkInit.PLL3.PLL3Q = 7;
-  HAL_RCCEx_PeriphCLKConfig (&rccPeriphClkInit);
-
   //{{{  config clocks
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
