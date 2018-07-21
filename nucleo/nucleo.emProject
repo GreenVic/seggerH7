@@ -157,21 +157,15 @@
         <file file_name="../drivers/Inc/stm32h7xx_hal_cortex.h" />
         <file file_name="../drivers/Inc/stm32h7xx_hal_crc.h" />
       </folder>
-      <file file_name="../drivers/Src/stm32h7xx_hal_dac.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_dac_ex.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_dcmi.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_dfsdm.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_dma.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_dma_ex.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_dma2d.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_eth.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_eth_ex.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_fdcan.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_flash.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_flash_ex.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_gpio.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_hash.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_hash_ex.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_hcd.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_hrtim.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_hsem.c" />
@@ -219,7 +213,6 @@
       <file file_name="../drivers/Src/stm32h7xx_hal.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_adc.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_adc_ex.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_cec.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_comp.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_cortex.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_crc.c" />
