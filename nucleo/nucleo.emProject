@@ -29,7 +29,8 @@
       linker_section_placements_segments="FLASH RX 0x08000000 0x00200000;SRAM RWX 0x24000000 0x00080000"
       macros="STLport=No"
       project_directory=""
-      project_type="Executable" />
+      project_type="Executable"
+      speed="0" />
     <folder Name="Source Files">
       <configuration
         Name="Common"
@@ -178,8 +179,6 @@
       <file file_name="../drivers/Src/stm32h7xx_hal_i2c_ex.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_i2s.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_i2s_ex.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_irda.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_iwdg.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_jpeg.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_lptim.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_ltdc.c" />
@@ -187,27 +186,20 @@
       <file file_name="../drivers/Src/stm32h7xx_hal_mdma.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_mmc.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_mmc_ex.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_nand.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_nor.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_opamp.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_opamp_ex.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_pcd.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_pcd_ex.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_pwr.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_pwr_ex.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_qspi.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_rcc.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_rcc_ex.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_rng.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_rtc.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_rtc_ex.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_sai.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_sai_ex.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_sd.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_sd_ex.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_sdram.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_smartcard.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_smartcard_ex.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_smbus.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_spdifrx.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_spi.c" />
@@ -232,8 +224,6 @@
       <file file_name="../drivers/Src/stm32h7xx_hal_cortex.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_crc.c" />
       <file file_name="../drivers/Src/stm32h7xx_hal_crc_ex.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_cryp.c" />
-      <file file_name="../drivers/Src/stm32h7xx_hal_cryp_ex.c" />
     </folder>
     <folder Name="freetype">
       <folder Name="inc">

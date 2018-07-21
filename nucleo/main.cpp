@@ -9,7 +9,7 @@
 #define SDRAM_DEVICE_SIZE 0x08000000
 //}}}
 //{{{  const
-const std::string kHello = std::string(__TIME__) + " " + std::string(__DATE__);
+const std::string kHello = std::string(__TIME__) + " " + std::string(__DATE__) + " stm32h7 testbed";
 
 const HeapRegion_t kHeapRegions[] = {
   {(uint8_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4), SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4 },
@@ -293,7 +293,7 @@ void appThread (void* arg) {
     switch (i++ % 7) {
       case 0 : lcd->info (COL_WHITE,   "Hello colin white\n"); break;
       case 1 : lcd->info (COL_RED  ,   "Hello colin red abcdefghijklmn\n"); break;
-      case 2 : lcd->info (COL_GREEN,   "Hello colin green opqrstuvwxyz\n"); break;
+      case 2 : lcd->info (COL_GREEN,   "Hello colin green  opqrstuvwxyz\n"); break;
       case 3 : lcd->info (COL_BLUE,    "Hello colin blue zxcvbnm\n"); break;
       case 4 : lcd->info (COL_MAGENTA, "Hello colin magenta 0123456789\n"); break;
       case 5 : lcd->info (COL_CYAN,    "Hello colin cyan ?><:;@'()*&\n"); break;
