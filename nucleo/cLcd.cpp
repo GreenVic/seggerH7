@@ -676,17 +676,8 @@ void cLcd::display (int brightness) {
 //{{{
 void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
 
-  //{{{  config clocks
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOF_CLK_ENABLE();
-  __HAL_RCC_GPIOG_CLK_ENABLE();
-
-  __HAL_RCC_DMA2D_CLK_ENABLE();
   __HAL_RCC_LTDC_CLK_ENABLE();
-  //}}}
+  __HAL_RCC_DMA2D_CLK_ENABLE();
   //{{{  config gpio
   //  VS <-> PA.04 - unused
   //  HS <-> PC.06 - unused
@@ -702,6 +693,14 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   //  CK <-> PG.07
   //  DE <-> PF.10
   // ADJ <-> PD.13
+
+  // config clocks
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    __HAL_RCC_GPIOF_CLK_ENABLE();
+    __HAL_RCC_GPIOG_CLK_ENABLE();
 
   // gpioA - AF14
   GPIO_InitTypeDef GPIO_InitStructure;
