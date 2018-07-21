@@ -86,6 +86,31 @@ void systemClockConfig() {
   }
 //}}}
 //{{{
+void mpuConfig() {
+
+  // Disable the MPU
+  HAL_MPU_Disable();
+
+  // Configure MPU for sdram
+  MPU_Region_InitTypeDef mpuRegion;
+  mpuRegion.Enable = MPU_REGION_ENABLE;
+  mpuRegion.BaseAddress = 0xD0000000;
+  mpuRegion.Size = MPU_REGION_SIZE_4MB;
+  mpuRegion.AccessPermission = MPU_REGION_FULL_ACCESS;
+  mpuRegion.IsBufferable = MPU_ACCESS_BUFFERABLE;
+  mpuRegion.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+  mpuRegion.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  mpuRegion.Number = MPU_REGION_NUMBER0;
+  mpuRegion.TypeExtField = MPU_TEX_LEVEL0;
+  mpuRegion.SubRegionDisable = 0x00;
+  mpuRegion.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+  HAL_MPU_ConfigRegion (&mpuRegion);
+
+  // Enable the MPU
+  HAL_MPU_Enable (MPU_PRIVILEGED_DEFAULT);
+  }
+//}}}
+//{{{
 void sdRamInit() {
   //{{{  pins
   //  FMC_SDCKE1  PB05
@@ -243,7 +268,7 @@ uint32_t sdRamTest (int offset, uint16_t* addr, uint32_t len) {
 void displayThread (void* arg) {
 
   lcd->render();
-  lcd->display (50);
+  lcd->display (75);
 
   while (true) {
     lcd->start();
@@ -269,7 +294,7 @@ void appThread (void* arg) {
       }
 
     vTaskDelay (100);
-    BSP_LED_Toggle (LED_BLUE);
+    BSP_LED_Toggle (LED_GREEN);
     }
   }
 //}}}
@@ -281,15 +306,11 @@ void sdRamTestThread (void* arg) {
   while (true) {
     printf ("Ram test iteration %d\n", i++);
     for (int j = 1; j < 4; j++) {
-      BSP_LED_Toggle (LED_GREEN);
-      if (sdRamTest (k++, (uint16_t*)(0xD0000000 + (j * 0x02000000)), 0x02000000) == 0) {
-        BSP_LED_On (LED_BLUE);
+      BSP_LED_Toggle (LED_BLUE);
+      if (sdRamTest (k++, (uint16_t*)(0xD0000000 + (j * 0x02000000)), 0x02000000) == 0)
         BSP_LED_Off (LED_RED);
-        }
-      else {
+      else
         BSP_LED_On (LED_RED);
-        BSP_LED_Off (LED_BLUE);
-        }
       vTaskDelay (100);
       }
     }
@@ -300,10 +321,11 @@ int main() {
 
   HAL_Init();
   systemClockConfig();
+  sdRamInit();
 
+  mpuConfig();
   SCB_EnableICache();
   SCB_EnableDCache();
-  sdRamInit();
 
   BSP_LED_Init (LED_GREEN);
   BSP_LED_Init (LED_BLUE);
