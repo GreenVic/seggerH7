@@ -128,14 +128,10 @@ void sdRamInit() {
   #define SDRAM_MODEREG_WRITEBURST_MODE_SINGLE     ((uint16_t)0x0200)
   //}}}
 
-  #define kClockEnable  FMC_SDRAM_CMD_CLK_ENABLE | FMC_SDRAM_CMD_TARGET_BANK2;
-
-  #define kPreChargeAll FMC_SDRAM_CMD_PALL | FMC_SDRAM_CMD_TARGET_BANK2;
-
-  #define kAutoRefresh  FMC_SDRAM_CMD_AUTOREFRESH_MODE | FMC_SDRAM_CMD_TARGET_BANK2 | \
-                        ((8-1) << 5)
-
-  #define kLoadMode     FMC_SDRAM_CMD_LOAD_MODE | FMC_SDRAM_CMD_TARGET_BANK2 | \
+  #define kClockEnable  FMC_SDRAM_CMD_TARGET_BANK2 | FMC_SDRAM_CMD_CLK_ENABLE;
+  #define kPreChargeAll FMC_SDRAM_CMD_TARGET_BANK2 | FMC_SDRAM_CMD_PALL;
+  #define kAutoRefresh  FMC_SDRAM_CMD_TARGET_BANK2 | FMC_SDRAM_CMD_AUTOREFRESH_MODE | ((8-1) << 5)
+  #define kLoadMode     FMC_SDRAM_CMD_TARGET_BANK2 | FMC_SDRAM_CMD_LOAD_MODE| \
                         ((SDRAM_MODEREG_WRITEBURST_MODE_SINGLE | \
                           SDRAM_MODEREG_CAS_LATENCY_2 | \
                           SDRAM_MODEREG_BURST_LENGTH_8) << 9)
