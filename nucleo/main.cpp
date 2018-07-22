@@ -110,10 +110,10 @@ void mpuConfig() {
   MPU_Region_InitTypeDef mpuRegion;
   mpuRegion.Enable = MPU_REGION_ENABLE;
   mpuRegion.BaseAddress = 0xD0000000;
-  mpuRegion.Size = MPU_REGION_SIZE_4MB;
+  mpuRegion.Size = MPU_REGION_SIZE_128MB;
   mpuRegion.AccessPermission = MPU_REGION_FULL_ACCESS;
-  mpuRegion.IsBufferable = MPU_ACCESS_BUFFERABLE;
-  mpuRegion.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+  mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
   mpuRegion.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
   mpuRegion.Number = MPU_REGION_NUMBER0;
   mpuRegion.TypeExtField = MPU_TEX_LEVEL0;
