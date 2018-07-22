@@ -5,7 +5,7 @@
 #include "cLcd.h"
 //}}}
 //{{{  defines
-#define SDRAM_DEVICE_ADDR 0xD0000000
+#define SDRAM_DEVICE_ADDR 0x70000000
 #define SDRAM_DEVICE_SIZE 0x08000000
 //}}}
 //{{{  const
@@ -17,10 +17,11 @@ const HeapRegion_t kHeapRegions[] = {
 //}}}
 
 cLcd* lcd = nullptr;
-extern "C" { void EXTI0_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (GPIO_PIN_13); } }
+
+extern "C" { void EXTI0_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
 void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
-  if (GPIO_Pin == GPIO_PIN_13)
+  if (GPIO_Pin == USER_BUTTON_PIN)
     lcd->toggle();
   }
 //}}}
@@ -237,8 +238,8 @@ void sdRamInit() {
   timing.WriteRecoveryTime    = 2;
   timing.RPDelay              = 2;
   timing.RCDDelay             = 2;
-  if (HAL_SDRAM_Init (&sdramHandle, &timing) != HAL_OK)
-    printf ("HAL_SDRAM_Init failed\n");
+  if (HAL_SDRAM_Init (&sdramHandle, &timing))
+    printf ("HAL_SDRAM_Init fail\n");
 
   FMC_SDRAM_DEVICE->SDCMR = kClockEnable;
   HAL_Delay (1);
@@ -334,13 +335,16 @@ void sdRamTestThread (void* arg) {
   }
 //}}}
 
+
 int main() {
 
   HAL_Init();
   systemClockConfig();
-  sdRamInit();
 
-  mpuConfig();
+  sdRamInit();
+  HAL_SetFMCMemorySwappingConfig (FMC_SWAPBMAP_SDRAM_SRAM); // FMC_SWAPBMAP_SDRAMB2
+  //mpuConfig();
+
   SCB_EnableICache();
   SCB_EnableDCache();
 
