@@ -2,7 +2,11 @@
 //{{{  includes
 #include "cmsis_os.h"
 #include "stm32h7xx_nucleo_144.h"
+
 #include "cLcd.h"
+#include "sd.h"
+
+#include "../fatFs/ff.h"
 //}}}
 //{{{  defines
 #define SDRAM_DEVICE_ADDR 0x70000000
@@ -17,6 +21,8 @@ const HeapRegion_t kHeapRegions[] = {
 //}}}
 
 cLcd* lcd = nullptr;
+FATFS SDFatFs;
+char SDPath[4];
 
 extern "C" { void EXTI0_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
@@ -280,10 +286,37 @@ uint32_t sdRamTest (int offset, uint16_t* addr, uint32_t len) {
 //}}}
 
 //{{{
+void findFiles (const std::string& dirPath, const std::string ext) {
+
+  DIR dir;
+  if (f_opendir (&dir, dirPath.c_str()) == FR_OK) {
+    while (true) {
+      FILINFO filinfo;
+      if (f_readdir (&dir, &filinfo) != FR_OK || !filinfo.fname[0])
+        break;
+      if (filinfo.fname[0] == '.')
+        continue;
+
+      std::string filePath = dirPath + "/" + filinfo.fname;
+      if (filinfo.fattrib & AM_DIR)
+        findFiles (filePath, ext);
+      else {
+        auto found = filePath.find (ext);
+        //if (found == filePath.size() - 4)
+        //  mFileVec.push_back (filePath);
+        }
+      }
+
+    f_closedir (&dir);
+    }
+  }
+//}}}
+
+//{{{
 void displayThread (void* arg) {
 
   lcd->render();
-  lcd->display (75);
+  lcd->display (100);
 
   while (true) {
     lcd->start();
@@ -297,6 +330,26 @@ void displayThread (void* arg) {
 void appThread (void* arg) {
 
   //BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_GPIO);
+  lcd->info (COL_WHITE,   "Hello colin white\n");
+
+  if (FATFS_LinkDriver (&SD_Driver, SDPath) != 0)
+    lcd->info (COL_RED, "sdCard - no driver");
+  else if (f_mount (&SDFatFs, (TCHAR const*)SDPath, 1) != FR_OK)
+    lcd->info (COL_RED, "sdCard - not mounted");
+  else {
+    // get label
+    char label[20] = {0};
+    DWORD volumeSerialNumber = 0;
+    f_getlabel ("", label, &volumeSerialNumber);
+    lcd->info ("sdCard mounted label:" + std::string(label));
+
+    findFiles ("", ".jpg");
+    //for (auto file : mFileVec) {
+      //mTileVec.push_back (loadFile (file, 4));
+    //  lcd->info ("loadfile" + file);
+    //  lcd->change();
+    //  }
+    }
 
   int i = 0;
   while (true) {
@@ -311,7 +364,7 @@ void appThread (void* arg) {
         case 6 : lcd->info (COL_YELLOW,  "Hello colin yellow ABCDEFGHIGJKNMONOPQRSTUVWXYZ\n"); break;
         }
 
-    vTaskDelay (100);
+    vTaskDelay (200);
     BSP_LED_Toggle (LED_GREEN);
     }
   }
@@ -334,7 +387,6 @@ void sdRamTestThread (void* arg) {
     }
   }
 //}}}
-
 
 int main() {
 

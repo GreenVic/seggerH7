@@ -741,7 +741,7 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   GPIO_InitStructure.Pin = GPIO_PIN_10 | GPIO_PIN_12;
   HAL_GPIO_Init (GPIOG, &GPIO_InitStructure);
   //}}}
-  //{{{  config TIM4 chan2 PWM to PD13
+
   // adj  - PD13
   GPIO_InitStructure.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStructure.Pull = GPIO_NOPULL;
@@ -749,7 +749,9 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   GPIO_InitStructure.Alternate = GPIO_AF2_TIM4;
   GPIO_InitStructure.Pin = GPIO_PIN_13;
   HAL_GPIO_Init (GPIOD, &GPIO_InitStructure);
+  //HAL_GPIO_WritePin (GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
 
+  //{{{  config TIM4 chan2 PWM to PD13
   __HAL_RCC_TIM4_CLK_ENABLE();
 
   mTimHandle.Instance = TIM4;
