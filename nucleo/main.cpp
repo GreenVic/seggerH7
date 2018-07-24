@@ -7,6 +7,7 @@
 #include "sd.h"
 
 #include "../fatFs/ff.h"
+#include "jpeglib.h"
 //}}}
 //{{{  defines
 #define SDRAM_DEVICE_ADDR 0x70000000
@@ -23,6 +24,7 @@ const HeapRegion_t kHeapRegions[] = {
 cLcd* lcd = nullptr;
 FATFS SDFatFs;
 char SDPath[4];
+
 std::vector<std::string> mFileVec;
 
 extern "C" { void EXTI0_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
@@ -287,6 +289,73 @@ uint32_t sdRamTest (int offset, uint16_t* addr, uint32_t len) {
 //}}}
 
 //{{{
+cTile* loadFile (const std::string& fileName, int scale) {
+
+  FILINFO filInfo;
+  if (f_stat (fileName.c_str(), &filInfo)) {
+    lcd->info (COL_RED, fileName + " not found");
+    return nullptr;
+    }
+  lcd->info ("loadFile " + fileName + " bytes:" + dec ((int)(filInfo.fsize)) + " " +
+             dec (filInfo.ftime >> 11) + ":" + dec ((filInfo.ftime >> 5) & 63) + " " +
+             dec (filInfo.fdate & 31) + ":" + dec ((filInfo.fdate >> 5) & 15) + ":" + dec ((filInfo.fdate >> 9) + 1980));
+
+  FIL gFile;
+  if (f_open (&gFile, fileName.c_str(), FA_READ)) {
+    lcd->info (COL_RED, fileName + " not opened");
+    return nullptr;
+    }
+
+  auto buf = (uint8_t*)pvPortMalloc (filInfo.fsize);
+  if (!buf)
+    lcd->info (COL_RED, "buf fail");
+
+  UINT bytesRead = 0;
+  f_read (&gFile, buf, (UINT)filInfo.fsize, &bytesRead);
+  f_close (&gFile);
+
+  if (bytesRead > 0) {
+    struct jpeg_error_mgr jerr;
+    struct jpeg_decompress_struct mCinfo;
+    mCinfo.err = jpeg_std_error (&jerr);
+    jpeg_create_decompress (&mCinfo);
+
+    jpeg_mem_src (&mCinfo, buf, bytesRead);
+    jpeg_read_header (&mCinfo, TRUE);
+
+    mCinfo.dct_method = JDCT_FLOAT;
+    mCinfo.out_color_space = JCS_RGB;
+    mCinfo.scale_num = 1;
+    mCinfo.scale_denom = scale;
+    jpeg_start_decompress (&mCinfo);
+
+    auto rgb565pic = (uint16_t*)pvPortMalloc (mCinfo.output_width * mCinfo.output_height * 2);
+    auto tile = new cTile ((uint8_t*)rgb565pic, 2, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
+
+    auto rgbLine = (uint8_t*)malloc (mCinfo.output_width * 3);
+    while (mCinfo.output_scanline < mCinfo.output_height) {
+      jpeg_read_scanlines (&mCinfo, &rgbLine, 1);
+      lcd->rgb888to565 (rgbLine, rgb565pic + ((mCinfo.output_scanline-1) * mCinfo.output_width), mCinfo.output_width);
+      }
+    free (rgbLine);
+
+    vPortFree (buf);
+    jpeg_finish_decompress (&mCinfo);
+
+    lcd->info (COL_YELLOW, "loaded " + dec(mCinfo.image_width) + "x" + dec(mCinfo.image_height) + " " +
+                                       dec(mCinfo.output_width) + "x" + dec(mCinfo.output_height));
+    jpeg_destroy_decompress (&mCinfo);
+
+    return tile;
+    }
+  else {
+    lcd->info (COL_RED, "loadFile read failed");
+    vPortFree (buf);
+    return nullptr;
+    }
+  }
+//}}}
+//{{{
 void findFiles (const std::string& dirPath, const std::string ext) {
 
   DIR dir;
@@ -324,14 +393,24 @@ void displayThread (void* arg) {
     lcd->clear (COL_BLACK);
     lcd->drawInfo();
     lcd->present();
+    vTaskDelay (10);
     }
   }
 //}}}
 //{{{
 void appThread (void* arg) {
 
+  std::vector<cTile*> mTileVec;
+
   //BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_GPIO);
-  lcd->info (COL_WHITE,   "Hello colin white");
+  lcd->info (COL_WHITE,   "Hello colin white\n");
+  lcd->info (COL_RED  ,   "Hello colin red abcdefghijklmn\n");
+  lcd->info (COL_GREEN,   "Hello colin green  opqrstuvwxyz\n");
+  lcd->info (COL_BLUE,    "Hello colin blue zxcvbnm\n");
+  lcd->info (COL_MAGENTA, "Hello colin magenta 0123456789\n");
+  lcd->info (COL_CYAN,    "Hello colin cyan ?><:;@'()*&\n");
+  lcd->info (COL_YELLOW,  "Hello colin yellow ABCDEFGHIGJKNMONOPQRSTUVWXYZ\n");
+
   printf ("Hello colin white\n");
 
   if (FATFS_LinkDriver (&SD_Driver, SDPath) != 0)
@@ -349,30 +428,14 @@ void appThread (void* arg) {
 
     findFiles ("", ".jpg");
     for (auto file : mFileVec) {
-      //mTileVec.push_back (loadFile (file, 4));
+      mTileVec.push_back (loadFile (file, 4));
       printf ("loadfile %s\n", file);
       lcd->info ("loadfile" + file);
       lcd->change();
       }
     }
-  vTaskDelay (20000);
 
-  int i = 0;
-  while (true) {
-    //if (!BSP_PB_GetState (BUTTON_KEY))
-      switch (i++ % 7) {
-        case 0 : lcd->info (COL_WHITE,   "Hello colin white\n"); break;
-        case 1 : lcd->info (COL_RED  ,   "Hello colin red abcdefghijklmn\n"); break;
-        case 2 : lcd->info (COL_GREEN,   "Hello colin green  opqrstuvwxyz\n"); break;
-        case 3 : lcd->info (COL_BLUE,    "Hello colin blue zxcvbnm\n"); break;
-        case 4 : lcd->info (COL_MAGENTA, "Hello colin magenta 0123456789\n"); break;
-        case 5 : lcd->info (COL_CYAN,    "Hello colin cyan ?><:;@'()*&\n"); break;
-        case 6 : lcd->info (COL_YELLOW,  "Hello colin yellow ABCDEFGHIGJKNMONOPQRSTUVWXYZ\n"); break;
-        }
-
-    vTaskDelay (200);
-    BSP_LED_Toggle (LED_GREEN);
-    }
+  vTaskDelay (200000);
   }
 //}}}
 //{{{
