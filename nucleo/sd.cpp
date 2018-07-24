@@ -61,7 +61,6 @@ DSTATUS SD_initialize (BYTE lun) {
 
   gStat = STA_NOINIT;
 
-  /* uSD device interface configuration */
   gSdHandle.Instance = SDMMC1;
   //gSdHandle.Init.ClockBypass         = SDMMC_CLOCK_BYPASS_DISABLE;
   gSdHandle.Init.ClockDiv            = 1;

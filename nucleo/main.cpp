@@ -372,8 +372,12 @@ void findFiles (const std::string& dirPath, const std::string ext) {
         findFiles (filePath, ext);
       else {
         auto found = filePath.find (ext);
-        if (found == filePath.size() - 4)
+        if (found == filePath.size() - 4) {
           mFileVec.push_back (filePath);
+          printf ("findFile %s\n", filePath.c_str());
+          lcd->info ("findFile" + filePath);
+          lcd->change();
+          }
         }
       }
 
@@ -391,6 +395,17 @@ void displayThread (void* arg) {
   while (true) {
     lcd->start();
     lcd->clear (COL_BLACK);
+
+    //int items = mTileVec.size();
+    //int rows = int(sqrt (float(items))) + 1;
+    //int count = 0;
+    //for (auto tile : mTileVec) {
+    //  lcd->copy (tile, cPoint  (
+    //              (lcd->getWidth() / rows) * (count % rows) + (lcd->getWidth() / rows - tile->mWidth) / 2,
+    //              (lcd->getHeight() / rows) * (count / rows) + (lcd->getHeight() / rows - tile->mHeight) / 2));
+    //  count++;
+    //  }
+
     lcd->drawInfo();
     lcd->present();
     vTaskDelay (10);
@@ -428,10 +443,10 @@ void appThread (void* arg) {
 
     findFiles ("", ".jpg");
     for (auto file : mFileVec) {
-      mTileVec.push_back (loadFile (file, 4));
-      printf ("loadfile %s\n", file);
-      lcd->info ("loadfile" + file);
-      lcd->change();
+      //mTileVec.push_back (loadFile (file, 4));
+      printf ("loadfile %s\n", file.c_str());
+      //lcd->info ("loadfile" + file);
+      //lcd->change();
       }
     }
 
