@@ -446,12 +446,12 @@ void appThread (void* arg) {
     lcd->info ("sdCard mounted label:" + std::string(label));
 
     findFiles ("", ".jpg");
-    //for (auto file : mFileVec) {
-    //  mTileVec.push_back (loadFile (file, 4));
-    //  printf ("loadfile %s\n", file.c_str());
-    //  lcd->info ("loadfile" + file);
-    //  lcd->change();
-    //  }
+    for (auto file : mFileVec) {
+      //mTileVec.push_back (loadFile (file, 4));
+      //printf ("loadfile %s\n", file.c_str());
+      //lcd->info ("loadfile" + file);
+      //lcd->change();
+      }
     }
 
   vTaskDelay (200000);
@@ -464,12 +464,16 @@ void sdRamTestThread (void* arg) {
   int k = 0;
   while (true) {
     printf ("Ram test iteration %d\n", i++);
-    for (int j = 1; j < 4; j++) {
+    for (int j = 3; j < 16; j++) {
       BSP_LED_Toggle (LED_BLUE);
-      if (sdRamTest (k++, (uint16_t*)(0xD0000000 + (j * 0x02000000)), 0x02000000) == 0)
+      if (sdRamTest (k++, (uint16_t*)(0x70000000 + (j * 0x00100000)), 0x00100000) == 0) {
         BSP_LED_Off (LED_RED);
-      else
+        lcd->info (COL_RED, "sdCard - ok " + dec (j));
+        }
+      else  {
         BSP_LED_On (LED_RED);
+        lcd->info (COL_RED, "sdCard - fail");
+        }
       vTaskDelay (100);
       }
     }
@@ -503,7 +507,7 @@ int main() {
   TaskHandle_t appHandle;
   xTaskCreate ((TaskFunction_t)appThread, "app", 2048, 0, 4, &appHandle);
 
-  //TaskHandle_t testHandle;
+  TaskHandle_t testHandle;
   //xTaskCreate ((TaskFunction_t)sdRamTestThread, "test", 1024, 0, 4, &testHandle);
   vTaskStartScheduler();
 
