@@ -23,6 +23,7 @@ const HeapRegion_t kHeapRegions[] = {
 cLcd* lcd = nullptr;
 FATFS SDFatFs;
 char SDPath[4];
+std::vector<std::string> mFileVec;
 
 extern "C" { void EXTI0_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
@@ -302,8 +303,8 @@ void findFiles (const std::string& dirPath, const std::string ext) {
         findFiles (filePath, ext);
       else {
         auto found = filePath.find (ext);
-        //if (found == filePath.size() - 4)
-        //  mFileVec.push_back (filePath);
+        if (found == filePath.size() - 4)
+          mFileVec.push_back (filePath);
         }
       }
 
@@ -330,12 +331,15 @@ void displayThread (void* arg) {
 void appThread (void* arg) {
 
   //BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_GPIO);
-  lcd->info (COL_WHITE,   "Hello colin white\n");
+  lcd->info (COL_WHITE,   "Hello colin white");
+  printf ("Hello colin white\n");
 
   if (FATFS_LinkDriver (&SD_Driver, SDPath) != 0)
     lcd->info (COL_RED, "sdCard - no driver");
-  else if (f_mount (&SDFatFs, (TCHAR const*)SDPath, 1) != FR_OK)
+  else if (f_mount (&SDFatFs, (TCHAR const*)SDPath, 1) != FR_OK) {
     lcd->info (COL_RED, "sdCard - not mounted");
+    printf ("sdCard - not mounted\n");
+    }
   else {
     // get label
     char label[20] = {0};
@@ -344,12 +348,14 @@ void appThread (void* arg) {
     lcd->info ("sdCard mounted label:" + std::string(label));
 
     findFiles ("", ".jpg");
-    //for (auto file : mFileVec) {
+    for (auto file : mFileVec) {
       //mTileVec.push_back (loadFile (file, 4));
-    //  lcd->info ("loadfile" + file);
-    //  lcd->change();
-    //  }
+      printf ("loadfile %s\n", file);
+      lcd->info ("loadfile" + file);
+      lcd->change();
+      }
     }
+  vTaskDelay (20000);
 
   int i = 0;
   while (true) {
@@ -398,7 +404,7 @@ int main() {
   //mpuConfig();
 
   SCB_EnableICache();
-  SCB_EnableDCache();
+  //SCB_EnableDCache();
 
   BSP_LED_Init (LED_GREEN);
   BSP_LED_Init (LED_BLUE);

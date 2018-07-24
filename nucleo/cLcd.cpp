@@ -669,7 +669,7 @@ void cLcd::render() {
 //{{{
 void cLcd::display (int brightness) {
 
-  TIM4->CCR2 = 100 * brightness;
+  //TIM4->CCR2 = 100 * brightness;
   }
 //}}}
 
@@ -679,6 +679,7 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
 
   __HAL_RCC_LTDC_CLK_ENABLE();
   __HAL_RCC_DMA2D_CLK_ENABLE();
+  __HAL_RCC_TIM4_CLK_ENABLE();
   //{{{  config gpio
   //  VS <-> PA.04 - unused
   //  HS <-> PC.06 - unused
@@ -751,9 +752,7 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   HAL_GPIO_Init (GPIOD, &GPIO_InitStructure);
   //HAL_GPIO_WritePin (GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
 
-  //{{{  config TIM4 chan2 PWM to PD13
-  __HAL_RCC_TIM4_CLK_ENABLE();
-
+  //  config TIM4 chan2 PWM to PD13
   mTimHandle.Instance = TIM4;
   mTimHandle.Init.Period = 10000 - 1;
   mTimHandle.Init.Prescaler = 1;
@@ -771,14 +770,13 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   timOcInit.OCNPolarity  = TIM_OCNPOLARITY_HIGH;
   timOcInit.OCNIdleState = TIM_OCNIDLESTATE_RESET;
   timOcInit.OCIdleState  = TIM_OCIDLESTATE_RESET;
-  timOcInit.Pulse = 10000 / 4;
+  timOcInit.Pulse = 30000;
 
   if (HAL_TIM_PWM_ConfigChannel (&mTimHandle, &timOcInit, TIM_CHANNEL_2))
     printf ("HAL_TIM_PWM_ConfigChannel failed\n");
 
   if (HAL_TIM_PWM_Start (&mTimHandle, TIM_CHANNEL_2))
     printf ("HAL_TIM_PWM_Start TIM4 ch2 failed\n");
-  //}}}
 
   mLtdcHandle.Instance = LTDC;
   mLtdcHandle.Init.HorizontalSync     = HORIZ_SYNC - 1;

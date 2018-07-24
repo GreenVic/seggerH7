@@ -65,13 +65,11 @@ DSTATUS SD_initialize (BYTE lun) {
 
   gStat = STA_NOINIT;
 
-  /* PLLSAI is dedicated to LCD periph. Do not use it to get 48MHz*/
-
   /* uSD device interface configuration */
   gSdHandle.Instance = SDMMC1;
   //gSdHandle.Init.ClockBypass         = SDMMC_CLOCK_BYPASS_DISABLE;
   //gSdHandle.Init.ClockDiv            = SDMMC_TRANSFER_CLK_DIV;
-  gSdHandle.Init.ClockDiv            = 1;
+  gSdHandle.Init.ClockDiv            = 10;
   gSdHandle.Init.ClockPowerSave      = SDMMC_CLOCK_POWER_SAVE_DISABLE;
   gSdHandle.Init.ClockEdge           = SDMMC_CLOCK_EDGE_RISING;
   gSdHandle.Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_ENABLE;
@@ -87,24 +85,30 @@ DSTATUS SD_initialize (BYTE lun) {
 
   GPIO_InitTypeDef gpio_init_structure;
   gpio_init_structure.Mode = GPIO_MODE_AF_PP;
-  gpio_init_structure.Pull = GPIO_NOPULL;
-  gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  gpio_init_structure.Pull = GPIO_PULLUP;
+  gpio_init_structure.Speed = GPIO_SPEED_FREQ_HIGH;
 
-  // GPIOC config D0 - PC8, D1 - PC9, D2 - PC10, D3 - PC11  CK - PC12
+  // GPIOC config D0 - PC8, D1 - PC9, D2 - PC10, D3 - PC11  
   gpio_init_structure.Alternate = GPIO_AF12_SDIO1;
-  gpio_init_structure.Pin = GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12;
+  gpio_init_structure.Pin = GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11;
   HAL_GPIO_Init(GPIOC, &gpio_init_structure);
 
   // GPIOD config CMD - PD2
   gpio_init_structure.Pin = GPIO_PIN_2;
   HAL_GPIO_Init(GPIOD, &gpio_init_structure);
 
+  // CK - PC12
+  gpio_init_structure.Pin = GPIO_PIN_12;
+  gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  gpio_init_structure.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &gpio_init_structure);
+
   __HAL_RCC_SDMMC1_FORCE_RESET();
   __HAL_RCC_SDMMC1_RELEASE_RESET();
 
   // NVIC configuration for SDIO interrupts
-  HAL_NVIC_SetPriority(SDMMC1_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(SDMMC1_IRQn);
+  HAL_NVIC_SetPriority (SDMMC1_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ (SDMMC1_IRQn);
 
   //{{{  DMA rx parameters
   //gDmaRxHandle.Instance                 = DMA2_Stream3;
@@ -149,13 +153,9 @@ DSTATUS SD_initialize (BYTE lun) {
   //HAL_NVIC_EnableIRQ (DMA2_Stream3_IRQn);
   //HAL_NVIC_SetPriority (DMA2_Stream6_IRQn, 6, 0);
   //HAL_NVIC_EnableIRQ (DMA2_Stream6_IRQn);
-  //HAL_NVIC_SetPriority (SDIO_IRQn, 5, 0);
-  //HAL_NVIC_EnableIRQ (SDIO_IRQn);
 
   if (HAL_SD_Init (&gSdHandle) != HAL_OK)
     cLcd::mLcd->debug (COL_RED, "HAL_SD_Init failed");
-  else if (HAL_SD_ConfigWideBusOperation (&gSdHandle, SDMMC_BUS_WIDE_4B) != HAL_OK)
-    cLcd::mLcd->debug (COL_RED, "HAL_SD_ConfigWideBusOperation failed");
 
   osMessageQDef (sdQueue, QUEUE_SIZE, uint16_t);
   gSdQueueId = osMessageCreate (osMessageQ (sdQueue), NULL);
