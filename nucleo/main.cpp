@@ -11,7 +11,7 @@
 //}}}
 //{{{  defines
 #define SDRAM_DEVICE_ADDR 0x70000000
-#define SDRAM_DEVICE_SIZE 0x08000000
+#define SDRAM_DEVICE_SIZE 0x01000000  // 0x01000000
 //}}}
 //{{{  const
 const std::string kHello = std::string(__TIME__) + " " + std::string(__DATE__);
@@ -229,11 +229,11 @@ void sdRamInit() {
   SDRAM_HandleTypeDef sdramHandle;
   sdramHandle.Instance = FMC_SDRAM_DEVICE;
   sdramHandle.Init.SDBank             = FMC_SDRAM_BANK2;
-  sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_3;
+  sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_2;
   sdramHandle.Init.ReadBurst          = FMC_SDRAM_RBURST_ENABLE;
   sdramHandle.Init.CASLatency         = FMC_SDRAM_CAS_LATENCY_2;
-  sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_11;
-  sdramHandle.Init.RowBitsNumber      = FMC_SDRAM_ROW_BITS_NUM_13;
+  sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_9; //11
+  sdramHandle.Init.RowBitsNumber      = FMC_SDRAM_ROW_BITS_NUM_12;    //13
   sdramHandle.Init.MemoryDataWidth    = FMC_SDRAM_MEM_BUS_WIDTH_16;
   sdramHandle.Init.InternalBankNumber = FMC_SDRAM_INTERN_BANKS_NUM_4;
   sdramHandle.Init.WriteProtection    = FMC_SDRAM_WRITE_PROTECTION_DISABLE;
@@ -368,15 +368,19 @@ void findFiles (const std::string& dirPath, const std::string ext) {
         continue;
 
       std::string filePath = dirPath + "/" + filinfo.fname;
-      if (filinfo.fattrib & AM_DIR)
+      if (filinfo.fattrib & AM_DIR) {
+        printf ("- findFile dir %s\n", filePath.c_str());
+        lcd->info (" - findFile dir" + filePath);
+        lcd->change();
         findFiles (filePath, ext);
+        }
       else {
         auto found = filePath.find (ext);
         if (found == filePath.size() - 4) {
-          mFileVec.push_back (filePath);
           printf ("findFile %s\n", filePath.c_str());
-          lcd->info ("findFile" + filePath);
+          lcd->info ("findFile " + filePath);
           lcd->change();
+          mFileVec.push_back (filePath);
           }
         }
       }
@@ -442,12 +446,12 @@ void appThread (void* arg) {
     lcd->info ("sdCard mounted label:" + std::string(label));
 
     findFiles ("", ".jpg");
-    for (auto file : mFileVec) {
-      //mTileVec.push_back (loadFile (file, 4));
-      printf ("loadfile %s\n", file.c_str());
-      //lcd->info ("loadfile" + file);
-      //lcd->change();
-      }
+    //for (auto file : mFileVec) {
+    //  mTileVec.push_back (loadFile (file, 4));
+    //  printf ("loadfile %s\n", file.c_str());
+    //  lcd->info ("loadfile" + file);
+    //  lcd->change();
+    //  }
     }
 
   vTaskDelay (200000);

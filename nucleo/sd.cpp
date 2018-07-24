@@ -8,12 +8,9 @@
 #define WRITE_CPLT_MSG  2
 #define SD_TIMEOUT 1000
 
-SD_HandleTypeDef gSdHandle;
-DMA_HandleTypeDef gDmaRxHandle;
-DMA_HandleTypeDef gDmaTxHandle;
-
 #define SD_DEFAULT_BLOCK_SIZE 512
 
+SD_HandleTypeDef gSdHandle;
 static volatile DSTATUS gStat = STA_NOINIT;
 osMessageQId gSdQueueId;
 
@@ -62,10 +59,9 @@ DSTATUS SD_initialize (BYTE lun) {
   gStat = STA_NOINIT;
 
   gSdHandle.Instance = SDMMC1;
-  //gSdHandle.Init.ClockBypass         = SDMMC_CLOCK_BYPASS_DISABLE;
   gSdHandle.Init.ClockDiv            = 1;
-  gSdHandle.Init.ClockPowerSave      = SDMMC_CLOCK_POWER_SAVE_DISABLE;
   gSdHandle.Init.ClockEdge           = SDMMC_CLOCK_EDGE_RISING;
+  gSdHandle.Init.ClockPowerSave      = SDMMC_CLOCK_POWER_SAVE_DISABLE;
   gSdHandle.Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_ENABLE;
   gSdHandle.Init.BusWide             = SDMMC_BUS_WIDE_4B;
 
