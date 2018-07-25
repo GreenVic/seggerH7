@@ -669,7 +669,7 @@ void cLcd::render() {
 //{{{
 void cLcd::display (int brightness) {
 
-  //TIM4->CCR2 = 100 * brightness;
+  TIM4->CCR2 = 50 * brightness;
   }
 //}}}
 
@@ -754,7 +754,7 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   //  config TIM4 chan2 PWM to PD13
   TIM_HandleTypeDef mTimHandle;
   mTimHandle.Instance = TIM4;
-  mTimHandle.Init.Period = 1000 - 1;
+  mTimHandle.Init.Period = 5000 - 1;
   mTimHandle.Init.Prescaler = 1;
   mTimHandle.Init.ClockDivision = 0;
   mTimHandle.Init.CounterMode = TIM_COUNTERMODE_UP;
@@ -770,7 +770,7 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   timOcInit.OCNPolarity  = TIM_OCNPOLARITY_HIGH;
   timOcInit.OCNIdleState = TIM_OCNIDLESTATE_RESET;
   timOcInit.OCIdleState  = TIM_OCIDLESTATE_RESET;
-  timOcInit.Pulse = 500;
+  timOcInit.Pulse = 2500;
 
   if (HAL_TIM_PWM_ConfigChannel (&mTimHandle, &timOcInit, TIM_CHANNEL_2))
     printf ("HAL_TIM_PWM_ConfigChannel failed\n");

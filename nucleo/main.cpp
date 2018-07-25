@@ -14,7 +14,7 @@
 #define SDRAM_DEVICE_SIZE 0x01000000  // 0x01000000
 //}}}
 //{{{  const
-const std::string kHello = std::string(__TIME__) + " " + std::string(__DATE__);
+const std::string kHello = "*stm32h7 testbed " + std::string(__TIME__) + " " + std::string(__DATE__);
 
 const HeapRegion_t kHeapRegions[] = {
   {(uint8_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4), SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4 },
@@ -26,6 +26,7 @@ FATFS SDFatFs;
 char SDPath[4];
 
 std::vector<std::string> mFileVec;
+std::vector<cTile*> mTileVec;
 
 extern "C" { void EXTI0_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
@@ -394,7 +395,7 @@ void findFiles (const std::string& dirPath, const std::string ext) {
 void displayThread (void* arg) {
 
   lcd->render();
-  lcd->display (100);
+  lcd->display (60);
 
   while (true) {
     lcd->start();
@@ -418,8 +419,6 @@ void displayThread (void* arg) {
 //}}}
 //{{{
 void appThread (void* arg) {
-
-  std::vector<cTile*> mTileVec;
 
   //BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_GPIO);
   lcd->info (COL_WHITE,   "Hello colin white\n");
@@ -446,11 +445,26 @@ void appThread (void* arg) {
     lcd->info ("sdCard mounted label:" + std::string(label));
 
     findFiles ("", ".jpg");
-    for (auto file : mFileVec) {
+    //for (auto file : mFileVec);
+    auto file = mFileVec.front();
+      {
+      printf ("loadingfile %s\n", file.c_str());
+      lcd->info ("loadingfile" + file);
+      lcd->change();
       //mTileVec.push_back (loadFile (file, 4));
-      //printf ("loadfile %s\n", file.c_str());
-      //lcd->info ("loadfile" + file);
-      //lcd->change();
+      }
+    }
+
+  while (true) {
+    for (int i = 0; i < 100; i += 2) {
+      //lcd->info ("fade " + dec (i));
+      lcd->display (i);
+      vTaskDelay (50);
+      }
+    for (int i = 100; i > 10; i -= 2) {
+      //lcd->info ("fade " + dec (i));
+      lcd->display (i);
+      vTaskDelay (50);
       }
     }
 
@@ -505,7 +519,7 @@ int main() {
   xTaskCreate ((TaskFunction_t)displayThread, "display", 2048, 0, 4, &displayHandle);
 
   TaskHandle_t appHandle;
-  xTaskCreate ((TaskFunction_t)appThread, "app", 2048, 0, 4, &appHandle);
+  xTaskCreate ((TaskFunction_t)appThread, "app", 8192, 0, 4, &appHandle);
 
   TaskHandle_t testHandle;
   //xTaskCreate ((TaskFunction_t)sdRamTestThread, "test", 1024, 0, 4, &testHandle);
