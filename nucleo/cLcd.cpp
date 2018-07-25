@@ -677,6 +677,13 @@ void cLcd::display (int brightness) {
 //{{{
 void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
 
+  // config clocks
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
+  __HAL_RCC_GPIOG_CLK_ENABLE();
   __HAL_RCC_LTDC_CLK_ENABLE();
   __HAL_RCC_DMA2D_CLK_ENABLE();
   __HAL_RCC_TIM4_CLK_ENABLE();
@@ -695,14 +702,6 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   //  CK <-> PG.07
   //  DE <-> PF.10
   // ADJ <-> PD.13
-
-  // config clocks
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    __HAL_RCC_GPIOB_CLK_ENABLE();
-    __HAL_RCC_GPIOC_CLK_ENABLE();
-    __HAL_RCC_GPIOD_CLK_ENABLE();
-    __HAL_RCC_GPIOF_CLK_ENABLE();
-    __HAL_RCC_GPIOG_CLK_ENABLE();
 
   // gpioA - AF14
   GPIO_InitTypeDef GPIO_InitStructure;
@@ -743,7 +742,7 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   HAL_GPIO_Init (GPIOG, &GPIO_InitStructure);
   //}}}
 
-  // adj  - PD13
+  //{{{  adj PWM - PD13
   GPIO_InitStructure.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStructure.Pull = GPIO_NOPULL;
   GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
@@ -753,8 +752,9 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   //HAL_GPIO_WritePin (GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
 
   //  config TIM4 chan2 PWM to PD13
+  TIM_HandleTypeDef mTimHandle;
   mTimHandle.Instance = TIM4;
-  mTimHandle.Init.Period = 10000 - 1;
+  mTimHandle.Init.Period = 1000 - 1;
   mTimHandle.Init.Prescaler = 1;
   mTimHandle.Init.ClockDivision = 0;
   mTimHandle.Init.CounterMode = TIM_COUNTERMODE_UP;
@@ -770,13 +770,14 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   timOcInit.OCNPolarity  = TIM_OCNPOLARITY_HIGH;
   timOcInit.OCNIdleState = TIM_OCNIDLESTATE_RESET;
   timOcInit.OCIdleState  = TIM_OCIDLESTATE_RESET;
-  timOcInit.Pulse = 30000;
+  timOcInit.Pulse = 500;
 
   if (HAL_TIM_PWM_ConfigChannel (&mTimHandle, &timOcInit, TIM_CHANNEL_2))
     printf ("HAL_TIM_PWM_ConfigChannel failed\n");
 
   if (HAL_TIM_PWM_Start (&mTimHandle, TIM_CHANNEL_2))
     printf ("HAL_TIM_PWM_Start TIM4 ch2 failed\n");
+  //}}}
 
   mLtdcHandle.Instance = LTDC;
   mLtdcHandle.Init.HorizontalSync     = HORIZ_SYNC - 1;
