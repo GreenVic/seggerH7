@@ -59,11 +59,11 @@ DSTATUS SD_initialize (BYTE lun) {
   gStat = STA_NOINIT;
 
   gSdHandle.Instance = SDMMC1;
-  gSdHandle.Init.ClockDiv            = 1;
-  gSdHandle.Init.ClockEdge           = SDMMC_CLOCK_EDGE_RISING;
-  gSdHandle.Init.ClockPowerSave      = SDMMC_CLOCK_POWER_SAVE_DISABLE;
+  gSdHandle.Init.BusWide = SDMMC_BUS_WIDE_4B;
+  gSdHandle.Init.ClockDiv = 1;
+  gSdHandle.Init.ClockEdge = SDMMC_CLOCK_EDGE_RISING;
+  gSdHandle.Init.ClockPowerSave = SDMMC_CLOCK_POWER_SAVE_DISABLE;
   gSdHandle.Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_ENABLE;
-  gSdHandle.Init.BusWide             = SDMMC_BUS_WIDE_4B;
 
   if (isDetected() != SD_PRESENT)
     return MSD_ERROR_SD_NOT_PRESENT;
@@ -77,12 +77,12 @@ DSTATUS SD_initialize (BYTE lun) {
   gpio_init_structure.Pull = GPIO_PULLUP;
   gpio_init_structure.Speed = GPIO_SPEED_FREQ_HIGH;
 
-  // GPIOC config D0-3 - PC8-11
+  // GPIOC config D0..3 - PC08..11
   gpio_init_structure.Alternate = GPIO_AF12_SDIO1;
   gpio_init_structure.Pin = GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11;
   HAL_GPIO_Init (GPIOC, &gpio_init_structure);
 
-  // GPIOD config Cmd - PD2
+  // GPIOD config Cmd - PD02
   gpio_init_structure.Pin = GPIO_PIN_2;
   HAL_GPIO_Init(GPIOD, &gpio_init_structure);
 

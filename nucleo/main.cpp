@@ -30,7 +30,7 @@ char SDPath[4];
 vector<string> mFileVec;
 vector<cTile*> mTileVec;
 
-extern "C" { void EXTI0_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
+extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
 void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
   if (GPIO_Pin == USER_BUTTON_PIN)
@@ -328,17 +328,43 @@ void findFiles (const string& dirPath, const string ext) {
 //{{{
 void statFile (const string& fileName) {
 
-  printf ("statFile %s\n", fileName.c_str());
-
+  //printf ("statFile %s\n", fileName.c_str());
   FILINFO filInfo;
-  if (f_stat (fileName.c_str(), &filInfo))
+  if (f_stat (fileName.c_str(), &filInfo)) {
     lcd->info (COL_RED, "statFile " + fileName + " not found");
+    lcd->change();
+    return;
+    }
   else {
     lcd->info ("statFile " + fileName + " bytes:" + dec ((int)(filInfo.fsize)) + " " +
                dec (filInfo.ftime >> 11) + ":" + dec ((filInfo.ftime >> 5) & 63) + " " +
                dec (filInfo.fdate & 31) + ":" + dec ((filInfo.fdate >> 5) & 15) + ":" + dec ((filInfo.fdate >> 9) + 1980));
     lcd->change();
     }
+
+  FIL file;
+  if (f_open (&file, fileName.c_str(), FA_READ)) {
+    lcd->info (COL_RED, "statFile " + fileName + " f_open failed");
+    lcd->change();
+    return;
+    }
+
+  auto buf = (uint8_t*)malloc (filInfo.fsize);
+  //auto buf = (uint8_t*)pvPortMalloc (filInfo.fsize);
+  if (buf) {
+    UINT bytesRead = 0;
+    f_read (&file, buf, (UINT)filInfo.fsize, &bytesRead);
+    if (bytesRead != filInfo.fsize)
+      lcd->info (COL_RED, "statFile size fail " + dec (bytesRead) + " " + dec (filInfo.fsize));
+
+    free (buf);
+    //vPortFree (buf);
+    }
+  else
+    lcd->info (COL_RED, "statFile buf pvPortMalloc fail");
+  lcd->change();
+
+  f_close (&file);
   }
 //}}}
 //{{{
@@ -416,22 +442,24 @@ void displayThread (void* arg) {
   lcd->display (60);
 
   while (true) {
-    lcd->start();
-    lcd->clear (COL_BLACK);
+    if (lcd->changed()) {
+      lcd->start();
+      lcd->clear (COL_BLACK);
 
-    //int items = mTileVec.size();
-    //int rows = int(sqrt (float(items))) + 1;
-    //int count = 0;
-    //for (auto tile : mTileVec) {
-    //  lcd->copy (tile, cPoint  (
-    //              (lcd->getWidth() / rows) * (count % rows) + (lcd->getWidth() / rows - tile->mWidth) / 2,
-    //              (lcd->getHeight() / rows) * (count / rows) + (lcd->getHeight() / rows - tile->mHeight) / 2));
-    //  count++;
-    //  }
+      //int items = mTileVec.size();
+      //int rows = int(sqrt (float(items))) + 1;
+      //int count = 0;
+      //for (auto tile : mTileVec) {
+      //  lcd->copy (tile, cPoint  (
+      //              (lcd->getWidth() / rows) * (count % rows) + (lcd->getWidth() / rows - tile->mWidth) / 2,
+      //              (lcd->getHeight() / rows) * (count / rows) + (lcd->getHeight() / rows - tile->mHeight) / 2));
+      //  count++;
+      //  }
 
-    lcd->drawInfo();
-    lcd->present();
-    vTaskDelay (10);
+      lcd->drawInfo();
+      lcd->present();
+      vTaskDelay (10);
+      }
     }
   }
 //}}}
@@ -463,8 +491,13 @@ void appThread (void* arg) {
     lcd->info ("sdCard mounted label:" + string (label));
 
     findFiles ("", ".jpg");
-    for (auto file : mFileVec)
-      statFile (file);
+    for (int i = 1; i <= 10; i++) {
+      auto startTime = HAL_GetTick();
+      for (auto file : mFileVec)
+        statFile (file);
+      lcd->info (COL_YELLOW, "statFile " + dec(i) + " took:" + dec (HAL_GetTick() - startTime));
+      vTaskDelay (1000);
+      }
       //mTileVec.push_back (loadFile (file, 4));
     }
 
@@ -522,7 +555,7 @@ int main() {
   BSP_LED_Init (LED_GREEN);
   BSP_LED_Init (LED_BLUE);
   BSP_LED_Init (LED_RED);
-  //BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_EXTI);
+  BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_EXTI);
 
   vPortDefineHeapRegions (kHeapRegions);
   lcd = new cLcd ((uint16_t*)SDRAM_DEVICE_ADDR, (uint16_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*2));
