@@ -8,13 +8,15 @@
 
 #include "../fatFs/ff.h"
 #include "jpeglib.h"
+
+using namespace std;
 //}}}
 //{{{  defines
 #define SDRAM_DEVICE_ADDR 0x70000000
 #define SDRAM_DEVICE_SIZE 0x01000000  // 0x01000000
 //}}}
 //{{{  const
-const std::string kHello = "*stm32h7 testbed " + std::string(__TIME__) + " " + std::string(__DATE__);
+const string kHello = "*stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
 
 const HeapRegion_t kHeapRegions[] = {
   {(uint8_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4), SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4 },
@@ -25,8 +27,8 @@ cLcd* lcd = nullptr;
 FATFS SDFatFs;
 char SDPath[4];
 
-std::vector<std::string> mFileVec;
-std::vector<cTile*> mTileVec;
+vector<string> mFileVec;
+vector<cTile*> mTileVec;
 
 extern "C" { void EXTI0_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
@@ -290,7 +292,57 @@ uint32_t sdRamTest (int offset, uint16_t* addr, uint32_t len) {
 //}}}
 
 //{{{
-cTile* loadFile (const std::string& fileName, int scale) {
+void findFiles (const string& dirPath, const string ext) {
+
+  DIR dir;
+  if (f_opendir (&dir, dirPath.c_str()) == FR_OK) {
+    while (true) {
+      FILINFO filinfo;
+      if (f_readdir (&dir, &filinfo) != FR_OK || !filinfo.fname[0])
+        break;
+      if (filinfo.fname[0] == '.')
+        continue;
+
+      string filePath = dirPath + "/" + filinfo.fname;
+      if (filinfo.fattrib & AM_DIR) {
+        printf ("- findFiles dir %s\n", filePath.c_str());
+        lcd->info (" - findFiles dir" + filePath);
+        lcd->change();
+        findFiles (filePath, ext);
+        }
+      else {
+        auto found = filePath.find (ext);
+        if (found == filePath.size() - 4) {
+          printf ("findFiles %s\n", filePath.c_str());
+          lcd->info ("findFiles " + filePath);
+          lcd->change();
+          mFileVec.push_back (filePath);
+          }
+        }
+      }
+
+    f_closedir (&dir);
+    }
+  }
+//}}}
+//{{{
+void statFile (const string& fileName) {
+
+  printf ("statFile %s\n", fileName.c_str());
+
+  FILINFO filInfo;
+  if (f_stat (fileName.c_str(), &filInfo))
+    lcd->info (COL_RED, "statFile " + fileName + " not found");
+  else {
+    lcd->info ("statFile " + fileName + " bytes:" + dec ((int)(filInfo.fsize)) + " " +
+               dec (filInfo.ftime >> 11) + ":" + dec ((filInfo.ftime >> 5) & 63) + " " +
+               dec (filInfo.fdate & 31) + ":" + dec ((filInfo.fdate >> 5) & 15) + ":" + dec ((filInfo.fdate >> 9) + 1980));
+    lcd->change();
+    }
+  }
+//}}}
+//{{{
+cTile* loadFile (const string& fileName, int scale) {
 
   FILINFO filInfo;
   if (f_stat (fileName.c_str(), &filInfo)) {
@@ -356,40 +408,6 @@ cTile* loadFile (const std::string& fileName, int scale) {
     }
   }
 //}}}
-//{{{
-void findFiles (const std::string& dirPath, const std::string ext) {
-
-  DIR dir;
-  if (f_opendir (&dir, dirPath.c_str()) == FR_OK) {
-    while (true) {
-      FILINFO filinfo;
-      if (f_readdir (&dir, &filinfo) != FR_OK || !filinfo.fname[0])
-        break;
-      if (filinfo.fname[0] == '.')
-        continue;
-
-      std::string filePath = dirPath + "/" + filinfo.fname;
-      if (filinfo.fattrib & AM_DIR) {
-        printf ("- findFile dir %s\n", filePath.c_str());
-        lcd->info (" - findFile dir" + filePath);
-        lcd->change();
-        findFiles (filePath, ext);
-        }
-      else {
-        auto found = filePath.find (ext);
-        if (found == filePath.size() - 4) {
-          printf ("findFile %s\n", filePath.c_str());
-          lcd->info ("findFile " + filePath);
-          lcd->change();
-          mFileVec.push_back (filePath);
-          }
-        }
-      }
-
-    f_closedir (&dir);
-    }
-  }
-//}}}
 
 //{{{
 void displayThread (void* arg) {
@@ -442,17 +460,12 @@ void appThread (void* arg) {
     char label[20] = {0};
     DWORD volumeSerialNumber = 0;
     f_getlabel ("", label, &volumeSerialNumber);
-    lcd->info ("sdCard mounted label:" + std::string(label));
+    lcd->info ("sdCard mounted label:" + string (label));
 
     findFiles ("", ".jpg");
-    //for (auto file : mFileVec);
-    auto file = mFileVec.front();
-      {
-      printf ("loadingfile %s\n", file.c_str());
-      lcd->info ("loadingfile" + file);
-      lcd->change();
+    for (auto file : mFileVec)
+      statFile (file);
       //mTileVec.push_back (loadFile (file, 4));
-      }
     }
 
   while (true) {
