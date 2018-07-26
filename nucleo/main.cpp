@@ -11,12 +11,11 @@
 
 using namespace std;
 //}}}
-//{{{  defines
-#define SDRAM_DEVICE_ADDR 0x70000000
-#define SDRAM_DEVICE_SIZE 0x01000000  // 0x01000000
-//}}}
 //{{{  const
 const string kHello = "*stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
+
+#define SDRAM_DEVICE_ADDR 0x70000000
+#define SDRAM_DEVICE_SIZE 0x01000000  // 0x01000000
 
 const HeapRegion_t kHeapRegions[] = {
   {(uint8_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4), SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4 },
@@ -290,6 +289,29 @@ uint32_t sdRamTest (int offset, uint16_t* addr, uint32_t len) {
   return readErr;
   }
 //}}}
+//{{{
+uint32_t simpleSdRamTest (int offset, uint16_t* addr, uint32_t len) {
+
+  uint32_t readOk = 0;
+  uint32_t readErr = 0;
+
+  uint16_t data = offset;
+  auto writeAddress = addr;
+  for (uint32_t j = 0; j < len/2; j++)
+    *writeAddress++ = data++;
+
+  auto readAddress = addr;
+  for (uint32_t j = 0; j < len / 2; j++) {
+    uint16_t readWord1 = *readAddress++;
+    if ((readWord1 & 0xFFFF) == ((j+offset) & 0xFFFF))
+      readOk++;
+    else
+      readErr++;
+    }
+
+  return readErr;
+  }
+//}}}
 
 //{{{
 void findFiles (const string& dirPath, const string ext) {
@@ -459,7 +481,7 @@ void displayThread (void* arg) {
   lcd->display (60);
 
   while (true) {
-    if (lcd->changed()) {
+    if (true || lcd->changed()) {
       lcd->start();
       lcd->clear (COL_BLACK);
 
@@ -475,7 +497,7 @@ void displayThread (void* arg) {
 
       lcd->drawInfo();
       lcd->present();
-      vTaskDelay (10);
+      vTaskDelay (20);
       }
     }
   }
@@ -494,11 +516,14 @@ void appThread (void* arg) {
 
   printf ("Hello colin white\n");
 
-  if (FATFS_LinkDriver (&SD_Driver, SDPath) != 0)
+  if (FATFS_LinkDriver (&SD_Driver, SDPath) != 0) {
     lcd->info (COL_RED, "sdCard - no driver");
+    lcd->changed();
+    }
   else if (f_mount (&SDFatFs, (TCHAR const*)SDPath, 1) != FR_OK) {
-    lcd->info (COL_RED, "sdCard - not mounted");
     printf ("sdCard - not mounted\n");
+    lcd->info (COL_RED, "sdCard - not mounted");
+    lcd->changed();
     }
   else {
     // get label
@@ -506,8 +531,30 @@ void appThread (void* arg) {
     DWORD volumeSerialNumber = 0;
     f_getlabel ("", label, &volumeSerialNumber);
     lcd->info ("sdCard mounted label:" + string (label));
+    lcd->changed();
 
     findFiles ("", ".jpg");
+
+    int i = 0;
+    int k = 0;
+    while (true) {
+      printf ("Ram test iteration %d\n", i++);
+      for (int j = 3; j < 16; j++) {
+        BSP_LED_Toggle (LED_BLUE);
+        uint32_t errors = simpleSdRamTest (k++, (uint16_t*)(0x70000000 + (j * 0x00100000)), 0x00100000);
+        if (errors == 0) {
+          lcd->info (COL_YELLOW, "ram - ok " + dec (j,2));
+          lcd->changed();
+          }
+        else  {
+          lcd->info (COL_CYAN, "ram - fail " + dec (j,2) + " " +
+                               dec(errors) + " " + dec ((errors * 1000) / 0x00100000) + "%");
+          lcd->changed();
+          }
+        vTaskDelay (100);
+        }
+      }
+
     for (int i = 1; i <= 10; i++) {
       auto startTime = HAL_GetTick();
       for (auto file : mFileVec)
