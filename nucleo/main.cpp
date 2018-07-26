@@ -349,20 +349,37 @@ void statFile (const string& fileName) {
     return;
     }
 
-  auto buf = (uint8_t*)malloc (filInfo.fsize);
-  //auto buf = (uint8_t*)pvPortMalloc (filInfo.fsize);
-  if (buf) {
-    UINT bytesRead = 0;
-    f_read (&file, buf, (UINT)filInfo.fsize, &bytesRead);
-    if (bytesRead != filInfo.fsize)
-      lcd->info (COL_RED, "statFile size fail " + dec (bytesRead) + " " + dec (filInfo.fsize));
+  // malloc load
+  if (true) {
+    auto buf = (uint8_t*)malloc (filInfo.fsize);
+    if (buf) {
+      UINT bytesRead = 0;
+      f_read (&file, buf, (UINT)filInfo.fsize, &bytesRead);
+      if (bytesRead != filInfo.fsize)
+        lcd->info (COL_RED, "statFile buf size fail " + dec (bytesRead) + " " + dec (filInfo.fsize));
 
-    free (buf);
-    //vPortFree (buf);
+      free (buf);
+      }
+    else
+      lcd->info (COL_RED, "statFile buf malloc fail");
     }
-  else
-    lcd->info (COL_RED, "statFile buf pvPortMalloc fail");
+
+  if (true) {
+    // pvPortMalloc load
+    auto buf1 = (uint8_t*)pvPortMalloc (filInfo.fsize);
+    if (buf1) {
+      //f_rewind (&file);
+      UINT bytesRead = 0;
+      //f_read (&file, buf1, (UINT)filInfo.fsize, &bytesRead);
+      //if (bytesRead != filInfo.fsize)
+      //  lcd->info (COL_RED, "statFile buf1 size fail " + dec (bytesRead) + " " + dec (filInfo.fsize));
+      vPortFree (buf1);
+      }
+    else
+      lcd->info (COL_RED, "statFile buf1 pvPortMalloc fail");
+    }
   lcd->change();
+
 
   f_close (&file);
   }
@@ -546,7 +563,7 @@ int main() {
   systemClockConfig();
 
   sdRamInit();
-  HAL_SetFMCMemorySwappingConfig (FMC_SWAPBMAP_SDRAM_SRAM); // FMC_SWAPBMAP_SDRAMB2
+  HAL_SetFMCMemorySwappingConfig (FMC_SWAPBMAP_SDRAM_SRAM);
   //mpuConfig();
 
   SCB_EnableICache();
