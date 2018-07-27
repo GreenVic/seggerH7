@@ -128,8 +128,11 @@ DRESULT SD_read (BYTE lun, BYTE* buff, DWORD sector, UINT count) {
       if (event.value.v == READ_CPLT_MSG) {
         uint32_t timer = osKernelSysTick();
         while (timer < osKernelSysTick() + SD_TIMEOUT) {
-          if (HAL_SD_GetCardState (&gSdHandle) == HAL_SD_CARD_TRANSFER)
+          if (HAL_SD_GetCardState (&gSdHandle) == HAL_SD_CARD_TRANSFER) {
+            uint32_t alignedAddr = (uint32_t)buff & ~0x1F;
+            SCB_InvalidateDCache_by_Addr ((uint32_t*)alignedAddr, count*BLOCKSIZE + ((uint32_t)buff - alignedAddr));
             return RES_OK;
+            }
           osDelay (1);
           }
         }

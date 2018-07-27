@@ -14,7 +14,7 @@ using namespace std;
 //{{{  const
 const string kHello = "*stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
 
-#define SDRAM_DEVICE_ADDR 0x70000000
+#define SDRAM_DEVICE_ADDR 0xD0000000
 #define SDRAM_DEVICE_SIZE 0x01000000  // 0x01000000
 
 const HeapRegion_t kHeapRegions[] = {
@@ -559,14 +559,10 @@ void appThread (void* arg) {
     findFiles ("", ".jpg");
 
     //simpleTest();
-
-    for (int i = 1; i <= 10; i++) {
-      auto startTime = HAL_GetTick();
-      for (auto file : mFileVec)
-        statFile (file);
-      lcd->info (COL_YELLOW, "statFile " + dec(i) + " took:" + dec (HAL_GetTick() - startTime));
-      vTaskDelay (1000);
-      }
+    auto startTime = HAL_GetTick();
+    for (auto file : mFileVec)
+      statFile (file);
+    lcd->info (COL_YELLOW, "statFile took " + dec (HAL_GetTick() - startTime));
     //mTileVec.push_back (loadFile (file, 4));
     }
 
@@ -615,11 +611,10 @@ int main() {
   systemClockConfig();
 
   sdRamInit();
-  HAL_SetFMCMemorySwappingConfig (FMC_SWAPBMAP_SDRAM_SRAM);
-  //mpuConfig();
-
+  //HAL_SetFMCMemorySwappingConfig (FMC_SWAPBMAP_SDRAM_SRAM);
   SCB_EnableICache();
-  //SCB_EnableDCache();
+  SCB_EnableDCache();
+  mpuConfig();
 
   BSP_LED_Init (LED_GREEN);
   BSP_LED_Init (LED_BLUE);
