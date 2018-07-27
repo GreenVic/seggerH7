@@ -618,7 +618,8 @@ void cLcd::drawInfo() {
   text (COL_WHITE, titleHeight,
         dec (xPortGetFreeHeapSize()) + ":" + dec (xPortGetMinimumEverFreeHeapSize()) +
         " p:" + dec(mNumPresents) + ":" + dec (mDrawTime) + ":" + dec (mWaitTime) + "ms " +
-        dec (osGetCPUUsage()) + "%",
+        dec (osGetCPUUsage()) + "% " +
+        dec (mBrightness),
         cRect(0, y, getWidth(), titleHeight+gap));
 
   if (mShowInfo) {
@@ -669,6 +670,7 @@ void cLcd::render() {
 //{{{
 void cLcd::display (int brightness) {
 
+  mBrightness = brightness;
   TIM4->CCR2 = 50 * brightness;
   }
 //}}}
@@ -770,7 +772,7 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   timOcInit.OCNPolarity  = TIM_OCNPOLARITY_HIGH;
   timOcInit.OCNIdleState = TIM_OCNIDLESTATE_RESET;
   timOcInit.OCIdleState  = TIM_OCIDLESTATE_RESET;
-  timOcInit.Pulse = 2500;
+  timOcInit.Pulse = 50 * mBrightness;
 
   if (HAL_TIM_PWM_ConfigChannel (&mTimHandle, &timOcInit, TIM_CHANNEL_2))
     printf ("HAL_TIM_PWM_ConfigChannel failed\n");

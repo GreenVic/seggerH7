@@ -96,6 +96,8 @@ public:
   static uint16_t getFontHeight() { return FONT_HEIGHT; }
   static uint16_t getBigFontHeight() { return BIG_FONT_HEIGHT; }
 
+  uint16_t getBrightness() { return mBrightness; }
+
   bool changed();
   void change() { mChanged = true; }
   void toggle();
@@ -151,6 +153,7 @@ private:
 
   LTDC_HandleTypeDef mLtdcHandle;
   TIM_HandleTypeDef mTimHandle;
+  int mBrightness = 50;
 
   bool mChanged = true;
   bool mDrawBuffer = false;

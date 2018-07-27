@@ -181,7 +181,7 @@ void sdRamInit() {
 
   #define kClockEnable  FMC_SDRAM_CMD_TARGET_BANK2 | FMC_SDRAM_CMD_CLK_ENABLE;
   #define kPreChargeAll FMC_SDRAM_CMD_TARGET_BANK2 | FMC_SDRAM_CMD_PALL;
-  #define kAutoRefresh  FMC_SDRAM_CMD_TARGET_BANK2 | FMC_SDRAM_CMD_AUTOREFRESH_MODE | ((8-1) << 5)
+  #define kAutoRefresh  FMC_SDRAM_CMD_TARGET_BANK2 | FMC_SDRAM_CMD_AUTOREFRESH_MODE | ((4-1) << 5)
   #define kLoadMode     FMC_SDRAM_CMD_TARGET_BANK2 | FMC_SDRAM_CMD_LOAD_MODE| \
                         ((SDRAM_MODEREG_WRITEBURST_MODE_SINGLE | \
                           SDRAM_MODEREG_CAS_LATENCY_2 | \
@@ -234,8 +234,8 @@ void sdRamInit() {
   sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_2;
   sdramHandle.Init.ReadBurst          = FMC_SDRAM_RBURST_ENABLE;
   sdramHandle.Init.CASLatency         = FMC_SDRAM_CAS_LATENCY_2;
-  sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_9; //11
-  sdramHandle.Init.RowBitsNumber      = FMC_SDRAM_ROW_BITS_NUM_12;    //13
+  sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_9;  // 11
+  sdramHandle.Init.RowBitsNumber      = FMC_SDRAM_ROW_BITS_NUM_12;    // 13
   sdramHandle.Init.MemoryDataWidth    = FMC_SDRAM_MEM_BUS_WIDTH_16;
   sdramHandle.Init.InternalBankNumber = FMC_SDRAM_INTERN_BANKS_NUM_4;
   sdramHandle.Init.WriteProtection    = FMC_SDRAM_WRITE_PROTECTION_DISABLE;
@@ -253,7 +253,7 @@ void sdRamInit() {
     printf ("HAL_SDRAM_Init fail\n");
 
   FMC_SDRAM_DEVICE->SDCMR = kClockEnable;
-  HAL_Delay (1);
+  HAL_Delay (2);
   FMC_SDRAM_DEVICE->SDCMR = kPreChargeAll;
   FMC_SDRAM_DEVICE->SDCMR = kAutoRefresh;
   FMC_SDRAM_DEVICE->SDCMR = kLoadMode;
@@ -310,6 +310,29 @@ uint32_t simpleSdRamTest (int offset, uint16_t* addr, uint32_t len) {
     }
 
   return readErr;
+  }
+//}}}
+//{{{
+void simpleTest() {
+
+  int i = 0;
+  int k = 0;
+  while (true) {
+    for (int j = 3; j < 16; j++) {
+      uint32_t errors = simpleSdRamTest (k++, (uint16_t*)(0x70000000 + (j * 0x00100000)), 0x00100000);
+      if (errors == 0) {
+        lcd->info (COL_YELLOW, "ram - ok " + dec (j,2));
+        lcd->changed();
+        }
+      else  {
+        float rate = (errors * 1000.f) / 0x00100000;
+        lcd->info (COL_CYAN, "ram " + dec (j,2) + " fail - err:" +
+                             dec(errors) + " " + dec (int(rate)/10,1) + "." + dec(int(rate) % 10,1) + "%");
+        lcd->changed();
+        }
+      vTaskDelay (100);
+      }
+    }
   }
 //}}}
 
@@ -386,7 +409,7 @@ void statFile (const string& fileName) {
       lcd->info (COL_RED, "statFile buf malloc fail");
     }
 
-  if (true) {
+  if (false) {
     // pvPortMalloc load
     auto buf1 = (uint8_t*)pvPortMalloc (filInfo.fsize);
     if (buf1) {
@@ -535,25 +558,7 @@ void appThread (void* arg) {
 
     findFiles ("", ".jpg");
 
-    int i = 0;
-    int k = 0;
-    while (true) {
-      printf ("Ram test iteration %d\n", i++);
-      for (int j = 3; j < 16; j++) {
-        BSP_LED_Toggle (LED_BLUE);
-        uint32_t errors = simpleSdRamTest (k++, (uint16_t*)(0x70000000 + (j * 0x00100000)), 0x00100000);
-        if (errors == 0) {
-          lcd->info (COL_YELLOW, "ram - ok " + dec (j,2));
-          lcd->changed();
-          }
-        else  {
-          lcd->info (COL_CYAN, "ram - fail " + dec (j,2) + " " +
-                               dec(errors) + " " + dec ((errors * 1000) / 0x00100000) + "%");
-          lcd->changed();
-          }
-        vTaskDelay (100);
-        }
-      }
+    //simpleTest();
 
     for (int i = 1; i <= 10; i++) {
       auto startTime = HAL_GetTick();
@@ -562,7 +567,7 @@ void appThread (void* arg) {
       lcd->info (COL_YELLOW, "statFile " + dec(i) + " took:" + dec (HAL_GetTick() - startTime));
       vTaskDelay (1000);
       }
-      //mTileVec.push_back (loadFile (file, 4));
+    //mTileVec.push_back (loadFile (file, 4));
     }
 
   while (true) {
