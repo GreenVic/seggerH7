@@ -168,12 +168,6 @@ void cLcd::info (uint16_t colour, const std::string str) {
     mChanged = true;
   }
 //}}}
-//{{{
-void cLcd::debug (uint16_t colour, const std::string str) {
-  info (colour, str);
-  render();
-  }
-//}}}
 
 //{{{
 void cLcd::clear (uint16_t colour) {

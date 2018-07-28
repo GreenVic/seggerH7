@@ -613,8 +613,8 @@ int main() {
   sdRamInit();
   //HAL_SetFMCMemorySwappingConfig (FMC_SWAPBMAP_SDRAM_SRAM);
   SCB_EnableICache();
-  SCB_EnableDCache();
-  mpuConfig();
+  //SCB_EnableDCache();
+  //mpuConfig();
 
   BSP_LED_Init (LED_GREEN);
   BSP_LED_Init (LED_BLUE);

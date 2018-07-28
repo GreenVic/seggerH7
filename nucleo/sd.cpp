@@ -9,6 +9,7 @@
 #define SD_TIMEOUT 1000
 
 #define SD_DEFAULT_BLOCK_SIZE 512
+#define LCD_DEBUG
 
 SD_HandleTypeDef gSdHandle;
 static volatile DSTATUS gStat = STA_NOINIT;
@@ -99,8 +100,10 @@ DSTATUS SD_initialize (BYTE lun) {
   HAL_NVIC_SetPriority (SDMMC1_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ (SDMMC1_IRQn);
 
-  if (HAL_SD_Init (&gSdHandle) != HAL_OK)
-    cLcd::mLcd->debug (COL_RED, "HAL_SD_Init failed");
+  if (HAL_SD_Init (&gSdHandle) != HAL_OK) {
+    cLcd::mLcd->info (COL_RED, "HAL_SD_Init failed");
+    cLcd::mLcd->changed();
+    }
 
   osMessageQDef (sdQueue, QUEUE_SIZE, uint16_t);
   gSdQueueId = osMessageCreate (osMessageQ (sdQueue), NULL);
@@ -119,7 +122,8 @@ DSTATUS SD_status (BYTE lun) {
 DRESULT SD_read (BYTE lun, BYTE* buff, DWORD sector, UINT count) {
 
   #ifdef LCD_DEBUG
-    cLcd::mLcd->debug (COL_GREEN, "readBlocks " + hex (uint32_t(buff)) + " " + dec (sector) + " " + dec(count));
+    cLcd::mLcd->info (COL_YELLOW, "sdRead " + hex(uint32_t(buff)) + " " + dec(sector) + " " + dec(count));
+    cLcd::mLcd->changed();
   #endif
 
   if (HAL_SD_ReadBlocks_DMA (&gSdHandle, buff, sector, count) == HAL_OK) {
@@ -129,8 +133,8 @@ DRESULT SD_read (BYTE lun, BYTE* buff, DWORD sector, UINT count) {
         uint32_t timer = osKernelSysTick();
         while (timer < osKernelSysTick() + SD_TIMEOUT) {
           if (HAL_SD_GetCardState (&gSdHandle) == HAL_SD_CARD_TRANSFER) {
-            uint32_t alignedAddr = (uint32_t)buff & ~0x1F;
-            SCB_InvalidateDCache_by_Addr ((uint32_t*)alignedAddr, count*BLOCKSIZE + ((uint32_t)buff - alignedAddr));
+            auto alignedAddr = (uint32_t)buff & ~0x1F;
+            SCB_InvalidateDCache_by_Addr ((uint32_t*)alignedAddr, count * BLOCKSIZE + ((uint32_t)buff - alignedAddr));
             return RES_OK;
             }
           osDelay (1);
