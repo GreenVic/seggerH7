@@ -517,8 +517,8 @@ void appThread (void* arg) {
     }
 
   while (true) {
-    for (int i =  30; i < 100; i++) { lcd->display (i); vTaskDelay (20); }
-    for (int i = 100; i >  30; i--) { lcd->display (i); vTaskDelay (20); }
+    for (int i = 30; i < 60; i++) { lcd->display (i); vTaskDelay (20); }
+    for (int i = 60; i > 30; i--) { lcd->display (i); vTaskDelay (20); }
     }
 
   vTaskDelay (200000);
