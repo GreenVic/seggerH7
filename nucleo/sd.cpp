@@ -3,28 +3,20 @@
 #include "cLcd.h"
 #include "cmsis_os.h"
 
+//#define LCD_DEBUG
+
 #define QUEUE_SIZE      10
 #define READ_CPLT_MSG   1
 #define WRITE_CPLT_MSG  2
 #define SD_TIMEOUT 1000
-
 #define SD_DEFAULT_BLOCK_SIZE 512
-#define LCD_DEBUG
 
 SD_HandleTypeDef gSdHandle;
 static volatile DSTATUS gStat = STA_NOINIT;
-osMessageQId gSdQueueId;
+osMessageQId gQueue;
 
-//{{{
-void HAL_SD_TxCpltCallback (SD_HandleTypeDef* hsd) {
-  osMessagePut (gSdQueueId, WRITE_CPLT_MSG, osWaitForever);
-  }
-//}}}
-//{{{
-void HAL_SD_RxCpltCallback (SD_HandleTypeDef* hsd) {
-  osMessagePut (gSdQueueId, READ_CPLT_MSG, osWaitForever);
-  }
-//}}}
+void HAL_SD_TxCpltCallback (SD_HandleTypeDef* hsd) { osMessagePut (gQueue, WRITE_CPLT_MSG, osWaitForever); }
+void HAL_SD_RxCpltCallback (SD_HandleTypeDef* hsd) { osMessagePut (gQueue, READ_CPLT_MSG, osWaitForever); }
 extern "C" { void SDMMC1_IRQHandler() { HAL_SD_IRQHandler (&gSdHandle); } }
 
 //{{{
@@ -106,7 +98,7 @@ DSTATUS SD_initialize (BYTE lun) {
     }
 
   osMessageQDef (sdQueue, QUEUE_SIZE, uint16_t);
-  gSdQueueId = osMessageCreate (osMessageQ (sdQueue), NULL);
+  gQueue = osMessageCreate (osMessageQ (sdQueue), NULL);
 
   gStat = checkStatus (lun);
 
@@ -127,7 +119,7 @@ DRESULT SD_read (BYTE lun, BYTE* buff, DWORD sector, UINT count) {
   #endif
 
   if (HAL_SD_ReadBlocks_DMA (&gSdHandle, buff, sector, count) == HAL_OK) {
-    osEvent event = osMessageGet (gSdQueueId, SD_TIMEOUT);
+    osEvent event = osMessageGet (gQueue, SD_TIMEOUT);
     if (event.status == osEventMessage) {
       if (event.value.v == READ_CPLT_MSG) {
         uint32_t timer = osKernelSysTick();
@@ -150,7 +142,7 @@ DRESULT SD_read (BYTE lun, BYTE* buff, DWORD sector, UINT count) {
 DRESULT SD_write (BYTE lun, const BYTE* buff, DWORD sector, UINT count) {
 
   if (HAL_SD_WriteBlocks_DMA (&gSdHandle, (BYTE*)buff, sector, count) == HAL_OK) {
-    auto event = osMessageGet (gSdQueueId, SD_TIMEOUT);
+    auto event = osMessageGet (gQueue, SD_TIMEOUT);
     if (event.status == osEventMessage) {
       if (event.value.v == WRITE_CPLT_MSG) {
         auto ticks2 = osKernelSysTick();

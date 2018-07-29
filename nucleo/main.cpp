@@ -464,13 +464,9 @@ void displayThread (void* arg) {
       lcd->start();
       lcd->clear (COL_BLACK);
 
-      int items = mTileVec.size();
-      int rows = int(sqrt (float(items))) + 1;
-      int count = 0;
+      int count = 1;
       for (auto tile : mTileVec) {
-        lcd->copy (tile, cPoint  (
-                    (lcd->getWidth() / rows) * (count % rows) + (lcd->getWidth() / rows - tile->mWidth) / 2,
-                    (lcd->getHeight() / rows) * (count / rows) + (lcd->getHeight() / rows - tile->mHeight) / 2));
+        lcd->copy (tile, cPoint (count* 50, count * 50));
         count++;
         }
 
@@ -485,14 +481,6 @@ void displayThread (void* arg) {
 void appThread (void* arg) {
 
   //BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_GPIO);
-  lcd->info (COL_WHITE,   "Hello colin white\n");
-  lcd->info (COL_RED  ,   "Hello colin red abcdefghijklmn\n");
-  lcd->info (COL_GREEN,   "Hello colin green  opqrstuvwxyz\n");
-  lcd->info (COL_BLUE,    "Hello colin blue zxcvbnm\n");
-  lcd->info (COL_MAGENTA, "Hello colin magenta 0123456789\n");
-  lcd->info (COL_CYAN,    "Hello colin cyan ?><:;@'()*&\n");
-  lcd->info (COL_YELLOW,  "Hello colin yellow ABCDEFGHIGJKNMONOPQRSTUVWXYZ\n");
-
   printf ("Hello colin white\n");
 
   if (FATFS_LinkDriver (&SD_Driver, SDPath) != 0) {
@@ -516,8 +504,6 @@ void appThread (void* arg) {
 
     //simpleTest();
     auto startTime = HAL_GetTick();
-
-    //auto file = mFileVec.front(); {
     for (auto file : mFileVec) {
       auto tile = loadFile (file, 1);
       if (tile)
@@ -525,9 +511,9 @@ void appThread (void* arg) {
       else
         lcd->info ("tile error " + file);
       lcd->changed();
-      vTaskDelay (20);
+      vTaskDelay (80);
       }
-    lcd->info (COL_YELLOW, "statFile took " + dec (HAL_GetTick() - startTime));
+    lcd->info (COL_YELLOW, "loadFiles took " + dec (HAL_GetTick() - startTime));
     }
 
   while (true) {
