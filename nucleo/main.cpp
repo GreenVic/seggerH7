@@ -28,12 +28,21 @@ char SDPath[4];
 
 vector<string> mFileVec;
 vector<cTile*> mTileVec;
+uint16_t* mSdRamAlloc = (uint16_t*)SDRAM_DEVICE_ADDR;
 
 extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
 void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
   if (GPIO_Pin == USER_BUTTON_PIN)
     lcd->toggle();
+  }
+//}}}
+
+//{{{
+uint16_t* sdRamAlloc (uint32_t words) {
+  auto alloc = mSdRamAlloc;
+  mSdRamAlloc += words;
+  return alloc;
   }
 //}}}
 
@@ -371,65 +380,6 @@ void findFiles (const string& dirPath, const string ext) {
   }
 //}}}
 //{{{
-void statFile (const string& fileName) {
-
-  //printf ("statFile %s\n", fileName.c_str());
-  FILINFO filInfo;
-  if (f_stat (fileName.c_str(), &filInfo)) {
-    lcd->info (COL_RED, "statFile " + fileName + " not found");
-    lcd->change();
-    return;
-    }
-  else {
-    lcd->info ("statFile " + fileName + " bytes:" + dec ((int)(filInfo.fsize)) + " " +
-               dec (filInfo.ftime >> 11) + ":" + dec ((filInfo.ftime >> 5) & 63) + " " +
-               dec (filInfo.fdate & 31) + ":" + dec ((filInfo.fdate >> 5) & 15) + ":" + dec ((filInfo.fdate >> 9) + 1980));
-    lcd->change();
-    }
-
-  FIL file;
-  if (f_open (&file, fileName.c_str(), FA_READ)) {
-    lcd->info (COL_RED, "statFile " + fileName + " f_open failed");
-    lcd->change();
-    return;
-    }
-
-  // malloc load
-  if (true) {
-    auto buf = (uint8_t*)malloc (filInfo.fsize);
-    if (buf) {
-      UINT bytesRead = 0;
-      f_read (&file, buf, (UINT)filInfo.fsize, &bytesRead);
-      if (bytesRead != filInfo.fsize)
-        lcd->info (COL_RED, "statFile buf size fail " + dec (bytesRead) + " " + dec (filInfo.fsize));
-
-      free (buf);
-      }
-    else
-      lcd->info (COL_RED, "statFile buf malloc fail");
-    }
-
-  if (false) {
-    // pvPortMalloc load
-    auto buf1 = (uint8_t*)pvPortMalloc (filInfo.fsize);
-    if (buf1) {
-      //f_rewind (&file);
-      UINT bytesRead = 0;
-      //f_read (&file, buf1, (UINT)filInfo.fsize, &bytesRead);
-      //if (bytesRead != filInfo.fsize)
-      //  lcd->info (COL_RED, "statFile buf1 size fail " + dec (bytesRead) + " " + dec (filInfo.fsize));
-      vPortFree (buf1);
-      }
-    else
-      lcd->info (COL_RED, "statFile buf1 pvPortMalloc fail");
-    }
-  lcd->change();
-
-
-  f_close (&file);
-  }
-//}}}
-//{{{
 cTile* loadFile (const string& fileName, int scale) {
 
   FILINFO filInfo;
@@ -440,16 +390,21 @@ cTile* loadFile (const string& fileName, int scale) {
   lcd->info ("loadFile " + fileName + " bytes:" + dec ((int)(filInfo.fsize)) + " " +
              dec (filInfo.ftime >> 11) + ":" + dec ((filInfo.ftime >> 5) & 63) + " " +
              dec (filInfo.fdate & 31) + ":" + dec ((filInfo.fdate >> 5) & 15) + ":" + dec ((filInfo.fdate >> 9) + 1980));
+  lcd->changed();
 
   FIL gFile;
   if (f_open (&gFile, fileName.c_str(), FA_READ)) {
     lcd->info (COL_RED, fileName + " not opened");
+    lcd->changed();
     return nullptr;
     }
 
-  auto buf = (uint8_t*)pvPortMalloc (filInfo.fsize);
-  if (!buf)
+  auto buf = (uint8_t*)malloc (filInfo.fsize);
+  if (!buf)  {
     lcd->info (COL_RED, "buf fail");
+    lcd->changed();
+    return nullptr;
+    }
 
   UINT bytesRead = 0;
   f_read (&gFile, buf, (UINT)filInfo.fsize, &bytesRead);
@@ -470,7 +425,7 @@ cTile* loadFile (const string& fileName, int scale) {
     mCinfo.scale_denom = scale;
     jpeg_start_decompress (&mCinfo);
 
-    auto rgb565pic = (uint16_t*)pvPortMalloc (mCinfo.output_width * mCinfo.output_height * 2);
+    auto rgb565pic = sdRamAlloc (mCinfo.output_width * mCinfo.output_height);
     auto tile = new cTile ((uint8_t*)rgb565pic, 2, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
 
     auto rgbLine = (uint8_t*)malloc (mCinfo.output_width * 3);
@@ -480,18 +435,19 @@ cTile* loadFile (const string& fileName, int scale) {
       }
     free (rgbLine);
 
-    vPortFree (buf);
     jpeg_finish_decompress (&mCinfo);
 
+    free (buf);
     lcd->info (COL_YELLOW, "loaded " + dec(mCinfo.image_width) + "x" + dec(mCinfo.image_height) + " " +
                                        dec(mCinfo.output_width) + "x" + dec(mCinfo.output_height));
+    lcd->changed();
     jpeg_destroy_decompress (&mCinfo);
-
     return tile;
     }
   else {
+    free (buf);
     lcd->info (COL_RED, "loadFile read failed");
-    vPortFree (buf);
+    lcd->changed();
     return nullptr;
     }
   }
@@ -508,15 +464,15 @@ void displayThread (void* arg) {
       lcd->start();
       lcd->clear (COL_BLACK);
 
-      //int items = mTileVec.size();
-      //int rows = int(sqrt (float(items))) + 1;
-      //int count = 0;
-      //for (auto tile : mTileVec) {
-      //  lcd->copy (tile, cPoint  (
-      //              (lcd->getWidth() / rows) * (count % rows) + (lcd->getWidth() / rows - tile->mWidth) / 2,
-      //              (lcd->getHeight() / rows) * (count / rows) + (lcd->getHeight() / rows - tile->mHeight) / 2));
-      //  count++;
-      //  }
+      int items = mTileVec.size();
+      int rows = int(sqrt (float(items))) + 1;
+      int count = 0;
+      for (auto tile : mTileVec) {
+        lcd->copy (tile, cPoint  (
+                    (lcd->getWidth() / rows) * (count % rows) + (lcd->getWidth() / rows - tile->mWidth) / 2,
+                    (lcd->getHeight() / rows) * (count / rows) + (lcd->getHeight() / rows - tile->mHeight) / 2));
+        count++;
+        }
 
       lcd->drawInfo();
       lcd->present();
@@ -560,23 +516,18 @@ void appThread (void* arg) {
 
     //simpleTest();
     auto startTime = HAL_GetTick();
-    for (auto file : mFileVec)
-      statFile (file);
+
+    //auto file = mFileVec.front(); {
+    for (auto file : mFileVec) {
+      mTileVec.push_back (loadFile (file, 1));
+      vTaskDelay (20);
+      }
     lcd->info (COL_YELLOW, "statFile took " + dec (HAL_GetTick() - startTime));
-    //mTileVec.push_back (loadFile (file, 4));
     }
 
   while (true) {
-    for (int i = 0; i < 100; i += 2) {
-      //lcd->info ("fade " + dec (i));
-      lcd->display (i);
-      vTaskDelay (50);
-      }
-    for (int i = 100; i > 10; i -= 2) {
-      //lcd->info ("fade " + dec (i));
-      lcd->display (i);
-      vTaskDelay (50);
-      }
+    for (int i =  30; i < 100; i++) { lcd->display (i); vTaskDelay (20); }
+    for (int i = 100; i >  30; i--) { lcd->display (i); vTaskDelay (20); }
     }
 
   vTaskDelay (200000);
@@ -622,7 +573,7 @@ int main() {
   BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_EXTI);
 
   vPortDefineHeapRegions (kHeapRegions);
-  lcd = new cLcd ((uint16_t*)SDRAM_DEVICE_ADDR, (uint16_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*2));
+  lcd = new cLcd (sdRamAlloc (LCD_WIDTH*LCD_HEIGHT), sdRamAlloc (LCD_WIDTH*LCD_HEIGHT));
   lcd->init (kHello);
 
   TaskHandle_t displayHandle;
