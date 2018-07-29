@@ -519,7 +519,12 @@ void appThread (void* arg) {
 
     //auto file = mFileVec.front(); {
     for (auto file : mFileVec) {
-      mTileVec.push_back (loadFile (file, 1));
+      auto tile = loadFile (file, 1);
+      if (tile)
+        mTileVec.push_back (tile);
+      else
+        lcd->info ("tile error " + file);
+      lcd->changed();
       vTaskDelay (20);
       }
     lcd->info (COL_YELLOW, "statFile took " + dec (HAL_GetTick() - startTime));
