@@ -454,7 +454,7 @@ cTile* loadFile (const string& fileName, int scale) {
 //}}}
 
 //{{{
-void displayThread (void* arg) {
+void uiThread (void* arg) {
 
   while (true) {
     if (lcd->changed()) {
@@ -469,8 +469,9 @@ void displayThread (void* arg) {
 
       lcd->drawInfo();
       lcd->present();
-      vTaskDelay (20);
       }
+    else
+      vTaskDelay (40);
     }
   }
 //}}}
@@ -508,7 +509,6 @@ void appThread (void* arg) {
       else
         lcd->info ("tile error " + file);
       lcd->changed();
-      vTaskDelay (80);
       }
     lcd->info (COL_YELLOW, "loadFiles took " + dec (HAL_GetTick() - startTime));
     }
@@ -516,30 +516,6 @@ void appThread (void* arg) {
   while (true) {
     for (int i = 30; i < 60; i++) { lcd->display (i); vTaskDelay (20); }
     for (int i = 60; i > 30; i--) { lcd->display (i); vTaskDelay (20); }
-    }
-
-  vTaskDelay (200000);
-  }
-//}}}
-//{{{
-void sdRamTestThread (void* arg) {
-
-  int i = 0;
-  int k = 0;
-  while (true) {
-    printf ("Ram test iteration %d\n", i++);
-    for (int j = 3; j < 16; j++) {
-      BSP_LED_Toggle (LED_BLUE);
-      if (sdRamTest (k++, (uint16_t*)(0x70000000 + (j * 0x00100000)), 0x00100000) == 0) {
-        BSP_LED_Off (LED_RED);
-        lcd->info (COL_RED, "sdCard - ok " + dec (j));
-        }
-      else  {
-        BSP_LED_On (LED_RED);
-        lcd->info (COL_RED, "sdCard - fail");
-        }
-      vTaskDelay (100);
-      }
     }
   }
 //}}}
@@ -564,14 +540,12 @@ int main() {
   lcd = new cLcd (sdRamAlloc (LCD_WIDTH*LCD_HEIGHT), sdRamAlloc (LCD_WIDTH*LCD_HEIGHT));
   lcd->init (kHello);
 
-  TaskHandle_t displayHandle;
-  xTaskCreate ((TaskFunction_t)displayThread, "display", 2048, 0, 4, &displayHandle);
+  TaskHandle_t uiHandle;
+  xTaskCreate ((TaskFunction_t)uiThread, "ui", 1024, 0, 3, &uiHandle);
 
   TaskHandle_t appHandle;
   xTaskCreate ((TaskFunction_t)appThread, "app", 8192, 0, 4, &appHandle);
 
-  TaskHandle_t testHandle;
-  //xTaskCreate ((TaskFunction_t)sdRamTestThread, "test", 1024, 0, 4, &testHandle);
   vTaskStartScheduler();
 
   return 0;

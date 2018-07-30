@@ -164,8 +164,7 @@ void cLcd::info (uint16_t colour, const std::string str) {
   mLines[line].mColour = colour;
   mLines[line].mString = str;
 
-  if (mShowInfo)
-    mChanged = true;
+  mChanged = true;
   }
 //}}}
 
