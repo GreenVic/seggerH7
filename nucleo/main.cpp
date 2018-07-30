@@ -23,12 +23,9 @@ const HeapRegion_t kHeapRegions[] = {
 //}}}
 
 cLcd* lcd = nullptr;
-FATFS SDFatFs;
-char SDPath[4];
-
+uint16_t* mSdRamAlloc = (uint16_t*)SDRAM_DEVICE_ADDR;
 vector<string> mFileVec;
 vector<cTile*> mTileVec;
-uint16_t* mSdRamAlloc = (uint16_t*)SDRAM_DEVICE_ADDR;
 
 extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
@@ -47,7 +44,7 @@ uint16_t* sdRamAlloc (uint32_t words) {
 //}}}
 
 //{{{
-void systemClockConfig() {
+void clockConfig() {
 //   System Clock       = PLL (HSE BYPASS)
 //   SYSCLK(Hz)         = 400000000 (CPU Clock)
 //   HCLK(Hz)           = 200000000 (AXI and AHBs Clock)
@@ -75,35 +72,35 @@ void systemClockConfig() {
   __HAL_RCC_D2SRAM3_CLK_ENABLE();
 
   // enable HSE Oscillator, activate PLL HSE source
-  RCC_OscInitTypeDef RCC_OscInitStruct;
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
-  RCC_OscInitStruct.HSIState = RCC_HSI_OFF;
-  RCC_OscInitStruct.CSIState = RCC_CSI_OFF;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 4;
-  RCC_OscInitStruct.PLL.PLLN = 400;
-  RCC_OscInitStruct.PLL.PLLP = 2;
-  RCC_OscInitStruct.PLL.PLLR = 2;
-  RCC_OscInitStruct.PLL.PLLQ = 4;
-  RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
-  RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_2;
-  HAL_RCC_OscConfig (&RCC_OscInitStruct);
+  RCC_OscInitTypeDef rccOscInit;
+  rccOscInit.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  rccOscInit.HSEState = RCC_HSE_BYPASS;
+  rccOscInit.HSIState = RCC_HSI_OFF;
+  rccOscInit.CSIState = RCC_CSI_OFF;
+  rccOscInit.PLL.PLLState = RCC_PLL_ON;
+  rccOscInit.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  rccOscInit.PLL.PLLM = 4;
+  rccOscInit.PLL.PLLN = 400;
+  rccOscInit.PLL.PLLP = 2;
+  rccOscInit.PLL.PLLR = 2;
+  rccOscInit.PLL.PLLQ = 4;
+  rccOscInit.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
+  rccOscInit.PLL.PLLRGE = RCC_PLL1VCIRANGE_2;
+  HAL_RCC_OscConfig (&rccOscInit);
 
   // select PLL system clock source. config bus clocks dividers
-  RCC_ClkInitTypeDef RCC_ClkInitStruct;
-  RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK  | RCC_CLOCKTYPE_HCLK |
-                                 RCC_CLOCKTYPE_D1PCLK1 | RCC_CLOCKTYPE_PCLK1 |
-                                 RCC_CLOCKTYPE_PCLK2   | RCC_CLOCKTYPE_D3PCLK1);
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.SYSCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV2;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV2;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
-  RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
-  HAL_RCC_ClockConfig (&RCC_ClkInitStruct, FLASH_LATENCY_4);
+  RCC_ClkInitTypeDef rccClkInit;
+  rccClkInit.ClockType = (RCC_CLOCKTYPE_SYSCLK  | RCC_CLOCKTYPE_HCLK |
+                          RCC_CLOCKTYPE_D1PCLK1 | RCC_CLOCKTYPE_PCLK1 |
+                          RCC_CLOCKTYPE_PCLK2   | RCC_CLOCKTYPE_D3PCLK1);
+  rccClkInit.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  rccClkInit.SYSCLKDivider = RCC_SYSCLK_DIV1;
+  rccClkInit.AHBCLKDivider = RCC_HCLK_DIV2;
+  rccClkInit.APB3CLKDivider = RCC_APB3_DIV2;
+  rccClkInit.APB1CLKDivider = RCC_APB1_DIV2;
+  rccClkInit.APB2CLKDivider = RCC_APB2_DIV2;
+  rccClkInit.APB4CLKDivider = RCC_APB4_DIV2;
+  HAL_RCC_ClockConfig (&rccClkInit, FLASH_LATENCY_4);
 
   // PLL3_VCO In  = HSE_VALUE / PLL3M = 1 Mhz
   // PLL3_VCO Out = PLL3_VCO In * PLL3N = 100 Mhz
@@ -119,56 +116,31 @@ void systemClockConfig() {
   HAL_RCCEx_PeriphCLKConfig (&rccPeriphClkInit);
   }
 //}}}
-
 //{{{
-void mpuConfig() {
+void sdRamConfig() {
+ //{{{  pins
+ //  FMC_SDCKE1  PB05
+ //  FMC_SDNE1   PB06
+ //
+ //  FMC_A0:A5   PF00:PF05
+ //  FMC_A6:A9   PF12:PF15
+ //  FMC_A10:A12 PG00:PG02
+ //  FMC_BA0:BA1 PG04:PG05
+ //
+ //  FMC_SDCLK   PG08
+ //  FMC_SDNCAS  PG15
+ //  FMC_SDNRAS  PF11
+ //  FMC_SDNWE   PC00
+ //
+ //  FMC_D0:D1   PD14:PD15
+ //  FMC_D2:D3   PD00:PD01
+ //  FMC_D4:D12  PE07:PE15
+ //  FMC_D13:D15 PD08:PD10
+ //
+ //  FMC_NBL0    PE00
+ //  FMC_NBL1    PE01
+ //}}}
 
-  // Disable the MPU
-  HAL_MPU_Disable();
-
-  // Configure MPU for sdram
-  MPU_Region_InitTypeDef mpuRegion;
-  mpuRegion.Enable = MPU_REGION_ENABLE;
-  mpuRegion.BaseAddress = 0xD0000000;
-  mpuRegion.Size = MPU_REGION_SIZE_128MB;
-  mpuRegion.AccessPermission = MPU_REGION_FULL_ACCESS;
-  mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-  mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
-  mpuRegion.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-  mpuRegion.Number = MPU_REGION_NUMBER0;
-  mpuRegion.TypeExtField = MPU_TEX_LEVEL0;
-  mpuRegion.SubRegionDisable = 0x00;
-  mpuRegion.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
-  HAL_MPU_ConfigRegion (&mpuRegion);
-
-  // Enable the MPU
-  HAL_MPU_Enable (MPU_PRIVILEGED_DEFAULT);
-  }
-//}}}
-//{{{
-void sdRamInit() {
-  //{{{  pins
-  //  FMC_SDCKE1  PB05
-  //  FMC_SDNE1   PB06
-  //
-  //  FMC_A0:A5   PF00:PF05
-  //  FMC_A6:A9   PF12:PF15
-  //  FMC_A10:A12 PG00:PG02
-  //  FMC_BA0:BA1 PG04:PG05
-  //
-  //  FMC_SDCLK   PG08
-  //  FMC_SDNCAS  PG15
-  //  FMC_SDNRAS  PF11
-  //  FMC_SDNWE   PC00
-  //
-  //  FMC_D0:D1   PD14:PD15
-  //  FMC_D2:D3   PD00:PD01
-  //  FMC_D4:D12  PE07:PE15
-  //  FMC_D13:D15 PD08:PD10
-  //
-  //  FMC_NBL0    PE00
-  //  FMC_NBL1    PE01
-  //}}}
   //{{{  defines
   #define REFRESH_COUNT                    ((uint32_t)0x0603)
   #define SDRAM_TIMEOUT                    ((uint32_t)0xFFFF)
@@ -269,6 +241,32 @@ void sdRamInit() {
   FMC_SDRAM_DEVICE->SDRTR = REFRESH_COUNT << 1;
   }
 //}}}
+//{{{
+void mpuConfig() {
+
+  // Disable the MPU
+  HAL_MPU_Disable();
+
+  // Configure MPU for sdram
+  MPU_Region_InitTypeDef mpuRegion;
+  mpuRegion.Enable = MPU_REGION_ENABLE;
+  mpuRegion.BaseAddress = 0xD0000000;
+  mpuRegion.Size = MPU_REGION_SIZE_128MB;
+  mpuRegion.AccessPermission = MPU_REGION_FULL_ACCESS;
+  mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
+  mpuRegion.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  mpuRegion.Number = MPU_REGION_NUMBER0;
+  mpuRegion.TypeExtField = MPU_TEX_LEVEL0;
+  mpuRegion.SubRegionDisable = 0x00;
+  mpuRegion.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+  HAL_MPU_ConfigRegion (&mpuRegion);
+
+  // Enable the MPU
+  HAL_MPU_Enable (MPU_PRIVILEGED_DEFAULT);
+  }
+//}}}
+
 //{{{
 uint32_t sdRamTest (int offset, uint16_t* addr, uint32_t len) {
 
@@ -406,9 +404,11 @@ cTile* loadFile (const string& fileName, int scale) {
     return nullptr;
     }
 
+  auto startTime = HAL_GetTick();
   UINT bytesRead = 0;
   f_read (&gFile, buf, (UINT)filInfo.fsize, &bytesRead);
   f_close (&gFile);
+  auto loadTook = HAL_GetTick() - startTime;
 
   if (bytesRead > 0) {
     struct jpeg_error_mgr jerr;
@@ -436,10 +436,12 @@ cTile* loadFile (const string& fileName, int scale) {
     free (rgbLine);
 
     jpeg_finish_decompress (&mCinfo);
+    auto allTook = HAL_GetTick() - startTime;
 
     free (buf);
-    lcd->info (COL_YELLOW, "loaded " + dec(mCinfo.image_width) + "x" + dec(mCinfo.image_height) + " " +
-                                       dec(mCinfo.output_width) + "x" + dec(mCinfo.output_height));
+    lcd->info (COL_WHITE, "done " + dec(mCinfo.image_width) + "x" + dec(mCinfo.image_height) + " " +
+                                    dec(mCinfo.output_width) + "x" + dec(mCinfo.output_height) + " " +
+                                    dec(loadTook) + ":" + dec(allTook));
     lcd->changed();
     jpeg_destroy_decompress (&mCinfo);
     return tile;
@@ -478,8 +480,8 @@ void uiThread (void* arg) {
 //{{{
 void appThread (void* arg) {
 
-  //BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_GPIO);
-  printf ("Hello colin white\n");
+  FATFS SDFatFs;
+  char SDPath[4];
 
   if (FATFS_LinkDriver (&SD_Driver, SDPath) != 0) {
     lcd->info (COL_RED, "sdCard - no driver");
@@ -491,7 +493,6 @@ void appThread (void* arg) {
     lcd->changed();
     }
   else {
-    // get label
     char label[20] = {0};
     DWORD volumeSerialNumber = 0;
     f_getlabel ("", label, &volumeSerialNumber);
@@ -500,7 +501,6 @@ void appThread (void* arg) {
 
     findFiles ("", ".jpg");
 
-    //simpleTest();
     auto startTime = HAL_GetTick();
     for (auto file : mFileVec) {
       auto tile = loadFile (file, 1);
@@ -510,7 +510,7 @@ void appThread (void* arg) {
         lcd->info ("tile error " + file);
       lcd->changed();
       }
-    lcd->info (COL_YELLOW, "loadFiles took " + dec (HAL_GetTick() - startTime));
+    lcd->info (COL_WHITE, "appThread - loadFiles took " + dec(HAL_GetTick() - startTime));
     }
 
   while (true) {
@@ -523,9 +523,8 @@ void appThread (void* arg) {
 int main() {
 
   HAL_Init();
-  systemClockConfig();
-
-  sdRamInit();
+  clockConfig();
+  sdRamConfig();
   //HAL_SetFMCMemorySwappingConfig (FMC_SWAPBMAP_SDRAM_SRAM);
   SCB_EnableICache();
   //SCB_EnableDCache();

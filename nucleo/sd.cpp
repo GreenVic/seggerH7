@@ -1,20 +1,26 @@
 // sd.cpp
+//{{{  includes
 #include "sd.h"
+
 #include "cLcd.h"
 #include "cmsis_os.h"
+//}}}
 
+// defines
 //#define LCD_DEBUG
 
 #define QUEUE_SIZE      10
 #define READ_CPLT_MSG   1
 #define WRITE_CPLT_MSG  2
-#define SD_TIMEOUT 1000
-#define SD_DEFAULT_BLOCK_SIZE 512
+#define SD_TIMEOUT      1000
+#define SD_BLOCK_SIZE   512
 
+// vars
 SD_HandleTypeDef gSdHandle;
 static volatile DSTATUS gStat = STA_NOINIT;
 osMessageQId gQueue;
 
+// callbacks
 void HAL_SD_TxCpltCallback (SD_HandleTypeDef* hsd) { osMessagePut (gQueue, WRITE_CPLT_MSG, osWaitForever); }
 void HAL_SD_RxCpltCallback (SD_HandleTypeDef* hsd) { osMessagePut (gQueue, READ_CPLT_MSG, osWaitForever); }
 extern "C" { void SDMMC1_IRQHandler() { HAL_SD_IRQHandler (&gSdHandle); } }
@@ -52,8 +58,8 @@ DSTATUS SD_initialize (BYTE lun) {
   gStat = STA_NOINIT;
 
   gSdHandle.Instance = SDMMC1;
-  gSdHandle.Init.BusWide = SDMMC_BUS_WIDE_4B;
   gSdHandle.Init.ClockDiv = 1;
+  gSdHandle.Init.BusWide = SDMMC_BUS_WIDE_4B;
   gSdHandle.Init.ClockEdge = SDMMC_CLOCK_EDGE_RISING;
   gSdHandle.Init.ClockPowerSave = SDMMC_CLOCK_POWER_SAVE_DISABLE;
   gSdHandle.Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_ENABLE;
@@ -70,7 +76,7 @@ DSTATUS SD_initialize (BYTE lun) {
   gpio_init_structure.Pull = GPIO_PULLUP;
   gpio_init_structure.Speed = GPIO_SPEED_FREQ_HIGH;
 
-  // GPIOC config D0..3 - PC08..11
+  // GPIOC config D0:3 - PC08:11
   gpio_init_structure.Alternate = GPIO_AF12_SDIO1;
   gpio_init_structure.Pin = GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11;
   HAL_GPIO_Init (GPIOC, &gpio_init_structure);
@@ -166,26 +172,25 @@ DRESULT SD_ioctl (BYTE lun, BYTE cmd, void* buff) {
 
   BSP_SD_CardInfo CardInfo;
   switch (cmd) {
-    /* Make sure that no pending write process */
+    // Make sure that no pending write process
     case CTRL_SYNC :
       return RES_OK;
 
-    /* Get number of sectors on the disk (DWORD) */
-    case GET_SECTOR_COUNT :
+    // Get number of sectors on the disk (DWORD) case GET_SECTOR_COUNT :
       getCardInfo(&CardInfo);
       *(DWORD*)buff = CardInfo.LogBlockNbr;
       return RES_OK;
 
-    /* Get R/W sector size (WORD) */
+    // Get R/W sector size (WORD)
     case GET_SECTOR_SIZE :
       getCardInfo(&CardInfo);
       *(WORD*)buff = CardInfo.LogBlockSize;
       return RES_OK;
 
-    /* Get erase block size in unit of sector (DWORD) */
+    // Get erase block size in unit of sector (DWORD)
     case GET_BLOCK_SIZE :
       getCardInfo(&CardInfo);
-      *(DWORD*)buff = CardInfo.LogBlockSize / SD_DEFAULT_BLOCK_SIZE;
+      *(DWORD*)buff = CardInfo.LogBlockSize / SD_BLOCK_SIZE;
       return RES_OK;
 
     default:
