@@ -456,11 +456,8 @@ cTile* loadFile (const string& fileName, int scale) {
 //{{{
 void displayThread (void* arg) {
 
-  lcd->render();
-  lcd->display (60);
-
   while (true) {
-    if (true || lcd->changed()) {
+    if (lcd->changed()) {
       lcd->start();
       lcd->clear (COL_BLACK);
 

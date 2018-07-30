@@ -653,15 +653,6 @@ void cLcd::present() {
 //}}}
 
 //{{{
-void cLcd::render() {
-
-  start();
-  clear (COL_BLACK);
-  drawInfo();
-  present();
-  }
-//}}}
-//{{{
 void cLcd::display (int brightness) {
 
   mBrightness = brightness;

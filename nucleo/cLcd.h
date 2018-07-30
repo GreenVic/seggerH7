@@ -126,7 +126,6 @@ public:
   void drawInfo();
   void present();
 
-  void render();
   void display (int brightness);
 
   static cLcd* mLcd;
