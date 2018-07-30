@@ -150,7 +150,7 @@ private:
 
   LTDC_HandleTypeDef mLtdcHandle;
   TIM_HandleTypeDef mTimHandle;
-  int mBrightness = 60;
+  int mBrightness = 50;
 
   bool mChanged = true;
   bool mDrawBuffer = false;
