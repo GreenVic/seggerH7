@@ -214,72 +214,51 @@
 #define JPEG_PROCESS_ONGOING        ((uint32_t)0x00000000U)  /* Process is on going */
 #define JPEG_PROCESS_DONE           ((uint32_t)0x00000001U)  /* Process is done (ends) */
 //}}}
-//{{{
+//{{{  JPEG_ACHuffTableTypeDef
 /*
  JPEG Huffman Table Structure definition :
  This implementation of Huffman table structure is compliant with ISO/IEC 10918-1 standard , Annex C Huffman Table specification
  */
-typedef struct
-{
+typedef struct {
   /* These two fields directly represent the contents of a JPEG DHT marker */
   uint8_t Bits[16];        /*!< bits[k] = # of symbols with codes of length k bits, this parameter corresponds to BITS list in the Annex C */
-
   uint8_t HuffVal[162];    /*!< The symbols, in order of incremented code length, this parameter corresponds to HUFFVAL list in the Annex C */
-
-
-}JPEG_ACHuffTableTypeDef;
+  } JPEG_ACHuffTableTypeDef;
 //}}}
-//{{{
-typedef struct
-{
+//{{{  JPEG_DCHuffTableTypeDef
+typedef struct {
   /* These two fields directly represent the contents of a JPEG DHT marker */
   uint8_t Bits[16];        /*!< bits[k] = # of symbols with codes of length k bits, this parameter corresponds to BITS list in the Annex C */
-
   uint8_t HuffVal[12];    /*!< The symbols, in order of incremented code length, this parameter corresponds to HUFFVAL list in the Annex C */
-
-
-}JPEG_DCHuffTableTypeDef;
+  }JPEG_DCHuffTableTypeDef;
 //}}}
-//{{{
-typedef struct
-{
+//{{{  JPEG_AC_HuffCodeTableTypeDef
+typedef struct {
   uint8_t CodeLength[JPEG_AC_HUFF_TABLE_SIZE];      /*!< Code length  */
-
   uint32_t HuffmanCode[JPEG_AC_HUFF_TABLE_SIZE];    /*!< HuffmanCode */
-
-}JPEG_AC_HuffCodeTableTypeDef;
+  }JPEG_AC_HuffCodeTableTypeDef;
 //}}}
-//{{{
-typedef struct
-{
+//{{{  JPEG_DC_HuffCodeTableTypeDef
+typedef struct {
   uint8_t CodeLength[JPEG_DC_HUFF_TABLE_SIZE];        /*!< Code length  */
-
   uint32_t HuffmanCode[JPEG_DC_HUFF_TABLE_SIZE];    /*!< HuffmanCode */
-
-}JPEG_DC_HuffCodeTableTypeDef;
+  } JPEG_DC_HuffCodeTableTypeDef;
 //}}}
 //{{{
-static const JPEG_DCHuffTableTypeDef JPEG_DCLUM_HuffTable =
-{
+static const JPEG_DCHuffTableTypeDef JPEG_DCLUM_HuffTable = {
   { 0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0 },   /*Bits*/
-
   { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xa, 0xb }           /*HUFFVAL */
-
-};
+  };
 //}}}
 //{{{
-static const JPEG_DCHuffTableTypeDef JPEG_DCCHROM_HuffTable =
-{
+static const JPEG_DCHuffTableTypeDef JPEG_DCCHROM_HuffTable = {
   { 0, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0 },  /*Bits*/
-
   { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xa, 0xb }          /*HUFFVAL */
-};
+  };
 //}}}
 //{{{
-static const JPEG_ACHuffTableTypeDef JPEG_ACLUM_HuffTable =
-{
+static const JPEG_ACHuffTableTypeDef JPEG_ACLUM_HuffTable = {
   { 0, 2, 1, 3, 3, 2, 4, 3, 5, 5, 4, 4, 0, 0, 1, 0x7d },  /*Bits*/
-
   {   0x01, 0x02, 0x03, 0x00, 0x04, 0x11, 0x05, 0x12,     /*HUFFVAL */
       0x21, 0x31, 0x41, 0x06, 0x13, 0x51, 0x61, 0x07,
       0x22, 0x71, 0x14, 0x32, 0x81, 0x91, 0xa1, 0x08,
@@ -301,13 +280,11 @@ static const JPEG_ACHuffTableTypeDef JPEG_ACLUM_HuffTable =
       0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea,
       0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8,
       0xf9, 0xfa }
-};
+  };
 //}}}
 //{{{
-static const JPEG_ACHuffTableTypeDef JPEG_ACCHROM_HuffTable =
-{
+static const JPEG_ACHuffTableTypeDef JPEG_ACCHROM_HuffTable = {
   { 0, 2, 1, 2, 4, 4, 3, 4, 7, 5, 4, 4, 0, 1, 2, 0x77 },   /*Bits*/
-
   {   0x00, 0x01, 0x02, 0x03, 0x11, 0x04, 0x05, 0x21,      /*HUFFVAL */
       0x31, 0x06, 0x12, 0x41, 0x51, 0x07, 0x61, 0x71,
       0x13, 0x22, 0x32, 0x81, 0x08, 0x14, 0x42, 0x91,
@@ -329,14 +306,10 @@ static const JPEG_ACHuffTableTypeDef JPEG_ACCHROM_HuffTable =
       0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9,
       0xea, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8,
       0xf9, 0xfa }
-};
+  };
 //}}}
 //{{{
-/*
-  These are the sample quantization tables given in JPEG spec ISO/IEC 10918-1 standard , section K.1.
-*/
-static const uint8_t JPEG_LUM_QuantTable[JPEG_QUANT_TABLE_SIZE] =
-{
+static const uint8_t JPEG_LUM_QuantTable[JPEG_QUANT_TABLE_SIZE] = {
   16,  11,  10,  16,  24,  40,  51,  61,
   12,  12,  14,  19,  26,  58,  60,  55,
   14,  13,  16,  24,  40,  57,  69,  56,
@@ -345,9 +318,10 @@ static const uint8_t JPEG_LUM_QuantTable[JPEG_QUANT_TABLE_SIZE] =
   24,  35,  55,  64,  81, 104, 113,  92,
   49,  64,  78,  87, 103, 121, 120, 101,
   72,  92,  95,  98, 112, 100, 103,  99
-};
-static const uint8_t JPEG_CHROM_QuantTable[JPEG_QUANT_TABLE_SIZE] =
-{
+  };
+//}}}
+//{{{
+static const uint8_t JPEG_CHROM_QuantTable[JPEG_QUANT_TABLE_SIZE] = {
   17,  18,  24,  47,  99,  99,  99,  99,
   18,  21,  26,  66,  99,  99,  99,  99,
   24,  26,  56,  99,  99,  99,  99,  99,
@@ -357,9 +331,9 @@ static const uint8_t JPEG_CHROM_QuantTable[JPEG_QUANT_TABLE_SIZE] =
   99,  99,  99,  99,  99,  99,  99,  99,
   99,  99,  99,  99,  99,  99,  99,  99
 };
-
-static const uint8_t JPEG_ZIGZAG_ORDER[JPEG_QUANT_TABLE_SIZE] =
-{
+//}}}
+//{{{
+static const uint8_t JPEG_ZIGZAG_ORDER[JPEG_QUANT_TABLE_SIZE] = {
    0,   1,   8,  16,   9,   2,   3,  10,
   17,  24,  32,  25,  18,  11,   4,   5,
   12,  19,  26,  33,  40,  48,  41,  34,
@@ -368,7 +342,7 @@ static const uint8_t JPEG_ZIGZAG_ORDER[JPEG_QUANT_TABLE_SIZE] =
   29,  22,  15,  23,  30,  37,  44,  51,
   58,  59,  52,  45,  38,  31,  39,  46,
   53,  60,  61,  54,  47,  55,  62,  63
-};
+  };
 //}}}
 
 //{{{
@@ -1933,10 +1907,10 @@ HAL_StatusTypeDef HAL_JPEG_Init (JPEG_HandleTypeDef *hjpeg)
   hjpeg->QuantTable3 = NULL;
 
   /* init the default Huffman tables*/
-  if (JPEG_Set_HuffEnc_Mem (hjpeg, 
+  if (JPEG_Set_HuffEnc_Mem (hjpeg,
                             (JPEG_ACHuffTableTypeDef *)acLum_huffmanTableAddr,
-                            (JPEG_DCHuffTableTypeDef *)dcLum_huffmanTableAddr, 
-                            (JPEG_ACHuffTableTypeDef *)acChrom_huffmanTableAddr, 
+                            (JPEG_DCHuffTableTypeDef *)dcLum_huffmanTableAddr,
+                            (JPEG_ACHuffTableTypeDef *)acChrom_huffmanTableAddr,
                             (JPEG_DCHuffTableTypeDef *)dcChrom_huffmanTableAddr) != HAL_OK) {
     hjpeg->ErrorCode = HAL_JPEG_ERROR_HUFF_TABLE;
     return HAL_ERROR;
