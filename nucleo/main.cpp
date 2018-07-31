@@ -531,14 +531,12 @@ typedef struct {
   uint32_t DataBufferSize;
   } JPEG_Data_BufferTypeDef;
 
+#define JPEG_BUFFER_EMPTY  0
+#define JPEG_BUFFER_FULL   1
 #define CHUNK_SIZE_IN  ((uint32_t)(4096))
 #define CHUNK_SIZE_OUT ((uint32_t)(64 * 1024))
-
-#define JPEG_BUFFER_EMPTY 0
-#define JPEG_BUFFER_FULL  1
-
-#define NB_OUTPUT_DATA_BUFFERS      2
-#define NB_INPUT_DATA_BUFFERS       2
+#define NB_OUTPUT_DATA_BUFFERS 2
+#define NB_INPUT_DATA_BUFFERS  2
 
 FIL* pFile;
 
@@ -562,29 +560,28 @@ __IO uint32_t Input_Is_Paused = 0;
 uint32_t FrameBufferAddress;
 
 //{{{
-uint32_t JPEG_Decode_DMA(JPEG_HandleTypeDef *hjpeg, FIL *file, uint32_t DestAddress)
-{
+uint32_t JPEG_Decode_DMA(JPEG_HandleTypeDef *hjpeg, FIL *file, uint32_t DestAddress) {
+
   uint32_t i;
 
   pFile = file;
   FrameBufferAddress = DestAddress;
 
   /* Read from JPG file and fill input buffers */
-  for(i = 0; i < NB_INPUT_DATA_BUFFERS; i++)
-  {
+  for(i = 0; i < NB_INPUT_DATA_BUFFERS; i++) {
     if(f_read (pFile, Jpeg_IN_BufferTab[i].DataBuffer , CHUNK_SIZE_IN, (UINT*)(&Jpeg_IN_BufferTab[i].DataBufferSize)) == FR_OK)
       Jpeg_IN_BufferTab[i].State = JPEG_BUFFER_FULL;
     else
       printf ("JPEG_Decode_DMA read failed\n");
-  }
-  /* Start JPEG decoding with DMA method */
-  HAL_JPEG_Decode_DMA(hjpeg ,Jpeg_IN_BufferTab[0].DataBuffer ,Jpeg_IN_BufferTab[0].DataBufferSize ,(uint8_t *)FrameBufferAddress ,CHUNK_SIZE_OUT);
+    }
 
+  /* Start JPEG decoding with DMA method */
+  HAL_JPEG_Decode_DMA (hjpeg J peg_IN_BufferTab[0].DataBuffer ,Jpeg_IN_BufferTab[0].DataBufferSize ,(uint8_t *)FrameBufferAddress ,CHUNK_SIZE_OUT);
   return 0;
-}
+  }
 //}}}
 //{{{
-uint32_t JPEG_InputHandler(JPEG_HandleTypeDef *hjpeg) {
+uint32_t JPEG_InputHandler(JPEG_HandleTypeDef* hjpeg) {
 
   if (Jpeg_HWDecodingEnd == 0) {
     if (Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].State == JPEG_BUFFER_EMPTY) {
@@ -594,7 +591,7 @@ uint32_t JPEG_InputHandler(JPEG_HandleTypeDef *hjpeg) {
       else
         printf ("JPEG_InputHandler read failed\n");
 
-      if((Input_Is_Paused == 1) && (JPEG_IN_Write_BufferIndex == JPEG_IN_Read_BufferIndex)) {
+      if ((Input_Is_Paused == 1) && (JPEG_IN_Write_BufferIndex == JPEG_IN_Read_BufferIndex)) {
         Input_Is_Paused = 0;
         HAL_JPEG_ConfigInputBuffer (hjpeg,Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBuffer,
                                     Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBufferSize);
@@ -602,7 +599,7 @@ uint32_t JPEG_InputHandler(JPEG_HandleTypeDef *hjpeg) {
         }
 
       JPEG_IN_Write_BufferIndex++;
-      if(JPEG_IN_Write_BufferIndex >= NB_INPUT_DATA_BUFFERS)
+      if (JPEG_IN_Write_BufferIndex >= NB_INPUT_DATA_BUFFERS)
         JPEG_IN_Write_BufferIndex = 0;
      }
      return 0;
@@ -613,7 +610,7 @@ uint32_t JPEG_InputHandler(JPEG_HandleTypeDef *hjpeg) {
 //}}}
 
 //{{{
-void HAL_JPEG_GetDataCallback(JPEG_HandleTypeDef *hjpeg, uint32_t NbDecodedData) {
+void HAL_JPEG_GetDataCallback(JPEG_HandleTypeDef* hjpeg, uint32_t NbDecodedData) {
 
   if (NbDecodedData == Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBufferSize) {
     Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].State = JPEG_BUFFER_EMPTY;
@@ -624,7 +621,7 @@ void HAL_JPEG_GetDataCallback(JPEG_HandleTypeDef *hjpeg, uint32_t NbDecodedData)
       JPEG_IN_Read_BufferIndex = 0;
 
     if (Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].State == JPEG_BUFFER_EMPTY) {
-      HAL_JPEG_Pause(hjpeg, JPEG_PAUSE_RESUME_INPUT);
+      HAL_JPEG_Pause (hjpeg, JPEG_PAUSE_RESUME_INPUT);
       Input_Is_Paused = 1;
       }
     else
@@ -635,16 +632,16 @@ void HAL_JPEG_GetDataCallback(JPEG_HandleTypeDef *hjpeg, uint32_t NbDecodedData)
   }
 //}}}
 //{{{
-void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef *hjpeg, uint8_t *pDataOut, uint32_t OutDataLength) {
+void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* hjpeg, uint8_t* pDataOut, uint32_t OutDataLength) {
 
   // Update JPEG encoder output buffer address
   FrameBufferAddress += OutDataLength;
   HAL_JPEG_ConfigOutputBuffer (hjpeg, (uint8_t*)FrameBufferAddress, CHUNK_SIZE_OUT);
   }
 //}}}
-void HAL_JPEG_InfoReadyCallback(JPEG_HandleTypeDef *hjpeg, JPEG_ConfTypeDef *pInfo) {}
-void HAL_JPEG_ErrorCallback(JPEG_HandleTypeDef *hjpeg) {}
-void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef *hjpeg) { Jpeg_HWDecodingEnd = 1; }
+void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef* hjpeg) { Jpeg_HWDecodingEnd = 1; }
+void HAL_JPEG_InfoReadyCallback(JPEG_HandleTypeDef* hjpeg, JPEG_ConfTypeDef* pInfo) {}
+void HAL_JPEG_ErrorCallback(JPEG_HandleTypeDef* hjpeg) {}
 //}}}
 
 //{{{
