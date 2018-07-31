@@ -822,7 +822,7 @@ void appThread (void* arg) {
   }
 //}}}
 
-int main() {
+                                                                                                                                                                                               int main() {
 
   HAL_Init();
   clockConfig();
