@@ -92,7 +92,7 @@ uint32_t JPEG_Decode_DMA (JPEG_HandleTypeDef* hjpeg, FIL* file, uint32_t DestAdd
 
   /* Read from JPG file and fill input buffers */
   for(i = 0; i < NB_INPUT_DATA_BUFFERS; i++) {
-    if (f_read (pFile, Jpeg_IN_BufferTab[i].DataBuffer, CHUNK_SIZE_IN, 
+    if (f_read (pFile, Jpeg_IN_BufferTab[i].DataBuffer, CHUNK_SIZE_IN,
                        (UINT*)(&Jpeg_IN_BufferTab[i].DataBufferSize)) == FR_OK)
       Jpeg_IN_BufferTab[i].State = JPEG_BUFFER_FULL;
     else
@@ -150,11 +150,11 @@ void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* hjpeg, uint32_t NbDecodedData
       Input_Is_Paused = 1;
       }
     else
-      HAL_JPEG_ConfigInputBuffer (hjpeg,Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBuffer, 
+      HAL_JPEG_ConfigInputBuffer (hjpeg,Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBuffer,
                                   Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBufferSize);
     }
   else
-    HAL_JPEG_ConfigInputBuffer (hjpeg,Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBuffer + NbDecodedData, 
+    HAL_JPEG_ConfigInputBuffer (hjpeg,Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBuffer + NbDecodedData,
                                 Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBufferSize - NbDecodedData);
   }
 //}}}
@@ -183,8 +183,8 @@ void HAL_JPEG_MspInit(JPEG_HandleTypeDef *hjpeg) {
   /* Enable MDMA clock */
   __HAL_RCC_MDMA_CLK_ENABLE();
 
-  HAL_NVIC_SetPriority(JPEG_IRQn, 0x07, 0x0F);
-  HAL_NVIC_EnableIRQ(JPEG_IRQn);
+  HAL_NVIC_SetPriority (JPEG_IRQn, 0x07, 0x0F);
+  HAL_NVIC_EnableIRQ (JPEG_IRQn);
 
   /* Input MDMA */
   hmdmaIn.Init.Priority           = MDMA_PRIORITY_HIGH;
@@ -237,12 +237,12 @@ void HAL_JPEG_MspInit(JPEG_HandleTypeDef *hjpeg) {
 
   hmdmaOut.Instance = MDMA_Channel6;
   /* DeInitialize the DMA Stream */
-  HAL_MDMA_DeInit(&hmdmaOut);
+  HAL_MDMA_DeInit (&hmdmaOut);
   /* Initialize the DMA stream */
-  HAL_MDMA_Init(&hmdmaOut);
+  HAL_MDMA_Init (&hmdmaOut);
 
   /* Associate the DMA handle */
-  __HAL_LINKDMA(hjpeg, hdmaout, hmdmaOut);
+  __HAL_LINKDMA (hjpeg, hdmaout, hmdmaOut);
 
   HAL_NVIC_SetPriority (MDMA_IRQn, 0x08, 0x0F);
   HAL_NVIC_EnableIRQ (MDMA_IRQn);
@@ -254,20 +254,91 @@ void loadJpeg (const string& fileName) {
   JPEG_Handle.Instance = JPEG;
   HAL_JPEG_Init (&JPEG_Handle);
 
+  auto startTime = HAL_GetTick();
   FIL JPEG_File;
-  JPEG_ConfTypeDef JPEG_Info;
-  uint32_t JpegProcessing_End = 0;
-
   if (f_open (&JPEG_File, fileName.c_str(), FA_READ) == FR_OK) {
     JPEG_Decode_DMA (&JPEG_Handle, &JPEG_File, jpegBuf);
-    do {
-      JpegProcessing_End = JPEG_InputHandler (&JPEG_Handle);
-      } while (JpegProcessing_End == 0);
 
-    HAL_JPEG_GetInfo (&JPEG_Handle, &JPEG_Info);
-    printf ("jpeg image %d %d\n",  JPEG_Info.ImageWidth, JPEG_Info.ImageHeight);
+    int count = 0;
+    uint32_t jpegProcessing_End = 0;
+    do {
+      count++;
+      jpegProcessing_End = JPEG_InputHandler (&JPEG_Handle);
+      } while (jpegProcessing_End == 0);
     f_close (&JPEG_File);
+
+    JPEG_ConfTypeDef jpegInfo;
+    HAL_JPEG_GetInfo (&JPEG_Handle, &jpegInfo);
+    lcd->info (COL_YELLOW,
+               "loadJpeg " + fileName +
+               " took " + dec (HAL_GetTick() - startTime) + ":" + dec(count) +
+               " " + dec (jpegInfo.ImageWidth) + "x" + dec (jpegInfo.ImageHeight));
+    lcd->changed();
+
+    printf ("jpeg image %d %d\n",  jpegInfo.ImageWidth, jpegInfo.ImageHeight);
     }
+  }
+//}}}
+
+//DMA2D_CopyBuffer((uint32_t *)JPEG_OUTPUT_DATA_BUFFER, (uint32_t *)LCD_FRAME_BUFFER, xPos , yPos, JPEG_Info.ImageWidth, JPEG_Info.ImageHeight, JPEG_Info.ChromaSubsampling);
+DMA2D_HandleTypeDef DMA2D_Handle;
+//{{{
+void DMA2D_CopyBuffer (uint32_t *pSrc, uint32_t *pDst,
+                       uint16_t x, uint16_t y, uint16_t xsize, uint16_t ysize, uint32_t ChromaSampling)
+{
+  uint32_t cssMode = DMA2D_CSS_420, inputLineOffset = 0;
+  uint32_t destination = 0;
+
+  if (ChromaSampling == JPEG_420_SUBSAMPLING) {
+    cssMode = DMA2D_CSS_420;
+    inputLineOffset = xsize % 16;
+    if (inputLineOffset != 0)
+      inputLineOffset = 16 - inputLineOffset;
+    }
+  else if (ChromaSampling == JPEG_444_SUBSAMPLING) {
+    cssMode = DMA2D_NO_CSS;
+
+    inputLineOffset = xsize % 8;
+    if (inputLineOffset != 0)
+      inputLineOffset = 8 - inputLineOffset;
+    }
+  else if (ChromaSampling == JPEG_422_SUBSAMPLING) {
+    cssMode = DMA2D_CSS_422;
+
+    inputLineOffset = xsize % 16;
+    if (inputLineOffset != 0)
+      inputLineOffset = 16 - inputLineOffset;
+    }
+
+  /*##-1- Configure the DMA2D Mode, Color Mode and output offset #############*/
+  DMA2D_Handle.Instance = DMA2D;
+  DMA2D_Handle.Init.Mode         = DMA2D_M2M_PFC;
+  DMA2D_Handle.Init.ColorMode    = DMA2D_OUTPUT_ARGB8888;
+  DMA2D_Handle.Init.OutputOffset = 1024 - xsize;
+  DMA2D_Handle.Init.AlphaInverted = DMA2D_REGULAR_ALPHA;  /* No Output Alpha Inversion*/
+  DMA2D_Handle.Init.RedBlueSwap   = DMA2D_RB_REGULAR;     /* No Output Red & Blue swap */
+
+  /*##-2- DMA2D Callbacks Configuration ######################################*/
+  DMA2D_Handle.XferCpltCallback  = NULL;
+
+  /*##-3- Foreground Configuration ###########################################*/
+  DMA2D_Handle.LayerCfg[1].AlphaMode = DMA2D_REPLACE_ALPHA;
+  DMA2D_Handle.LayerCfg[1].InputAlpha = 0xFF;
+  DMA2D_Handle.LayerCfg[1].InputColorMode = DMA2D_INPUT_YCBCR;
+  DMA2D_Handle.LayerCfg[1].ChromaSubSampling = cssMode;
+  DMA2D_Handle.LayerCfg[1].InputOffset = inputLineOffset;
+  DMA2D_Handle.LayerCfg[1].RedBlueSwap = DMA2D_RB_REGULAR; /* No ForeGround Red/Blue swap */
+  DMA2D_Handle.LayerCfg[1].AlphaInverted = DMA2D_REGULAR_ALPHA; /* No ForeGround Alpha inversion */
+
+  /*##-4- DMA2D Initialization     ###########################################*/
+  HAL_DMA2D_Init (&DMA2D_Handle);
+  HAL_DMA2D_ConfigLayer (&DMA2D_Handle, 1);
+
+  /*##-5-  copy the new decoded frame to the LCD Frame buffer ################*/
+  destination = (uint32_t)pDst + ((y * 1024) + x) * 4;
+
+  HAL_DMA2D_Start(&DMA2D_Handle, (uint32_t)pSrc, destination, xsize, ysize);
+  HAL_DMA2D_PollForTransfer(&DMA2D_Handle, 25);  /* wait for the previous DMA2D transfer to ends */
   }
 //}}}
 
@@ -730,6 +801,7 @@ void appThread (void* arg) {
     findFiles ("", ".jpg");
 
     jpegBuf = (uint32_t)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*4);
+
     auto startTime = HAL_GetTick();
     for (auto file : mFileVec) {
       auto tile = loadFile (file, 1);
