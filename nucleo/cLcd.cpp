@@ -28,6 +28,7 @@ SemaphoreHandle_t cLcd::mDma2dSem;
 
 SemaphoreHandle_t cLcd::mFrameSem;
 //}}}
+DMA2D_HandleTypeDef DMA2D_Handle;
 
 //{{{
 extern "C" {void LTDC_IRQHandler() {
@@ -423,18 +424,6 @@ void cLcd::sizeBi (cTile* srcTile, const cRect& r) {
   }
 //}}}
 //{{{
-void cLcd::rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize) {
-
-  ready();
-  for (uint16_t x = 0; x < xsize; x++) {
-    uint8_t b = (*src++) & 0xF8;
-    uint8_t g = (*src++) & 0xFC;
-    uint8_t r = (*src++) & 0xF8;
-    *dst++ = (r << 8) | (g << 3) | (b >> 3);
-    }
-  }
-//}}}
-//{{{
 void cLcd::pixel (uint16_t colour, cPoint p) {
   *(mBuffer[mDrawBuffer] + p.y * getWidth() + p.x) = colour;
   }
@@ -587,6 +576,75 @@ int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string str, cRe
     }
 
   return r.left;
+  }
+//}}}
+
+//{{{
+void cLcd::rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize) {
+
+  ready();
+  for (uint16_t x = 0; x < xsize; x++) {
+    uint8_t b = (*src++) & 0xF8;
+    uint8_t g = (*src++) & 0xFC;
+    uint8_t r = (*src++) & 0xF8;
+    *dst++ = (r << 8) | (g << 3) | (b >> 3);
+    }
+  }
+//}}}
+//{{{
+void cLcd::yuvTo565 (uint32_t* src, uint32_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling) {
+
+  ready();
+
+  uint32_t cssMode = DMA2D_CSS_420;
+  uint32_t inputLineOffset = 0;
+
+  if (chromaSampling == JPEG_420_SUBSAMPLING) {
+    cssMode = DMA2D_CSS_420;
+    inputLineOffset = xsize % 16;
+    if (inputLineOffset != 0)
+      inputLineOffset = 16 - inputLineOffset;
+    }
+  else if (chromaSampling == JPEG_444_SUBSAMPLING) {
+    cssMode = DMA2D_NO_CSS;
+    inputLineOffset = xsize % 8;
+    if (inputLineOffset != 0)
+      inputLineOffset = 8 - inputLineOffset;
+    }
+  else if (chromaSampling == JPEG_422_SUBSAMPLING) {
+    cssMode = DMA2D_CSS_422;
+    inputLineOffset = xsize % 16;
+    if (inputLineOffset != 0)
+      inputLineOffset = 16 - inputLineOffset;
+    }
+
+  // Configure the DMA2D Mode, Color Mode and output offset
+  DMA2D_Handle.Instance = DMA2D;
+  DMA2D_Handle.Init.Mode = DMA2D_M2M_PFC;
+  DMA2D_Handle.Init.ColorMode = DMA2D_OUTPUT_RGB565;
+  DMA2D_Handle.Init.OutputOffset = 0; //1024 - xsize;
+  DMA2D_Handle.Init.AlphaInverted = DMA2D_REGULAR_ALPHA;  /* No Output Alpha Inversion*/
+  DMA2D_Handle.Init.RedBlueSwap = DMA2D_RB_REGULAR;     /* No Output Red & Blue swap */
+
+  // DMA2D Callbacks Configuration
+  DMA2D_Handle.XferCpltCallback  = NULL;
+
+  // Foreground Configuration
+  DMA2D_Handle.LayerCfg[1].AlphaMode = DMA2D_REPLACE_ALPHA;
+  DMA2D_Handle.LayerCfg[1].InputAlpha = 0xFF;
+  DMA2D_Handle.LayerCfg[1].InputColorMode = DMA2D_INPUT_YCBCR;
+  DMA2D_Handle.LayerCfg[1].ChromaSubSampling = cssMode;
+  DMA2D_Handle.LayerCfg[1].InputOffset = inputLineOffset;
+  DMA2D_Handle.LayerCfg[1].RedBlueSwap = DMA2D_RB_REGULAR; /* No ForeGround Red/Blue swap */
+  DMA2D_Handle.LayerCfg[1].AlphaInverted = DMA2D_REGULAR_ALPHA; /* No ForeGround Alpha inversion */
+
+  // DMA2D Initialization
+  HAL_DMA2D_Init (&DMA2D_Handle);
+  HAL_DMA2D_ConfigLayer (&DMA2D_Handle, 1);
+
+  // copy the new decoded frame to the LCD Frame buffer
+  HAL_DMA2D_Start (&DMA2D_Handle, (uint32_t)src, (uint32_t)dst, xsize, ysize);
+  HAL_DMA2D_PollForTransfer (&DMA2D_Handle, 25);
   }
 //}}}
 

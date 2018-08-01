@@ -115,12 +115,14 @@ public:
   void copy90 (cTile* srcTile, cPoint p);
   void size (cTile* srcTile, const cRect& r);
   void sizeBi (cTile* srcTile, const cRect& r);
-  void rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize);
   void pixel (uint16_t colour, cPoint p);
   void ellipse (uint16_t colour, cPoint centre, cPoint radius);
   void ellipseOutline (uint16_t colour, cPoint centre, cPoint radius);
   void line (uint16_t colour, cPoint p1, cPoint p2);
   int text (uint16_t colour, uint16_t fontHeight, const std::string str, cRect r);
+
+  void rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize);
+  void yuvTo565 (uint32_t* src, uint32_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
 
   void start();
   void drawInfo();

@@ -214,7 +214,7 @@
 #define JPEG_PROCESS_ONGOING        ((uint32_t)0x00000000U)  /* Process is on going */
 #define JPEG_PROCESS_DONE           ((uint32_t)0x00000001U)  /* Process is done (ends) */
 //}}}
-//{{{  JPEG_ACHuffTableTypeDef
+//{{{  struct JPEG_ACHuffTableTypeDef
 /*
  JPEG Huffman Table Structure definition :
  This implementation of Huffman table structure is compliant with ISO/IEC 10918-1 standard , Annex C Huffman Table specification
@@ -225,25 +225,26 @@ typedef struct {
   uint8_t HuffVal[162];    /*!< The symbols, in order of incremented code length, this parameter corresponds to HUFFVAL list in the Annex C */
   } JPEG_ACHuffTableTypeDef;
 //}}}
-//{{{  JPEG_DCHuffTableTypeDef
+//{{{  struct JPEG_DCHuffTableTypeDef
 typedef struct {
   /* These two fields directly represent the contents of a JPEG DHT marker */
   uint8_t Bits[16];        /*!< bits[k] = # of symbols with codes of length k bits, this parameter corresponds to BITS list in the Annex C */
   uint8_t HuffVal[12];    /*!< The symbols, in order of incremented code length, this parameter corresponds to HUFFVAL list in the Annex C */
   }JPEG_DCHuffTableTypeDef;
 //}}}
-//{{{  JPEG_AC_HuffCodeTableTypeDef
+//{{{  struct JPEG_AC_HuffCodeTableTypeDef
 typedef struct {
   uint8_t CodeLength[JPEG_AC_HUFF_TABLE_SIZE];      /*!< Code length  */
   uint32_t HuffmanCode[JPEG_AC_HUFF_TABLE_SIZE];    /*!< HuffmanCode */
   }JPEG_AC_HuffCodeTableTypeDef;
 //}}}
-//{{{  JPEG_DC_HuffCodeTableTypeDef
+//{{{  struct JPEG_DC_HuffCodeTableTypeDef
 typedef struct {
   uint8_t CodeLength[JPEG_DC_HUFF_TABLE_SIZE];        /*!< Code length  */
   uint32_t HuffmanCode[JPEG_DC_HUFF_TABLE_SIZE];    /*!< HuffmanCode */
   } JPEG_DC_HuffCodeTableTypeDef;
 //}}}
+
 //{{{
 static const JPEG_DCHuffTableTypeDef JPEG_DCLUM_HuffTable = {
   { 0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0 },   /*Bits*/
@@ -357,7 +358,7 @@ static const uint8_t JPEG_ZIGZAG_ORDER[JPEG_QUANT_TABLE_SIZE] = {
   * @param  HuffTableDC1: DC1 huffman table
   * @retval None
   */
-static void JPEG_Set_Huff_DHTMem (JPEG_HandleTypeDef *hjpeg, JPEG_ACHuffTableTypeDef *HuffTableAC0, JPEG_DCHuffTableTypeDef *HuffTableDC0 ,  JPEG_ACHuffTableTypeDef *HuffTableAC1, JPEG_DCHuffTableTypeDef *HuffTableDC1)
+static void JPEG_Set_Huff_DHTMem (JPEG_HandleTypeDef* hjpeg, JPEG_ACHuffTableTypeDef *HuffTableAC0, JPEG_DCHuffTableTypeDef *HuffTableDC0 ,  JPEG_ACHuffTableTypeDef *HuffTableAC1, JPEG_DCHuffTableTypeDef *HuffTableDC1)
 {
   uint32_t value, index;
   __IO uint32_t *address;
@@ -709,7 +710,7 @@ static HAL_StatusTypeDef JPEG_DCHuff_BitsVals_To_SizeCodes (JPEG_DCHuffTableType
   * @param  DCTableAddress: Encoder DC huffman table address it could be HUFFENC_DC0 or HUFFENC_DC1.
   * @retval HAL status
   */
-static HAL_StatusTypeDef JPEG_Set_HuffDC_Mem (JPEG_HandleTypeDef *hjpeg, JPEG_DCHuffTableTypeDef *HuffTableDC, __IO uint32_t *DCTableAddress)
+static HAL_StatusTypeDef JPEG_Set_HuffDC_Mem (JPEG_HandleTypeDef* hjpeg, JPEG_DCHuffTableTypeDef *HuffTableDC, __IO uint32_t *DCTableAddress)
 {
   HAL_StatusTypeDef error = HAL_OK;
   JPEG_DC_HuffCodeTableTypeDef dcSizeCodesTable;
@@ -767,7 +768,7 @@ static HAL_StatusTypeDef JPEG_Set_HuffDC_Mem (JPEG_HandleTypeDef *hjpeg, JPEG_DC
   * @param  ACTableAddress: Encoder AC huffman table address it could be HUFFENC_AC0 or HUFFENC_AC1.
   * @retval HAL status
   */
-static HAL_StatusTypeDef JPEG_Set_HuffAC_Mem (JPEG_HandleTypeDef *hjpeg, JPEG_ACHuffTableTypeDef *HuffTableAC, __IO uint32_t *ACTableAddress)
+static HAL_StatusTypeDef JPEG_Set_HuffAC_Mem (JPEG_HandleTypeDef* hjpeg, JPEG_ACHuffTableTypeDef *HuffTableAC, __IO uint32_t *ACTableAddress)
 {
   HAL_StatusTypeDef error = HAL_OK;
   JPEG_AC_HuffCodeTableTypeDef acSizeCodesTable;
@@ -842,7 +843,7 @@ static HAL_StatusTypeDef JPEG_Set_HuffAC_Mem (JPEG_HandleTypeDef *hjpeg, JPEG_AC
   * @param  HuffTableDC1: DC1 huffman table
   * @retval None
   */
-static HAL_StatusTypeDef JPEG_Set_HuffEnc_Mem (JPEG_HandleTypeDef *hjpeg, JPEG_ACHuffTableTypeDef *HuffTableAC0, JPEG_DCHuffTableTypeDef *HuffTableDC0 ,  JPEG_ACHuffTableTypeDef *HuffTableAC1, JPEG_DCHuffTableTypeDef *HuffTableDC1)
+static HAL_StatusTypeDef JPEG_Set_HuffEnc_Mem (JPEG_HandleTypeDef* hjpeg, JPEG_ACHuffTableTypeDef *HuffTableAC0, JPEG_DCHuffTableTypeDef *HuffTableDC0 ,  JPEG_ACHuffTableTypeDef *HuffTableAC1, JPEG_DCHuffTableTypeDef *HuffTableDC1)
 {
   HAL_StatusTypeDef error = HAL_OK;
 
@@ -897,7 +898,7 @@ static HAL_StatusTypeDef JPEG_Set_HuffEnc_Mem (JPEG_HandleTypeDef *hjpeg, JPEG_A
   *         it could be QMEM0, QMEM1, QMEM2 or QMEM3
   * @retval None
   */
-static HAL_StatusTypeDef JPEG_Set_Quantization_Mem (JPEG_HandleTypeDef *hjpeg, uint8_t *QTable, __IO uint32_t *QTableAddress)
+static HAL_StatusTypeDef JPEG_Set_Quantization_Mem (JPEG_HandleTypeDef* hjpeg, uint8_t *QTable, __IO uint32_t *QTableAddress)
 {
   uint32_t i, j, quantRow, quantVal, ScaleFactor;
   __IO uint32_t *tableAddress;
@@ -966,7 +967,7 @@ static HAL_StatusTypeDef JPEG_Set_Quantization_Mem (JPEG_HandleTypeDef *hjpeg, u
   *         the configuration information for JPEG module
   * @retval None
   */
-static void JPEG_SetColorYCBCR (JPEG_HandleTypeDef *hjpeg)
+static void JPEG_SetColorYCBCR (JPEG_HandleTypeDef* hjpeg)
 {
   uint32_t ySamplingH;
   uint32_t ySamplingV;
@@ -1028,7 +1029,7 @@ static void JPEG_SetColorYCBCR (JPEG_HandleTypeDef *hjpeg)
   *         the configuration information for JPEG module
   * @retval None
   */
-static void JPEG_SetColorGrayScale (JPEG_HandleTypeDef *hjpeg)
+static void JPEG_SetColorGrayScale (JPEG_HandleTypeDef* hjpeg)
 {
   /*Set Number of color components to 1*/
   hjpeg->Instance->CONFR1 &= ~(JPEG_CONFR1_NF | JPEG_CONFR1_NS);
@@ -1049,7 +1050,7 @@ static void JPEG_SetColorGrayScale (JPEG_HandleTypeDef *hjpeg)
   *         the configuration information for JPEG module
   * @retval None
   */
-static void JPEG_SetColorCMYK (JPEG_HandleTypeDef *hjpeg)
+static void JPEG_SetColorCMYK (JPEG_HandleTypeDef* hjpeg)
 {
   uint32_t ySamplingH;
   uint32_t ySamplingV;
@@ -1110,7 +1111,7 @@ static void JPEG_SetColorCMYK (JPEG_HandleTypeDef *hjpeg)
   *         the configuration information for JPEG module
   * @retval None.
   */
-static void JPEG_DMA_PollResidualData (JPEG_HandleTypeDef *hjpeg)
+static void JPEG_DMA_PollResidualData (JPEG_HandleTypeDef* hjpeg)
 {
   uint32_t tmpContext, count = JPEG_FIFO_SIZE, dataOut;
 
@@ -1177,7 +1178,7 @@ static void JPEG_DMA_PollResidualData (JPEG_HandleTypeDef *hjpeg)
   * @param  nbOutputWords: Number of output words (of 32 bits) ready from the JPEG peripheral
   * @retval None
   */
-static void JPEG_StoreOutputData (JPEG_HandleTypeDef *hjpeg, uint32_t nbOutputWords)
+static void JPEG_StoreOutputData (JPEG_HandleTypeDef* hjpeg, uint32_t nbOutputWords)
 {
   uint32_t index, nBwords, nbBytes , dataword;
 
@@ -1252,7 +1253,7 @@ static void JPEG_StoreOutputData (JPEG_HandleTypeDef *hjpeg, uint32_t nbOutputWo
   * @param  nbRequestWords: Number of input words (of 32 bits) that the JPE peripheral request
   * @retval None
   */
-static void JPEG_ReadInputData (JPEG_HandleTypeDef *hjpeg, uint32_t nbRequestWords)
+static void JPEG_ReadInputData (JPEG_HandleTypeDef* hjpeg, uint32_t nbRequestWords)
 {
   uint32_t nbBytes = 0, nBwords = 0, index = 0, Dataword = 0, inputCount = 0;
 
@@ -1326,7 +1327,7 @@ static void JPEG_ReadInputData (JPEG_HandleTypeDef *hjpeg, uint32_t nbRequestWor
   *         the configuration information for JPEG module
   * @retval JPEG_PROCESS_DONE
   */
-static uint32_t JPEG_DMA_EndProcess (JPEG_HandleTypeDef *hjpeg)
+static uint32_t JPEG_DMA_EndProcess (JPEG_HandleTypeDef* hjpeg)
 {
   uint32_t tmpContext;
   hjpeg->JpegOutCount = hjpeg->OutDataLength - (hjpeg->hdmaout->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
@@ -1388,7 +1389,7 @@ static uint32_t JPEG_DMA_EndProcess (JPEG_HandleTypeDef *hjpeg)
   *         the configuration information for JPEG module
   * @retval JPEG_PROCESS_DONE if process ends else JPEG_PROCESS_ONGOING
   */
-static uint32_t JPEG_DMA_ContinueProcess (JPEG_HandleTypeDef *hjpeg)
+static uint32_t JPEG_DMA_ContinueProcess (JPEG_HandleTypeDef* hjpeg)
 {
   /*End of header processing flag rises*/
   if (((hjpeg->Context & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_DECODE) &&
@@ -1583,7 +1584,7 @@ static void JPEG_MDMAOutAbortCallback (MDMA_HandleTypeDef *hmdma)
   *         the configuration information for JPEG module
   * @retval JPEG_PROCESS_DONE if process ends else JPEG_PROCESS_ONGOING
   */
-static HAL_StatusTypeDef JPEG_DMA_StartProcess (JPEG_HandleTypeDef *hjpeg)
+static HAL_StatusTypeDef JPEG_DMA_StartProcess (JPEG_HandleTypeDef* hjpeg)
 {
   uint32_t inXfrSize, outXfrSize;
 
@@ -1641,21 +1642,17 @@ static HAL_StatusTypeDef JPEG_DMA_StartProcess (JPEG_HandleTypeDef *hjpeg)
   *         the configuration information for JPEG module
   * @retval None
   */
-static void JPEG_Init_Process (JPEG_HandleTypeDef *hjpeg)
+static void JPEG_Init_Process (JPEG_HandleTypeDef* hjpeg)
 {
   /*Reset pause*/
   hjpeg->Context &= (~(JPEG_CONTEXT_PAUSE_INPUT | JPEG_CONTEXT_PAUSE_OUTPUT));
 
   if((hjpeg->Context & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_DECODE)
-  {
     /*Set JPEG Codec to Decoding mode */
     hjpeg->Instance->CONFR1 |= JPEG_CONFR1_DE;
-  }
   else if((hjpeg->Context & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_ENCODE)
-  {
     /*Set JPEG Codec to Encoding mode */
     hjpeg->Instance->CONFR1 &= ~JPEG_CONFR1_DE;
-  }
 
   /*Stop JPEG processing */
   hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
@@ -1674,17 +1671,12 @@ static void JPEG_Init_Process (JPEG_HandleTypeDef *hjpeg)
   hjpeg->Instance->CONFR0 |=  JPEG_CONFR0_START;
 
   if((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_IT)
-  {
     /*Enable IN/OUT, end of Conversation, and end of header parsing interruptions*/
     __HAL_JPEG_ENABLE_IT(hjpeg, JPEG_IT_IFT | JPEG_IT_IFNF | JPEG_IT_OFT | JPEG_IT_OFNE | JPEG_IT_EOC |JPEG_IT_HPD);
-  }
   else if((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA)
-  {
     /*Enable End Of Conversation, and End Of Header parsing interruptions*/
     __HAL_JPEG_ENABLE_IT(hjpeg, JPEG_IT_EOC |JPEG_IT_HPD);
-
   }
-}
 //}}}
 //{{{
 /**
@@ -1693,7 +1685,7 @@ static void JPEG_Init_Process (JPEG_HandleTypeDef *hjpeg)
   *         the configuration information for JPEG module
   * @retval JPEG_PROCESS_DONE if the process has ends else JPEG_PROCESS_ONGOING
   */
-static uint32_t JPEG_Process (JPEG_HandleTypeDef *hjpeg)
+static uint32_t JPEG_Process (JPEG_HandleTypeDef* hjpeg)
 {
   uint32_t tmpContext;
 
@@ -1810,7 +1802,7 @@ static uint32_t JPEG_Process (JPEG_HandleTypeDef *hjpeg)
   *         the configuration information for JPEG module
   * @retval JPEG image quality from 1 to 100.
   */
-static uint32_t JPEG_GetQuality (JPEG_HandleTypeDef *hjpeg)
+static uint32_t JPEG_GetQuality (JPEG_HandleTypeDef* hjpeg)
 {
   uint32_t quality = 0;
   uint32_t quantRow, quantVal,scale, i, j;
@@ -1824,23 +1816,17 @@ static uint32_t JPEG_GetQuality (JPEG_HandleTypeDef *hjpeg)
     {
       quantVal = (quantRow >> (8 * j)) & 0xFF;
       if(quantVal == 1)
-      {
         /* if Quantization value = 1 then quality is 100%*/
         quality += 100;
-      }
       else
       {
         /* Note that the quantization coefficients must be specified in the table in zigzag order */
         scale = (quantVal*100)/((uint32_t) JPEG_LUM_QuantTable[JPEG_ZIGZAG_ORDER[i+j]]);
 
         if(scale <= 100)
-        {
           quality += (200 - scale)/2;
-        }
         else
-        {
           quality += 5000/scale;
-        }
       }
     }
 
@@ -1860,7 +1846,7 @@ static uint32_t JPEG_GetQuality (JPEG_HandleTypeDef *hjpeg)
   *         the configuration information for JPEG module
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_JPEG_Init (JPEG_HandleTypeDef *hjpeg)
+HAL_StatusTypeDef HAL_JPEG_Init (JPEG_HandleTypeDef* hjpeg)
 {
   /*Note : these intermediate variables are used to avoid MISRA warning
   regarding rule 11.5 */
@@ -1943,7 +1929,7 @@ HAL_StatusTypeDef HAL_JPEG_Init (JPEG_HandleTypeDef *hjpeg)
   *         the configuration information for JPEG module
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_JPEG_DeInit (JPEG_HandleTypeDef *hjpeg)
+HAL_StatusTypeDef HAL_JPEG_DeInit (JPEG_HandleTypeDef* hjpeg)
 {
   /* Check the JPEG handle allocation */
   if(hjpeg == NULL)
@@ -1978,40 +1964,8 @@ HAL_StatusTypeDef HAL_JPEG_DeInit (JPEG_HandleTypeDef *hjpeg)
 }
 //}}}
 
-//{{{
-/**
-  * @brief  Initializes the JPEG MSP.
-  * @param  hjpeg: pointer to a JPEG_HandleTypeDef structure that contains
-  *         the configuration information for JPEG module
-  * @retval None
-  */
-__weak void HAL_JPEG_MspInit (JPEG_HandleTypeDef *hjpeg)
-{
-  /* Prevent unused argument(s) compilation warning */
-  UNUSED(hjpeg);
-
-  /* NOTE : This function Should not be modified, when the callback is needed,
-            the HAL_JPEG_MspInit could be implemented in the user file
-   */
-}
-//}}}
-//{{{
-/**
-  * @brief  DeInitializes JPEG MSP.
-  * @param  hjpeg: pointer to a JPEG_HandleTypeDef structure that contains
-  *         the configuration information for JPEG module
-  * @retval None
-  */
-__weak void HAL_JPEG_MspDeInit (JPEG_HandleTypeDef *hjpeg)
-{
-  /* Prevent unused argument(s) compilation warning */
-  UNUSED(hjpeg);
-
-  /* NOTE : This function Should not be modified, when the callback is needed,
-            the HAL_JPEG_MspDeInit could be implemented in the user file
-   */
-}
-//}}}
+__weak void HAL_JPEG_MspInit (JPEG_HandleTypeDef* hjpeg) { UNUSED(hjpeg); }
+__weak void HAL_JPEG_MspDeInit (JPEG_HandleTypeDef* hjpeg) { UNUSED(hjpeg); }
 
 //{{{
 /**
@@ -2022,16 +1976,14 @@ __weak void HAL_JPEG_MspDeInit (JPEG_HandleTypeDef *hjpeg)
   *         the encoding configuration
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_JPEG_ConfigEncoding (JPEG_HandleTypeDef *hjpeg, JPEG_ConfTypeDef *pConf)
+HAL_StatusTypeDef HAL_JPEG_ConfigEncoding (JPEG_HandleTypeDef* hjpeg, JPEG_ConfTypeDef *pConf)
 {
   uint32_t error = HAL_OK;
   uint32_t numberMCU, hfactor, vfactor,hMCU, vMCU;
 
   /* Check the JPEG handle allocation */
   if( (hjpeg == NULL) || (pConf == NULL) )
-  {
     return HAL_ERROR;
-  }
   else
   {
     /* Check the parameters */
@@ -2196,6 +2148,9 @@ HAL_StatusTypeDef HAL_JPEG_ConfigEncoding (JPEG_HandleTypeDef *hjpeg, JPEG_ConfT
   }
 }
 //}}}
+
+HAL_JPEG_STATETypeDef HAL_JPEG_GetState (JPEG_HandleTypeDef* hjpeg) { return hjpeg->State; }
+uint32_t HAL_JPEG_GetError (JPEG_HandleTypeDef* hjpeg) { return hjpeg->ErrorCode; }
 //{{{
 /**
   * @brief  Extract the image configuration from the JPEG header during the decoding
@@ -2205,7 +2160,7 @@ HAL_StatusTypeDef HAL_JPEG_ConfigEncoding (JPEG_HandleTypeDef *hjpeg, JPEG_ConfT
   *         The JPEG decoded header informations
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_JPEG_GetInfo (JPEG_HandleTypeDef *hjpeg, JPEG_ConfTypeDef *pInfo)
+HAL_StatusTypeDef HAL_JPEG_GetInfo (JPEG_HandleTypeDef* hjpeg, JPEG_ConfTypeDef *pInfo)
 {
   uint32_t yblockNb, cBblockNb, cRblockNb;
 
@@ -2248,6 +2203,7 @@ HAL_StatusTypeDef HAL_JPEG_GetInfo (JPEG_HandleTypeDef *hjpeg, JPEG_ConfTypeDef 
   return HAL_OK;
 }
 //}}}
+
 //{{{
 /**
   * @brief  Enable JPEG Header parsing for decoding
@@ -2255,7 +2211,7 @@ HAL_StatusTypeDef HAL_JPEG_GetInfo (JPEG_HandleTypeDef *hjpeg, JPEG_ConfTypeDef 
   *               the configuration information for the JPEG.
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_JPEG_EnableHeaderParsing (JPEG_HandleTypeDef *hjpeg)
+HAL_StatusTypeDef HAL_JPEG_EnableHeaderParsing (JPEG_HandleTypeDef* hjpeg)
 {
   /* Process locked */
   __HAL_LOCK(hjpeg);
@@ -2292,7 +2248,7 @@ HAL_StatusTypeDef HAL_JPEG_EnableHeaderParsing (JPEG_HandleTypeDef *hjpeg)
   *               the configuration information for the JPEG.
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_JPEG_DisableHeaderParsing (JPEG_HandleTypeDef *hjpeg)
+HAL_StatusTypeDef HAL_JPEG_DisableHeaderParsing (JPEG_HandleTypeDef* hjpeg)
 {
   /* Process locked */
   __HAL_LOCK(hjpeg);
@@ -2317,7 +2273,6 @@ HAL_StatusTypeDef HAL_JPEG_DisableHeaderParsing (JPEG_HandleTypeDef *hjpeg)
   {
     /* Process unlocked */
     __HAL_UNLOCK(hjpeg);
-
     return HAL_BUSY;
   }
 }
@@ -2341,7 +2296,7 @@ HAL_StatusTypeDef HAL_JPEG_DisableHeaderParsing (JPEG_HandleTypeDef *hjpeg)
   */
 
 
-HAL_StatusTypeDef HAL_JPEG_SetUserQuantTables (JPEG_HandleTypeDef *hjpeg, uint8_t *QTable0, uint8_t *QTable1, uint8_t *QTable2, uint8_t *QTable3)
+HAL_StatusTypeDef HAL_JPEG_SetUserQuantTables (JPEG_HandleTypeDef* hjpeg, uint8_t *QTable0, uint8_t *QTable1, uint8_t *QTable2, uint8_t *QTable3)
 {
   /* Process Locked */
   __HAL_LOCK(hjpeg);
@@ -2389,7 +2344,7 @@ HAL_StatusTypeDef HAL_JPEG_SetUserQuantTables (JPEG_HandleTypeDef *hjpeg, uint8_
   * @param  Timeout: Specify Timeout value
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_JPEG_Decode (JPEG_HandleTypeDef *hjpeg ,uint8_t *pDataIn ,uint32_t InDataLength ,uint8_t *pDataOutMCU ,uint32_t OutDataLength, uint32_t Timeout)
+HAL_StatusTypeDef HAL_JPEG_Decode (JPEG_HandleTypeDef* hjpeg ,uint8_t *pDataIn ,uint32_t InDataLength ,uint8_t *pDataOutMCU ,uint32_t OutDataLength, uint32_t Timeout)
 {
   uint32_t tickstart = 0;
 
@@ -2486,7 +2441,7 @@ HAL_StatusTypeDef HAL_JPEG_Decode (JPEG_HandleTypeDef *hjpeg ,uint8_t *pDataIn ,
   * @param  OutDataLength: size in bytes of the Output buffer
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_JPEG_Decode_IT (JPEG_HandleTypeDef *hjpeg ,uint8_t *pDataIn ,uint32_t InDataLength ,uint8_t *pDataOutMCU ,uint32_t OutDataLength)
+HAL_StatusTypeDef HAL_JPEG_Decode_IT (JPEG_HandleTypeDef* hjpeg ,uint8_t *pDataIn ,uint32_t InDataLength ,uint8_t *pDataOutMCU ,uint32_t OutDataLength)
 {
   /* Check the parameters */
   assert_param((InDataLength >= 4));
@@ -2550,7 +2505,7 @@ HAL_StatusTypeDef HAL_JPEG_Decode_IT (JPEG_HandleTypeDef *hjpeg ,uint8_t *pDataI
   * @param  OutDataLength: size in bytes of the Output buffer
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_JPEG_Decode_DMA (JPEG_HandleTypeDef *hjpeg ,uint8_t *pDataIn ,uint32_t InDataLength ,uint8_t *pDataOutMCU ,uint32_t OutDataLength)
+HAL_StatusTypeDef HAL_JPEG_Decode_DMA (JPEG_HandleTypeDef* hjpeg ,uint8_t *pDataIn ,uint32_t InDataLength ,uint8_t *pDataOutMCU ,uint32_t OutDataLength)
 {
   /* Check the parameters */
   assert_param((InDataLength >= 4));
@@ -2615,7 +2570,7 @@ HAL_StatusTypeDef HAL_JPEG_Decode_DMA (JPEG_HandleTypeDef *hjpeg ,uint8_t *pData
   * @param  Timeout: Specify Timeout value
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_JPEG_Encode (JPEG_HandleTypeDef *hjpeg, uint8_t *pDataInMCU, uint32_t InDataLength, uint8_t *pDataOut, uint32_t OutDataLength, uint32_t Timeout)
+HAL_StatusTypeDef HAL_JPEG_Encode (JPEG_HandleTypeDef* hjpeg, uint8_t *pDataInMCU, uint32_t InDataLength, uint8_t *pDataOut, uint32_t OutDataLength, uint32_t Timeout)
 {
   uint32_t tickstart = 0;
 
@@ -2720,7 +2675,7 @@ HAL_StatusTypeDef HAL_JPEG_Encode (JPEG_HandleTypeDef *hjpeg, uint8_t *pDataInMC
   * @param  OutDataLength: size in bytes of the Output buffer
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_JPEG_Encode_IT (JPEG_HandleTypeDef *hjpeg, uint8_t *pDataInMCU, uint32_t InDataLength, uint8_t *pDataOut, uint32_t OutDataLength)
+HAL_StatusTypeDef HAL_JPEG_Encode_IT (JPEG_HandleTypeDef* hjpeg, uint8_t *pDataInMCU, uint32_t InDataLength, uint8_t *pDataOut, uint32_t OutDataLength)
 {
   /* Check the parameters */
   assert_param((InDataLength >= 4));
@@ -2794,7 +2749,7 @@ HAL_StatusTypeDef HAL_JPEG_Encode_IT (JPEG_HandleTypeDef *hjpeg, uint8_t *pDataI
   * @param  OutDataLength: size in bytes of the Output buffer
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_JPEG_Encode_DMA (JPEG_HandleTypeDef *hjpeg, uint8_t *pDataInMCU, uint32_t InDataLength, uint8_t *pDataOut, uint32_t OutDataLength)
+HAL_StatusTypeDef HAL_JPEG_Encode_DMA (JPEG_HandleTypeDef* hjpeg, uint8_t *pDataInMCU, uint32_t InDataLength, uint8_t *pDataOut, uint32_t OutDataLength)
 {
   /* Check the parameters */
   assert_param((InDataLength >= 4));
@@ -2868,7 +2823,7 @@ HAL_StatusTypeDef HAL_JPEG_Encode_DMA (JPEG_HandleTypeDef *hjpeg, uint8_t *pData
   *                           JPEG_PAUSE_RESUME_INPUT_OUTPUT: Pause Input and Output processing
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_JPEG_Pause (JPEG_HandleTypeDef *hjpeg, uint32_t XferSelection)
+HAL_StatusTypeDef HAL_JPEG_Pause (JPEG_HandleTypeDef* hjpeg, uint32_t XferSelection)
 {
   uint32_t mask = 0;
 
@@ -2917,7 +2872,7 @@ HAL_StatusTypeDef HAL_JPEG_Pause (JPEG_HandleTypeDef *hjpeg, uint32_t XferSelect
   *                           JPEG_PAUSE_RESUME_INPUT_OUTPUT: Resume Input and Output processing
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_JPEG_Resume (JPEG_HandleTypeDef *hjpeg, uint32_t XferSelection)
+HAL_StatusTypeDef HAL_JPEG_Resume (JPEG_HandleTypeDef* hjpeg, uint32_t XferSelection)
 {
   uint32_t mask = 0;
   uint32_t xfrSize = 0;
@@ -3003,7 +2958,7 @@ HAL_StatusTypeDef HAL_JPEG_Resume (JPEG_HandleTypeDef *hjpeg, uint32_t XferSelec
   * @param  InDataLength: Size in bytes of the new Input data buffer
   * @retval HAL status
   */
-void HAL_JPEG_ConfigInputBuffer (JPEG_HandleTypeDef *hjpeg, uint8_t *pNewInputBuffer, uint32_t InDataLength)
+void HAL_JPEG_ConfigInputBuffer (JPEG_HandleTypeDef* hjpeg, uint8_t *pNewInputBuffer, uint32_t InDataLength)
 {
   hjpeg->pJpegInBuffPtr =  pNewInputBuffer;
   hjpeg->InDataLength = InDataLength;
@@ -3018,7 +2973,7 @@ void HAL_JPEG_ConfigInputBuffer (JPEG_HandleTypeDef *hjpeg, uint8_t *pNewInputBu
   * @param  OutDataLength: Size in bytes of the new Output data buffer
   * @retval HAL status
   */
-void HAL_JPEG_ConfigOutputBuffer (JPEG_HandleTypeDef *hjpeg, uint8_t *pNewOutputBuffer, uint32_t OutDataLength)
+void HAL_JPEG_ConfigOutputBuffer (JPEG_HandleTypeDef* hjpeg, uint8_t *pNewOutputBuffer, uint32_t OutDataLength)
 {
   hjpeg->pJpegOutBuffPtr = pNewOutputBuffer;
   hjpeg->OutDataLength = OutDataLength;
@@ -3032,7 +2987,7 @@ void HAL_JPEG_ConfigOutputBuffer (JPEG_HandleTypeDef *hjpeg, uint8_t *pNewOutput
   *         the configuration information for JPEG module
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_JPEG_Abort (JPEG_HandleTypeDef *hjpeg)
+HAL_StatusTypeDef HAL_JPEG_Abort (JPEG_HandleTypeDef* hjpeg)
 {
   uint32_t tickstart, tmpContext;
 
@@ -3110,7 +3065,7 @@ HAL_StatusTypeDef HAL_JPEG_Abort (JPEG_HandleTypeDef *hjpeg)
   *         The JPEG decoded header informations
   * @retval None
   */
-__weak void HAL_JPEG_InfoReadyCallback (JPEG_HandleTypeDef *hjpeg,JPEG_ConfTypeDef *pInfo)
+__weak void HAL_JPEG_InfoReadyCallback (JPEG_HandleTypeDef* hjpeg,JPEG_ConfTypeDef *pInfo)
 {
   /* Prevent unused argument(s) compilation warning */
   UNUSED(hjpeg);
@@ -3128,7 +3083,7 @@ __weak void HAL_JPEG_InfoReadyCallback (JPEG_HandleTypeDef *hjpeg,JPEG_ConfTypeD
   *         the configuration information for JPEG module
   * @retval None
   */
-__weak void HAL_JPEG_EncodeCpltCallback (JPEG_HandleTypeDef *hjpeg)
+__weak void HAL_JPEG_EncodeCpltCallback (JPEG_HandleTypeDef* hjpeg)
 {
   /* Prevent unused argument(s) compilation warning */
   UNUSED(hjpeg);
@@ -3145,7 +3100,7 @@ __weak void HAL_JPEG_EncodeCpltCallback (JPEG_HandleTypeDef *hjpeg)
   *         the configuration information for JPEG module
   * @retval None
   */
-__weak void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef *hjpeg)
+__weak void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef* hjpeg)
 {
   /* Prevent unused argument(s) compilation warning */
   UNUSED(hjpeg);
@@ -3162,7 +3117,7 @@ __weak void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef *hjpeg)
   *         the configuration information for JPEG module
   * @retval None
   */
- __weak void HAL_JPEG_ErrorCallback (JPEG_HandleTypeDef *hjpeg)
+ __weak void HAL_JPEG_ErrorCallback (JPEG_HandleTypeDef* hjpeg)
 {
   /* Prevent unused argument(s) compilation warning */
   UNUSED(hjpeg);
@@ -3180,7 +3135,7 @@ __weak void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef *hjpeg)
   * @param  NbDecodedData: Number of consummed data in the previous chunk in bytes
   * @retval None
   */
- __weak void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef *hjpeg, uint32_t NbDecodedData)
+ __weak void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* hjpeg, uint32_t NbDecodedData)
 {
   /* Prevent unused argument(s) compilation warning */
   UNUSED(hjpeg);
@@ -3200,7 +3155,7 @@ __weak void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef *hjpeg)
   * @param  OutDataLength: number in bytes of data available in the specified output buffer
   * @retval None
   */
-__weak void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef *hjpeg, uint8_t *pDataOut, uint32_t OutDataLength)
+__weak void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* hjpeg, uint8_t *pDataOut, uint32_t OutDataLength)
 {
   /* Prevent unused argument(s) compilation warning */
   UNUSED(hjpeg);
@@ -3214,58 +3169,21 @@ __weak void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef *hjpeg, uint8_t *pDat
 //}}}
 
 //{{{
-/**
-  * @brief  This function handles JPEG interrupt request.
-  * @param  hjpeg: pointer to a JPEG_HandleTypeDef structure that contains
-  *         the configuration information for JPEG module
-  * @retval None
-  */
-void HAL_JPEG_IRQHandler (JPEG_HandleTypeDef *hjpeg)
-{
-  switch(hjpeg->State)
-  {
+void HAL_JPEG_IRQHandler (JPEG_HandleTypeDef* hjpeg) {
+
+  switch(hjpeg->State) {
     case HAL_JPEG_STATE_BUSY_ENCODING:
     case HAL_JPEG_STATE_BUSY_DECODING:
       /* continue JPEG data encoding/Decoding*/
       /* JPEG data processing : In/Out FIFO transfer*/
-      if((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_IT)
-      {
+      if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_IT)
         JPEG_Process(hjpeg);
-      }
-      else if((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA)
-      {
+      else if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA)
         JPEG_DMA_ContinueProcess(hjpeg);
-
-      }
-
       break;
 
     default:
       break;
+    }
   }
-}
-//}}}
-//{{{
-/**
-  * @brief  Returns the JPEG state.
-  * @param  hjpeg: pointer to a JPEG_HandleTypeDef structure that contains
-  *         the configuration information for JPEG module
-  * @retval JPEG state
-  */
-HAL_JPEG_STATETypeDef HAL_JPEG_GetState (JPEG_HandleTypeDef *hjpeg)
-{
-  return hjpeg->State;
-}
-//}}}
-//{{{
-/**
-* @brief  Return the JPEG error code
-* @param  hjpeg : pointer to a JPEG_HandleTypeDef structure that contains
-  *              the configuration information for the specified JPEG.
-* @retval JPEG Error Code
-*/
-uint32_t HAL_JPEG_GetError (JPEG_HandleTypeDef *hjpeg)
-{
-  return hjpeg->ErrorCode;
-}
 //}}}

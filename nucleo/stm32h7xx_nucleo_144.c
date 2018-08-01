@@ -49,33 +49,22 @@ const uint16_t BUTTON_PIN[BUTTONn] = {USER_BUTTON_PIN};
 const uint8_t BUTTON_IRQn[BUTTONn] = {USER_BUTTON_EXTI_IRQn};
 
 //{{{
-/**
-  * @brief  Configures LED GPIO.
-  * @param  Led: Specifies the Led to be configured.
-  *   This parameter can be one of following parameters:
-  *     @arg  LED1
-  *     @arg  LED2
-  *     @arg  LED3
-  * @retval None
-  */
-void BSP_LED_Init (Led_TypeDef Led)
-{
-  GPIO_InitTypeDef  GPIO_InitStruct;
+void BSP_LED_Init (Led_TypeDef Led) {
 
   /* Enable the GPIO_LED Clock */
   LEDx_GPIO_CLK_ENABLE(Led);
 
   /* Configure the GPIO_LED pin */
+  GPIO_InitTypeDef  GPIO_InitStruct;
   GPIO_InitStruct.Pin = GPIO_PIN[Led];
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 
-  HAL_GPIO_Init(GPIO_PORT[Led], &GPIO_InitStruct);
-  HAL_GPIO_WritePin(GPIO_PORT[Led], GPIO_PIN[Led], GPIO_PIN_RESET);
-}
+  HAL_GPIO_Init (GPIO_PORT[Led], &GPIO_InitStruct);
+  HAL_GPIO_WritePin (GPIO_PORT[Led], GPIO_PIN[Led], GPIO_PIN_RESET);
+  }
 //}}}
-
 //{{{
 
 /**
@@ -124,12 +113,11 @@ void BSP_LED_Toggle (Led_TypeDef Led)
 //{{{
 void BSP_PB_Init (Button_TypeDef Button, ButtonMode_TypeDef ButtonMode) {
 
-  GPIO_InitTypeDef GPIO_InitStruct;
-
   /* Enable the BUTTON Clock */
   BUTTONx_GPIO_CLK_ENABLE(Button);
 
-  if(ButtonMode == BUTTON_MODE_GPIO) {
+  GPIO_InitTypeDef GPIO_InitStruct;
+  if (ButtonMode == BUTTON_MODE_GPIO) {
     /* Configure Button pin as input */
     GPIO_InitStruct.Pin = BUTTON_PIN[Button];
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
@@ -138,11 +126,11 @@ void BSP_PB_Init (Button_TypeDef Button, ButtonMode_TypeDef ButtonMode) {
     HAL_GPIO_Init (BUTTON_PORT[Button], &GPIO_InitStruct);
     }
 
-  if(ButtonMode == BUTTON_MODE_EXTI) {
+  if (ButtonMode == BUTTON_MODE_EXTI) {
     /* Configure Button pin as input with External interrupt */
     GPIO_InitStruct.Pin = BUTTON_PIN[Button];
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
     HAL_GPIO_Init(BUTTON_PORT[Button], &GPIO_InitStruct);
 
     /* Enable and set Button EXTI Interrupt to the lowest priority */

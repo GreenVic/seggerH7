@@ -6,7 +6,6 @@
 //}}}
 
 #define STM32H7
-#define STM32H7
 #define USE_HAL_DRIVER
 //{{{  module defines
 #define HAL_MODULE_ENABLED
@@ -91,21 +90,21 @@
   #define EXTERNAL_CLOCK_VALUE    12288000U /*!< Value of the External clock in Hz*/
 #endif
 
-#define  VDD_VALUE          ((uint32_t)3300) /*!< Value of VDD in mv */
-#define  TICK_INT_PRIORITY  ((uint32_t)0x0F) /*!< tick interrupt priority */
-#define  USE_RTOS           0
+#define VDD_VALUE         ((uint32_t)3300) /*!< Value of VDD in mv */
+#define TICK_INT_PRIORITY ((uint32_t)0x0F) /*!< tick interrupt priority */
+#define USE_RTOS         0
 
 #define ETH_TX_DESC_CNT  4  /* number of Ethernet Tx DMA descriptors */
 #define ETH_RX_DESC_CNT  4  /* number of Ethernet Rx DMA descriptors */
 
-#define ETH_MAC_ADDR0    ((uint8_t)0x02)
-#define ETH_MAC_ADDR1    ((uint8_t)0x00)
-#define ETH_MAC_ADDR2    ((uint8_t)0x00)
-#define ETH_MAC_ADDR3    ((uint8_t)0x00)
-#define ETH_MAC_ADDR4    ((uint8_t)0x00)
-#define ETH_MAC_ADDR5    ((uint8_t)0x00)
+#define ETH_MAC_ADDR0  ((uint8_t)0x02)
+#define ETH_MAC_ADDR1  ((uint8_t)0x00)
+#define ETH_MAC_ADDR2  ((uint8_t)0x00)
+#define ETH_MAC_ADDR3  ((uint8_t)0x00)
+#define ETH_MAC_ADDR4  ((uint8_t)0x00)
+#define ETH_MAC_ADDR5  ((uint8_t)0x00)
 
-#define USE_SPI_CRC                   1U
+#define USE_SPI_CRC    1U
 
 //{{{  module includes
 #ifdef HAL_RCC_MODULE_ENABLED
