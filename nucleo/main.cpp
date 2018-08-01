@@ -22,14 +22,31 @@ const HeapRegion_t kHeapRegions[] = {
   { nullptr, 0 } };
 //}}}
 
-//{{{  jpeg defines
+cLcd* lcd = nullptr;
+uint16_t* mSdRamAlloc = (uint16_t*)SDRAM_DEVICE_ADDR;
+vector<string> mFileVec;
+vector<cTile*> mTileVec;
+//{{{  jpeg vars
 #define JPEG_BUFFER_EMPTY  0
 #define JPEG_BUFFER_FULL   1
+
 #define CHUNK_SIZE_IN  ((uint32_t)(4096))
 #define CHUNK_SIZE_OUT ((uint32_t)(64 * 1024))
-#define NB_OUTPUT_DATA_BUFFERS 2
+
 #define NB_INPUT_DATA_BUFFERS  2
-//}}}
+#define NB_OUTPUT_DATA_BUFFERS 2
+
+JPEG_HandleTypeDef JPEG_Handle;
+uint32_t jpegYuvBuf = 0;
+uint32_t jpegYuvPtr = 0;
+
+FIL* jpegFile;
+
+uint8_t JPEG_Data_InBuffer0 [CHUNK_SIZE_IN];
+uint8_t JPEG_Data_InBuffer1 [CHUNK_SIZE_IN];
+uint32_t JPEG_IN_Read_BufferIndex = 0;
+uint32_t JPEG_IN_Write_BufferIndex = 0;
+
 //{{{  struct JPEG_Data_BufferTypeDef
 typedef struct {
   uint8_t State;
@@ -37,32 +54,15 @@ typedef struct {
   uint32_t DataBufferSize;
   } JPEG_Data_BufferTypeDef;
 //}}}
-
-cLcd* lcd = nullptr;
-uint16_t* mSdRamAlloc = (uint16_t*)SDRAM_DEVICE_ADDR;
-vector<string> mFileVec;
-vector<cTile*> mTileVec;
-
-JPEG_HandleTypeDef JPEG_Handle;
-uint32_t jpegBuf = 0;
-
-FIL* pFile;
-uint8_t JPEG_Data_InBuffer0[CHUNK_SIZE_IN];
-uint8_t JPEG_Data_InBuffer1[CHUNK_SIZE_IN];
-JPEG_Data_BufferTypeDef Jpeg_IN_BufferTab[NB_INPUT_DATA_BUFFERS] = {
+JPEG_Data_BufferTypeDef Jpeg_IN_BufferTab [NB_INPUT_DATA_BUFFERS] = {
   {JPEG_BUFFER_EMPTY, JPEG_Data_InBuffer0, 0},
   {JPEG_BUFFER_EMPTY, JPEG_Data_InBuffer1, 0}
   };
 
-uint32_t MCU_TotalNb = 0;
-uint32_t MCU_BlockIndex = 0;
-uint32_t Jpeg_HWDecodingEnd = 0;
+bool jpegDecodeDone = false;
+__IO bool jpegInputPaused = 0;
 
-uint32_t JPEG_IN_Read_BufferIndex = 0;
-uint32_t JPEG_IN_Write_BufferIndex = 0;
-__IO uint32_t Input_Is_Paused = 0;
-
-uint32_t FrameBufferAddress;
+//}}}
 
 extern "C" { void JPEG_IRQHandler() { HAL_JPEG_IRQHandler (&JPEG_Handle); }  }
 extern "C" { void MDMA_IRQHandler() { HAL_MDMA_IRQHandler (JPEG_Handle.hdmain); HAL_MDMA_IRQHandler (JPEG_Handle.hdmaout); }  }
@@ -85,12 +85,12 @@ uint16_t* sdRamAlloc (uint32_t words) {
 //{{{
 uint32_t JPEG_Decode_DMA (JPEG_HandleTypeDef* hjpeg, FIL* file, uint32_t DestAddress) {
 
-  pFile = file;
-  FrameBufferAddress = DestAddress;
+  jpegFile = file;
+  jpegYuvPtr = DestAddress;
 
   // Read from JPG file and fill input buffers
   for (uint32_t i = 0; i < NB_INPUT_DATA_BUFFERS; i++) {
-    if (f_read (pFile, Jpeg_IN_BufferTab[i].DataBuffer, CHUNK_SIZE_IN,
+    if (f_read (jpegFile, Jpeg_IN_BufferTab[i].DataBuffer, CHUNK_SIZE_IN,
                        (UINT*)(&Jpeg_IN_BufferTab[i].DataBufferSize)) == FR_OK)
       Jpeg_IN_BufferTab[i].State = JPEG_BUFFER_FULL;
     else
@@ -98,23 +98,23 @@ uint32_t JPEG_Decode_DMA (JPEG_HandleTypeDef* hjpeg, FIL* file, uint32_t DestAdd
     }
 
   HAL_JPEG_Decode_DMA (hjpeg, Jpeg_IN_BufferTab[0].DataBuffer, Jpeg_IN_BufferTab[0].DataBufferSize,
-                       (uint8_t*)FrameBufferAddress, CHUNK_SIZE_OUT);
+                       (uint8_t*)jpegYuvPtr, CHUNK_SIZE_OUT);
   return 0;
   }
 //}}}
 //{{{
-uint32_t JPEG_InputHandler (JPEG_HandleTypeDef* hjpeg) {
+bool jpegInputHandler (JPEG_HandleTypeDef* hjpeg) {
 
-  if (Jpeg_HWDecodingEnd == 0) {
+  if (!jpegDecodeDone) {
     if (Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].State == JPEG_BUFFER_EMPTY) {
-      if (f_read (pFile, Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].DataBuffer, CHUNK_SIZE_IN,
-                         (UINT*)(&Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].DataBufferSize)) == FR_OK)
+      if (f_read (jpegFile, Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].DataBuffer, CHUNK_SIZE_IN,
+                           (UINT*)(&Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].DataBufferSize)) == FR_OK)
         Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].State = JPEG_BUFFER_FULL;
       else
-        printf ("JPEG_InputHandler read failed\n");
+        printf ("jpegInputHandler read failed\n");
 
-      if ((Input_Is_Paused == 1) && (JPEG_IN_Write_BufferIndex == JPEG_IN_Read_BufferIndex)) {
-        Input_Is_Paused = 0;
+      if (jpegInputPaused  && (JPEG_IN_Write_BufferIndex == JPEG_IN_Read_BufferIndex)) {
+        jpegInputPaused = false;
         HAL_JPEG_ConfigInputBuffer (hjpeg,Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBuffer,
                                     Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBufferSize);
         HAL_JPEG_Resume (hjpeg, JPEG_PAUSE_RESUME_INPUT);
@@ -123,27 +123,27 @@ uint32_t JPEG_InputHandler (JPEG_HandleTypeDef* hjpeg) {
       JPEG_IN_Write_BufferIndex++;
       if (JPEG_IN_Write_BufferIndex >= NB_INPUT_DATA_BUFFERS)
         JPEG_IN_Write_BufferIndex = 0;
-     }
-     return 0;
+      }
+    return false;
     }
   else
-    return 1;
+    return true;
   }
 //}}}
 //{{{
 void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* hjpeg, uint32_t NbDecodedData) {
 
   if (NbDecodedData == Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBufferSize) {
-    Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].State = JPEG_BUFFER_EMPTY;
-    Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBufferSize = 0;
+    Jpeg_IN_BufferTab [JPEG_IN_Read_BufferIndex].State = JPEG_BUFFER_EMPTY;
+    Jpeg_IN_BufferTab [JPEG_IN_Read_BufferIndex].DataBufferSize = 0;
 
     JPEG_IN_Read_BufferIndex++;
     if (JPEG_IN_Read_BufferIndex >= NB_INPUT_DATA_BUFFERS)
       JPEG_IN_Read_BufferIndex = 0;
 
-    if (Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].State == JPEG_BUFFER_EMPTY) {
+    if (Jpeg_IN_BufferTab [JPEG_IN_Read_BufferIndex].State == JPEG_BUFFER_EMPTY) {
       HAL_JPEG_Pause (hjpeg, JPEG_PAUSE_RESUME_INPUT);
-      Input_Is_Paused = 1;
+      jpegInputPaused = true;
       }
     else
       HAL_JPEG_ConfigInputBuffer (hjpeg, Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBuffer,
@@ -158,11 +158,11 @@ void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* hjpeg, uint32_t NbDecodedData
 void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* hjpeg, uint8_t* pDataOut, uint32_t OutDataLength) {
 
   // Update JPEG encoder output buffer address
-  FrameBufferAddress += OutDataLength;
-  HAL_JPEG_ConfigOutputBuffer (hjpeg, (uint8_t*)FrameBufferAddress, CHUNK_SIZE_OUT);
+  jpegYuvPtr += OutDataLength;
+  HAL_JPEG_ConfigOutputBuffer (hjpeg, (uint8_t*)jpegYuvPtr, CHUNK_SIZE_OUT);
   }
 //}}}
-void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef* hjpeg) { Jpeg_HWDecodingEnd = 1; }
+void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef* hjpeg) { jpegDecodeDone = true; }
 void HAL_JPEG_InfoReadyCallback (JPEG_HandleTypeDef* hjpeg, JPEG_ConfTypeDef* pInfo) {}
 void HAL_JPEG_ErrorCallback (JPEG_HandleTypeDef* hjpeg) {}
 //{{{
@@ -664,14 +664,14 @@ cTile* loadJpegHw (const string& fileName) {
   auto startTime = HAL_GetTick();
   FIL JPEG_File;
   if (f_open (&JPEG_File, fileName.c_str(), FA_READ) == FR_OK) {
-    JPEG_Decode_DMA (&JPEG_Handle, &JPEG_File, jpegBuf);
+    JPEG_Decode_DMA (&JPEG_Handle, &JPEG_File, jpegYuvBuf);
 
     int count = 0;
-    uint32_t jpegProcessing_End = 0;
+    bool jpegProcessingDone = false;
     do {
       count++;
-      jpegProcessing_End = JPEG_InputHandler (&JPEG_Handle);
-      } while (jpegProcessing_End == 0);
+      jpegProcessingDone = jpegInputHandler (&JPEG_Handle);
+      } while (jpegProcessingDone == 0);
     f_close (&JPEG_File);
 
     JPEG_ConfTypeDef jpegInfo;
@@ -688,8 +688,7 @@ cTile* loadJpegHw (const string& fileName) {
     auto rgb565pic = sdRamAlloc (jpegInfo.ImageWidth * jpegInfo.ImageHeight * 2);
     auto tile = new cTile ((uint8_t*)rgb565pic, 2, jpegInfo.ImageWidth, 0,0,
                            jpegInfo.ImageWidth, jpegInfo.ImageHeight);
-    //memcpy (rgb565pic, (void*)jpegBuf, jpegInfo.ImageWidth * jpegInfo.ImageHeight * 2);
-    lcd->yuvTo565 ((uint32_t*)jpegBuf, (uint32_t*)rgb565pic,
+    lcd->yuvTo565 ((uint32_t*)jpegYuvBuf, (uint32_t*)rgb565pic,
                    jpegInfo.ImageWidth, jpegInfo.ImageHeight, jpegInfo.ChromaSubsampling);
     return tile;
     }
@@ -744,7 +743,7 @@ void appThread (void* arg) {
 
     findFiles ("", ".jpg");
 
-    jpegBuf = (uint32_t)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*4);
+    jpegYuvBuf = (uint32_t)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*4);
 
     auto startTime = HAL_GetTick();
     //for (auto file : mFileVec) {
