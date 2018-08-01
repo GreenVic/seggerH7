@@ -609,17 +609,18 @@ cTile* loadJpegSw (const string& fileName, int scale) {
 cTile* loadJpegHw (const string& fileName) {
 
   auto startTime = HAL_GetTick();
+
   JPEG_Handle.Instance = JPEG;
   HAL_JPEG_Init (&JPEG_Handle);
 
   FIL JPEG_File;
-  if (f_open (&JPEG_File, fileName.c_str(), FA_READ) == FR_OK) {
-    jpegFile = &JPEG_File;
-
+  jpegFile = &JPEG_File;
+  if (f_open (jpegFile, fileName.c_str(), FA_READ) == FR_OK) {
     // fill input buffers from jpeg file
     for (uint32_t i = 0; i < NB_INPUT_DATA_BUFFERS; i++) {
-      if (f_read (jpegFile, Jpeg_IN_BufferTab[i].DataBuffer, CHUNK_SIZE_IN,
-                         (UINT*)(&Jpeg_IN_BufferTab[i].DataBufferSize)) == FR_OK)
+      if (f_read (jpegFile, 
+                  Jpeg_IN_BufferTab[i].DataBuffer, CHUNK_SIZE_IN,
+                  (UINT*)(&Jpeg_IN_BufferTab[i].DataBufferSize)) == FR_OK)
         Jpeg_IN_BufferTab[i].State = JPEG_BUFFER_FULL;
       else
         printf ("loadJpegHw read failed\n");
@@ -647,9 +648,7 @@ cTile* loadJpegHw (const string& fileName) {
           HAL_JPEG_Resume (&JPEG_Handle, JPEG_PAUSE_RESUME_INPUT);
           }
 
-        JPEG_IN_Write_BufferIndex++;
-        if (JPEG_IN_Write_BufferIndex >= NB_INPUT_DATA_BUFFERS)
-          JPEG_IN_Write_BufferIndex = 0;
+        JPEG_IN_Write_BufferIndex = (JPEG_IN_Write_BufferIndex + 1) % NB_INPUT_DATA_BUFFERS;
         }
       }
     f_close (jpegFile);
@@ -659,7 +658,7 @@ cTile* loadJpegHw (const string& fileName) {
     lcd->info (COL_YELLOW,
                "loadJpeg " + fileName +
                " took " + dec (HAL_GetTick() - startTime) +
-               " chroma:" + dec (jpegInfo.ChromaSubsampling) +
+               " chroma:" + dec (jpegInfo.ChromaSubsampling, 1, '0') +
                " " + dec (jpegInfo.ImageWidth) + "x" + dec (jpegInfo.ImageHeight));
     lcd->changed();
 
