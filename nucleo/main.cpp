@@ -608,15 +608,13 @@ cTile* loadJpegSw (const string& fileName, int scale) {
 //{{{
 cTile* loadJpegHw (const string& fileName) {
 
+  auto startTime = HAL_GetTick();
   JPEG_Handle.Instance = JPEG;
   HAL_JPEG_Init (&JPEG_Handle);
 
-  auto startTime = HAL_GetTick();
   FIL JPEG_File;
   if (f_open (&JPEG_File, fileName.c_str(), FA_READ) == FR_OK) {
-    FIL* file = &JPEG_File;
-    jpegFile = file;
-    jpegYuvPtr = jpegYuvBuf;
+    jpegFile = &JPEG_File;
 
     // fill input buffers from jpeg file
     for (uint32_t i = 0; i < NB_INPUT_DATA_BUFFERS; i++) {
@@ -627,13 +625,14 @@ cTile* loadJpegHw (const string& fileName) {
         printf ("loadJpegHw read failed\n");
       }
 
+    jpegYuvPtr = jpegYuvBuf;
     HAL_JPEG_Decode_DMA (&JPEG_Handle,
                          Jpeg_IN_BufferTab[0].DataBuffer, Jpeg_IN_BufferTab[0].DataBufferSize,
                          (uint8_t*)jpegYuvPtr, CHUNK_SIZE_OUT);
 
     while (!jpegDecodeDone) {
       if (Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].State == JPEG_BUFFER_EMPTY) {
-        if (f_read (jpegFile, 
+        if (f_read (jpegFile,
                     Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].DataBuffer, CHUNK_SIZE_IN,
                     (UINT*)(&Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].DataBufferSize)) == FR_OK)
           Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].State = JPEG_BUFFER_FULL;
