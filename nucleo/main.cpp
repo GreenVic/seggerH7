@@ -104,28 +104,6 @@ uint32_t JPEG_Decode_DMA (JPEG_HandleTypeDef* hjpeg, FIL* file, uint32_t DestAdd
 //{{{
 bool jpegInputHandler (JPEG_HandleTypeDef* hjpeg) {
 
-  if (jpegDecodeDone)
-    printf ("jpegInputHandler -- too much input\n");
-  else {
-    if (Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].State == JPEG_BUFFER_EMPTY) {
-      if (f_read (jpegFile, Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].DataBuffer, CHUNK_SIZE_IN,
-                           (UINT*)(&Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].DataBufferSize)) == FR_OK)
-        Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].State = JPEG_BUFFER_FULL;
-      else
-        printf ("jpegInputHandler read failed\n");
-
-      if (jpegInputPaused  && (JPEG_IN_Write_BufferIndex == JPEG_IN_Read_BufferIndex)) {
-        jpegInputPaused = false;
-        HAL_JPEG_ConfigInputBuffer (hjpeg,Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBuffer,
-                                    Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBufferSize);
-        HAL_JPEG_Resume (hjpeg, JPEG_PAUSE_RESUME_INPUT);
-        }
-
-      JPEG_IN_Write_BufferIndex++;
-      if (JPEG_IN_Write_BufferIndex >= NB_INPUT_DATA_BUFFERS)
-        JPEG_IN_Write_BufferIndex = 0;
-      }
-    }
   return jpegDecodeDone;
   }
 //}}}
@@ -664,16 +642,33 @@ cTile* loadJpegHw (const string& fileName) {
   if (f_open (&JPEG_File, fileName.c_str(), FA_READ) == FR_OK) {
     JPEG_Decode_DMA (&JPEG_Handle, &JPEG_File, jpegYuvBuf);
 
-    int count = 0;
-    while (!jpegInputHandler (&JPEG_Handle))
-      count++;
+    while (!jpegDecodeDone) {
+      if (Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].State == JPEG_BUFFER_EMPTY) {
+        if (f_read (jpegFile, Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].DataBuffer, CHUNK_SIZE_IN,
+                             (UINT*)(&Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].DataBufferSize)) == FR_OK)
+          Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].State = JPEG_BUFFER_FULL;
+        else
+          printf ("jpegInputHandler read failed\n");
+
+        if (jpegInputPaused  && (JPEG_IN_Write_BufferIndex == JPEG_IN_Read_BufferIndex)) {
+          jpegInputPaused = false;
+          HAL_JPEG_ConfigInputBuffer (&JPEG_Handle, Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBuffer,
+                                      Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBufferSize);
+          HAL_JPEG_Resume (&JPEG_Handle, JPEG_PAUSE_RESUME_INPUT);
+          }
+
+        JPEG_IN_Write_BufferIndex++;
+        if (JPEG_IN_Write_BufferIndex >= NB_INPUT_DATA_BUFFERS)
+          JPEG_IN_Write_BufferIndex = 0;
+        }
+      }
     f_close (&JPEG_File);
 
     JPEG_ConfTypeDef jpegInfo;
     HAL_JPEG_GetInfo (&JPEG_Handle, &jpegInfo);
     lcd->info (COL_YELLOW,
                "loadJpeg " + fileName +
-               " took " + dec (HAL_GetTick() - startTime) + ":" + dec(count) +
+               " took " + dec (HAL_GetTick() - startTime) +
                " chroma:" + dec (jpegInfo.ChromaSubsampling) +
                " " + dec (jpegInfo.ImageWidth) + "x" + dec (jpegInfo.ImageHeight));
     lcd->changed();
