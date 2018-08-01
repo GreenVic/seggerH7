@@ -122,7 +122,7 @@ public:
   int text (uint16_t colour, uint16_t fontHeight, const std::string str, cRect r);
 
   void rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize);
-  void jpegYuvTo565 (uint8_t* src, uint32_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
+  void jpegYuvTo565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
 
   void start();
   void drawInfo();

@@ -667,7 +667,7 @@ cTile* loadJpegHw (const string& fileName) {
     auto rgb565pic = (uint16_t*)sdRamAlloc (jpegInfo.ImageWidth * jpegInfo.ImageHeight * 2);
     auto tile = new cTile ((uint8_t*)rgb565pic, 2, jpegInfo.ImageWidth, 0,0,
                            jpegInfo.ImageWidth, jpegInfo.ImageHeight);
-    lcd->jpegYuvTo565 (jpegYuvBuf, (uint32_t*)rgb565pic,
+    lcd->jpegYuvTo565 (jpegYuvBuf, rgb565pic,
                        jpegInfo.ImageWidth, jpegInfo.ImageHeight, jpegInfo.ChromaSubsampling);
     return tile;
     }
@@ -763,7 +763,7 @@ int main() {
   BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_EXTI);
 
   vPortDefineHeapRegions (kHeapRegions);
-  lcd = new cLcd ((uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2), 
+  lcd = new cLcd ((uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2),
                   (uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2));
   lcd->init (kHello);
 
