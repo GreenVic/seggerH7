@@ -73,9 +73,73 @@ uint8_t* sdRamAlloc (uint32_t bytes) {
 //}}}
 
 //{{{
-void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* hjpeg, uint32_t decodedDataLen) {
+void HAL_JPEG_MspInit (JPEG_HandleTypeDef* hjpeg) {
 
-  if (decodedDataLen == jpegInBufs[jpegInReadBufIndex].mBufSize) {
+  static MDMA_HandleTypeDef hmdmaIn;
+  static MDMA_HandleTypeDef hmdmaOut;
+
+  __HAL_RCC_JPGDECEN_CLK_ENABLE();
+  __HAL_RCC_MDMA_CLK_ENABLE();
+
+  HAL_NVIC_SetPriority (JPEG_IRQn, 0x07, 0x0F);
+  HAL_NVIC_EnableIRQ (JPEG_IRQn);
+
+  // Input MDMA
+  hmdmaIn.Init.Priority       = MDMA_PRIORITY_HIGH;
+  hmdmaIn.Init.Endianness     = MDMA_LITTLE_ENDIANNESS_PRESERVE;
+  hmdmaIn.Init.SourceInc      = MDMA_SRC_INC_BYTE;
+  hmdmaIn.Init.DestinationInc = MDMA_DEST_INC_DISABLE;
+  hmdmaIn.Init.SourceDataSize = MDMA_SRC_DATASIZE_BYTE;
+  hmdmaIn.Init.DestDataSize   = MDMA_DEST_DATASIZE_WORD;
+  hmdmaIn.Init.DataAlignment  = MDMA_DATAALIGN_PACKENABLE;
+  hmdmaIn.Init.SourceBurst    = MDMA_SOURCE_BURST_32BEATS;
+  hmdmaIn.Init.DestBurst      = MDMA_DEST_BURST_16BEATS;
+  hmdmaIn.Init.SourceBlockAddressOffset = 0;
+  hmdmaIn.Init.DestBlockAddressOffset = 0;
+
+  // use JPEG Input FIFO Threshold as a trigger for the MDMA
+  // Set the MDMA HW trigger to JPEG Input FIFO Threshold flag
+  hmdmaIn.Init.Request = MDMA_REQUEST_JPEG_INFIFO_TH;
+  hmdmaIn.Init.TransferTriggerMode = MDMA_BUFFER_TRANSFER;
+  // Set MDMA buffer size to JPEG FIFO threshold size 32bytes 8words
+  hmdmaIn.Init.BufferTransferLength = 32;
+  hmdmaIn.Instance = MDMA_Channel7;
+  __HAL_LINKDMA (hjpeg, hdmain, hmdmaIn);
+  HAL_MDMA_DeInit (&hmdmaIn);
+  HAL_MDMA_Init (&hmdmaIn);
+
+  // output MDMA
+  hmdmaOut.Init.Priority       = MDMA_PRIORITY_VERY_HIGH;
+  hmdmaOut.Init.Endianness     = MDMA_LITTLE_ENDIANNESS_PRESERVE;
+  hmdmaOut.Init.SourceInc      = MDMA_SRC_INC_DISABLE;
+  hmdmaOut.Init.DestinationInc = MDMA_DEST_INC_BYTE;
+  hmdmaOut.Init.SourceDataSize = MDMA_SRC_DATASIZE_WORD;
+  hmdmaOut.Init.DestDataSize   = MDMA_DEST_DATASIZE_BYTE;
+  hmdmaOut.Init.DataAlignment  = MDMA_DATAALIGN_PACKENABLE;
+  hmdmaOut.Init.SourceBurst    = MDMA_SOURCE_BURST_32BEATS;
+  hmdmaOut.Init.DestBurst      = MDMA_DEST_BURST_32BEATS;
+  hmdmaOut.Init.SourceBlockAddressOffset = 0;
+  hmdmaOut.Init.DestBlockAddressOffset = 0;
+
+  // use JPEG Output FIFO Threshold as a trigger for the MDMA
+  // Set the MDMA HW trigger to JPEG Output FIFO Threshold flag
+  hmdmaOut.Init.Request = MDMA_REQUEST_JPEG_OUTFIFO_TH;
+  hmdmaOut.Init.TransferTriggerMode = MDMA_BUFFER_TRANSFER;
+  // Set MDMA buffer size to JPEG FIFO threshold size 32bytes 8words
+  hmdmaOut.Init.BufferTransferLength = 32;
+  hmdmaOut.Instance = MDMA_Channel6;
+  HAL_MDMA_DeInit (&hmdmaOut);
+  HAL_MDMA_Init (&hmdmaOut);
+  __HAL_LINKDMA (hjpeg, hdmaout, hmdmaOut);
+
+  HAL_NVIC_SetPriority (MDMA_IRQn, 0x08, 0x0F);
+  HAL_NVIC_EnableIRQ (MDMA_IRQn);
+  }
+//}}}
+//{{{
+void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* hjpeg, uint32_t dataLen) {
+
+  if (dataLen == jpegInBufs[jpegInReadBufIndex].mBufSize) {
     jpegInBufs [jpegInReadBufIndex].mFull = false;
     jpegInBufs [jpegInReadBufIndex].mBufSize = 0;
     jpegInReadBufIndex = (jpegInReadBufIndex + 1) % 2;
@@ -88,8 +152,8 @@ void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* hjpeg, uint32_t decodedDataLe
                                          jpegInBufs[jpegInReadBufIndex].mBufSize);
     }
   else
-    HAL_JPEG_ConfigInputBuffer (hjpeg, jpegInBufs[jpegInReadBufIndex].mBuf + decodedDataLen,
-                                       jpegInBufs[jpegInReadBufIndex].mBufSize - decodedDataLen);
+    HAL_JPEG_ConfigInputBuffer (hjpeg, jpegInBufs[jpegInReadBufIndex].mBuf + dataLen,
+                                       jpegInBufs[jpegInReadBufIndex].mBufSize - dataLen);
   }
 //}}}
 //{{{
@@ -103,83 +167,6 @@ void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* hjpeg, uint8_t* pDataOut, u
 void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef* hjpeg) { jpegDecodeDone = true; }
 void HAL_JPEG_InfoReadyCallback (JPEG_HandleTypeDef* hjpeg, JPEG_ConfTypeDef* pInfo) {}
 void HAL_JPEG_ErrorCallback (JPEG_HandleTypeDef* hjpeg) {}
-//{{{
-void HAL_JPEG_MspInit(JPEG_HandleTypeDef *hjpeg) {
-
-  static MDMA_HandleTypeDef hmdmaIn;
-  static MDMA_HandleTypeDef hmdmaOut;
-
-  /* Enable JPEG clock */
-  __HAL_RCC_JPGDECEN_CLK_ENABLE();
-
-  /* Enable MDMA clock */
-  __HAL_RCC_MDMA_CLK_ENABLE();
-
-  HAL_NVIC_SetPriority (JPEG_IRQn, 0x07, 0x0F);
-  HAL_NVIC_EnableIRQ (JPEG_IRQn);
-
-  /* Input MDMA */
-  hmdmaIn.Init.Priority           = MDMA_PRIORITY_HIGH;
-  hmdmaIn.Init.Endianness         = MDMA_LITTLE_ENDIANNESS_PRESERVE;
-  hmdmaIn.Init.SourceInc          = MDMA_SRC_INC_BYTE;
-  hmdmaIn.Init.DestinationInc     = MDMA_DEST_INC_DISABLE;
-  hmdmaIn.Init.SourceDataSize     = MDMA_SRC_DATASIZE_BYTE;
-  hmdmaIn.Init.DestDataSize       = MDMA_DEST_DATASIZE_WORD;
-  hmdmaIn.Init.DataAlignment      = MDMA_DATAALIGN_PACKENABLE;
-  hmdmaIn.Init.SourceBurst        = MDMA_SOURCE_BURST_32BEATS;
-  hmdmaIn.Init.DestBurst          = MDMA_DEST_BURST_16BEATS;
-  hmdmaIn.Init.SourceBlockAddressOffset = 0;
-  hmdmaIn.Init.DestBlockAddressOffset  = 0;
-
-  /*Using JPEG Input FIFO Threshold as a trigger for the MDMA*/
-  hmdmaIn.Init.Request = MDMA_REQUEST_JPEG_INFIFO_TH; /* Set the MDMA HW trigger to JPEG Input FIFO Threshold flag*/
-  hmdmaIn.Init.TransferTriggerMode = MDMA_BUFFER_TRANSFER;
-  hmdmaIn.Init.BufferTransferLength = 32; /*Set the MDMA buffer size to the JPEG FIFO threshold size i.e 32 bytes (8 words)*/
-
-  hmdmaIn.Instance = MDMA_Channel7;
-
-  /* Associate the DMA handle */
-  __HAL_LINKDMA(hjpeg, hdmain, hmdmaIn);
-
-  /* DeInitialize the DMA Stream */
-  HAL_MDMA_DeInit(&hmdmaIn);
-  /* Initialize the DMA stream */
-  HAL_MDMA_Init(&hmdmaIn);
-
-
-  /* Output MDMA */
-  /* Set the parameters to be configured */
-  hmdmaOut.Init.Priority        = MDMA_PRIORITY_VERY_HIGH;
-  hmdmaOut.Init.Endianness      = MDMA_LITTLE_ENDIANNESS_PRESERVE;
-  hmdmaOut.Init.SourceInc       = MDMA_SRC_INC_DISABLE;
-  hmdmaOut.Init.DestinationInc  = MDMA_DEST_INC_BYTE;
-  hmdmaOut.Init.SourceDataSize  = MDMA_SRC_DATASIZE_WORD;
-  hmdmaOut.Init.DestDataSize    = MDMA_DEST_DATASIZE_BYTE;
-  hmdmaOut.Init.DataAlignment   = MDMA_DATAALIGN_PACKENABLE;
-  hmdmaOut.Init.SourceBurst     = MDMA_SOURCE_BURST_32BEATS;
-  hmdmaOut.Init.DestBurst       = MDMA_DEST_BURST_32BEATS;
-  hmdmaOut.Init.SourceBlockAddressOffset = 0;
-  hmdmaOut.Init.DestBlockAddressOffset  = 0;
-
-
-  /*Using JPEG Output FIFO Threshold as a trigger for the MDMA*/
-  hmdmaOut.Init.Request              = MDMA_REQUEST_JPEG_OUTFIFO_TH; /* Set the MDMA HW trigger to JPEG Output FIFO Threshold flag*/
-  hmdmaOut.Init.TransferTriggerMode  = MDMA_BUFFER_TRANSFER;
-  hmdmaOut.Init.BufferTransferLength = 32; /*Set the MDMA buffer size to the JPEG FIFO threshold size i.e 32 bytes (8 words)*/
-
-  hmdmaOut.Instance = MDMA_Channel6;
-  /* DeInitialize the DMA Stream */
-  HAL_MDMA_DeInit (&hmdmaOut);
-  /* Initialize the DMA stream */
-  HAL_MDMA_Init (&hmdmaOut);
-
-  /* Associate the DMA handle */
-  __HAL_LINKDMA (hjpeg, hdmaout, hmdmaOut);
-
-  HAL_NVIC_SetPriority (MDMA_IRQn, 0x08, 0x0F);
-  HAL_NVIC_EnableIRQ (MDMA_IRQn);
-  }
-//}}}
 
 //{{{
 void clockConfig() {
@@ -626,7 +613,7 @@ cTile* loadJpegHw (const string& fileName) {
         if (jpegInputPaused && (jpegInWriteBufIndex == jpegInReadBufIndex)) {
           jpegInputPaused = false;
           HAL_JPEG_ConfigInputBuffer (&JPEG_Handle,
-                                      jpegInBufs[jpegInReadBufIndex].mBuf, 
+                                      jpegInBufs[jpegInReadBufIndex].mBuf,
                                       jpegInBufs[jpegInReadBufIndex].mBufSize);
           HAL_JPEG_Resume (&JPEG_Handle, JPEG_PAUSE_RESUME_INPUT);
           }
@@ -638,7 +625,7 @@ cTile* loadJpegHw (const string& fileName) {
     JPEG_ConfTypeDef jpegInfo;
     HAL_JPEG_GetInfo (&JPEG_Handle, &jpegInfo);
     lcd->info (COL_YELLOW, "loadJpeg " + fileName +
-                           " took " + dec (HAL_GetTick() - startTime) + " " + 
+                           " took " + dec (HAL_GetTick() - startTime) + " " +
                            dec (jpegInfo.ChromaSubsampling, 1, '0') +  ":" +
                            dec (jpegInfo.ImageWidth) + "x" + dec (jpegInfo.ImageHeight));
     lcd->changed();
