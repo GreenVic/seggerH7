@@ -82,32 +82,6 @@ uint16_t* sdRamAlloc (uint32_t words) {
 //}}}
 
 //{{{
-uint32_t JPEG_Decode_DMA (JPEG_HandleTypeDef* hjpeg, FIL* file, uint32_t DestAddress) {
-
-  jpegFile = file;
-  jpegYuvPtr = DestAddress;
-
-  // Read from JPG file and fill input buffers
-  for (uint32_t i = 0; i < NB_INPUT_DATA_BUFFERS; i++) {
-    if (f_read (jpegFile, Jpeg_IN_BufferTab[i].DataBuffer, CHUNK_SIZE_IN,
-                       (UINT*)(&Jpeg_IN_BufferTab[i].DataBufferSize)) == FR_OK)
-      Jpeg_IN_BufferTab[i].State = JPEG_BUFFER_FULL;
-    else
-      printf ("JPEG_Decode_DMA read failed\n");
-    }
-
-  HAL_JPEG_Decode_DMA (hjpeg, Jpeg_IN_BufferTab[0].DataBuffer, Jpeg_IN_BufferTab[0].DataBufferSize,
-                       (uint8_t*)jpegYuvPtr, CHUNK_SIZE_OUT);
-  return 0;
-  }
-//}}}
-//{{{
-bool jpegInputHandler (JPEG_HandleTypeDef* hjpeg) {
-
-  return jpegDecodeDone;
-  }
-//}}}
-//{{{
 void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* hjpeg, uint32_t NbDecodedData) {
 
   if (NbDecodedData == Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBufferSize) {
@@ -640,7 +614,22 @@ cTile* loadJpegHw (const string& fileName) {
   auto startTime = HAL_GetTick();
   FIL JPEG_File;
   if (f_open (&JPEG_File, fileName.c_str(), FA_READ) == FR_OK) {
-    JPEG_Decode_DMA (&JPEG_Handle, &JPEG_File, jpegYuvBuf);
+    FIL* file = &JPEG_File;
+    jpegFile = file;
+    jpegYuvPtr = jpegYuvBuf;
+
+    // Read from JPG file and fill input buffers
+    for (uint32_t i = 0; i < NB_INPUT_DATA_BUFFERS; i++) {
+      if (f_read (jpegFile, Jpeg_IN_BufferTab[i].DataBuffer, CHUNK_SIZE_IN,
+                         (UINT*)(&Jpeg_IN_BufferTab[i].DataBufferSize)) == FR_OK)
+        Jpeg_IN_BufferTab[i].State = JPEG_BUFFER_FULL;
+      else
+        printf ("JPEG_Decode_DMA read failed\n");
+      }
+
+    HAL_JPEG_Decode_DMA (&JPEG_Handle, 
+                         Jpeg_IN_BufferTab[0].DataBuffer, Jpeg_IN_BufferTab[0].DataBufferSize,
+                         (uint8_t*)jpegYuvPtr, CHUNK_SIZE_OUT);
 
     while (!jpegDecodeDone) {
       if (Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].State == JPEG_BUFFER_EMPTY) {
@@ -652,7 +641,8 @@ cTile* loadJpegHw (const string& fileName) {
 
         if (jpegInputPaused  && (JPEG_IN_Write_BufferIndex == JPEG_IN_Read_BufferIndex)) {
           jpegInputPaused = false;
-          HAL_JPEG_ConfigInputBuffer (&JPEG_Handle, Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBuffer,
+          HAL_JPEG_ConfigInputBuffer (&JPEG_Handle, 
+                                      Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBuffer,
                                       Jpeg_IN_BufferTab[JPEG_IN_Read_BufferIndex].DataBufferSize);
           HAL_JPEG_Resume (&JPEG_Handle, JPEG_PAUSE_RESUME_INPUT);
           }
