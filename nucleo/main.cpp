@@ -61,7 +61,6 @@ JPEG_Data_BufferTypeDef Jpeg_IN_BufferTab [NB_INPUT_DATA_BUFFERS] = {
 
 bool jpegDecodeDone = false;
 __IO bool jpegInputPaused = 0;
-
 //}}}
 
 extern "C" { void JPEG_IRQHandler() { HAL_JPEG_IRQHandler (&JPEG_Handle); }  }
@@ -105,7 +104,9 @@ uint32_t JPEG_Decode_DMA (JPEG_HandleTypeDef* hjpeg, FIL* file, uint32_t DestAdd
 //{{{
 bool jpegInputHandler (JPEG_HandleTypeDef* hjpeg) {
 
-  if (!jpegDecodeDone) {
+  if (jpegDecodeDone)
+    printf ("jpegInputHandler -- too much input\n");
+  else {
     if (Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].State == JPEG_BUFFER_EMPTY) {
       if (f_read (jpegFile, Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].DataBuffer, CHUNK_SIZE_IN,
                            (UINT*)(&Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].DataBufferSize)) == FR_OK)
@@ -124,10 +125,8 @@ bool jpegInputHandler (JPEG_HandleTypeDef* hjpeg) {
       if (JPEG_IN_Write_BufferIndex >= NB_INPUT_DATA_BUFFERS)
         JPEG_IN_Write_BufferIndex = 0;
       }
-    return false;
     }
-  else
-    return true;
+  return jpegDecodeDone;
   }
 //}}}
 //{{{
@@ -242,7 +241,6 @@ void HAL_JPEG_MspInit(JPEG_HandleTypeDef *hjpeg) {
   HAL_NVIC_EnableIRQ (MDMA_IRQn);
   }
 //}}}
-
 
 //{{{
 void clockConfig() {
@@ -667,11 +665,8 @@ cTile* loadJpegHw (const string& fileName) {
     JPEG_Decode_DMA (&JPEG_Handle, &JPEG_File, jpegYuvBuf);
 
     int count = 0;
-    bool jpegProcessingDone = false;
-    do {
+    while (!jpegInputHandler (&JPEG_Handle))
       count++;
-      jpegProcessingDone = jpegInputHandler (&JPEG_Handle);
-      } while (jpegProcessingDone == 0);
     f_close (&JPEG_File);
 
     JPEG_ConfTypeDef jpegInfo;
