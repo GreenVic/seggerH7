@@ -23,7 +23,7 @@ const HeapRegion_t kHeapRegions[] = {
 //}}}
 
 cLcd* lcd = nullptr;
-uint16_t* mSdRamAlloc = (uint16_t*)SDRAM_DEVICE_ADDR;
+uint8_t* mSdRamAlloc = (uint8_t*)SDRAM_DEVICE_ADDR;
 vector<string> mFileVec;
 vector<cTile*> mTileVec;
 //{{{  jpeg vars
@@ -37,8 +37,8 @@ vector<cTile*> mTileVec;
 #define NB_OUTPUT_DATA_BUFFERS 2
 
 JPEG_HandleTypeDef JPEG_Handle;
-uint32_t jpegYuvBuf = 0;
-uint32_t jpegYuvPtr = 0;
+uint8_t* jpegYuvBuf = nullptr;
+uint8_t* jpegYuvPtr = nullptr;
 
 FIL* jpegFile;
 
@@ -74,9 +74,9 @@ void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
 //}}}
 
 //{{{
-uint16_t* sdRamAlloc (uint32_t words) {
+uint8_t* sdRamAlloc (uint32_t bytes) {
   auto alloc = mSdRamAlloc;
-  mSdRamAlloc += words;
+  mSdRamAlloc += bytes;
   return alloc;
   }
 //}}}
@@ -110,7 +110,7 @@ void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* hjpeg, uint8_t* pDataOut, u
 
   // Update JPEG encoder output buffer address
   jpegYuvPtr += OutDataLength;
-  HAL_JPEG_ConfigOutputBuffer (hjpeg, (uint8_t*)jpegYuvPtr, CHUNK_SIZE_OUT);
+  HAL_JPEG_ConfigOutputBuffer (hjpeg, jpegYuvPtr, CHUNK_SIZE_OUT);
   }
 //}}}
 void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef* hjpeg) { jpegDecodeDone = true; }
@@ -576,7 +576,7 @@ cTile* loadJpegSw (const string& fileName, int scale) {
     mCinfo.scale_denom = scale;
     jpeg_start_decompress (&mCinfo);
 
-    auto rgb565pic = sdRamAlloc (mCinfo.output_width * mCinfo.output_height);
+    auto rgb565pic = (uint16_t*)sdRamAlloc (mCinfo.output_width * mCinfo.output_height*2);
     auto tile = new cTile ((uint8_t*)rgb565pic, 2, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
 
     auto rgbLine = (uint8_t*)malloc (mCinfo.output_width * 3);
@@ -618,7 +618,7 @@ cTile* loadJpegHw (const string& fileName) {
   if (f_open (jpegFile, fileName.c_str(), FA_READ) == FR_OK) {
     // fill input buffers from jpeg file
     for (uint32_t i = 0; i < NB_INPUT_DATA_BUFFERS; i++) {
-      if (f_read (jpegFile, 
+      if (f_read (jpegFile,
                   Jpeg_IN_BufferTab[i].DataBuffer, CHUNK_SIZE_IN,
                   (UINT*)(&Jpeg_IN_BufferTab[i].DataBufferSize)) == FR_OK)
         Jpeg_IN_BufferTab[i].State = JPEG_BUFFER_FULL;
@@ -629,7 +629,7 @@ cTile* loadJpegHw (const string& fileName) {
     jpegYuvPtr = jpegYuvBuf;
     HAL_JPEG_Decode_DMA (&JPEG_Handle,
                          Jpeg_IN_BufferTab[0].DataBuffer, Jpeg_IN_BufferTab[0].DataBufferSize,
-                         (uint8_t*)jpegYuvPtr, CHUNK_SIZE_OUT);
+                         jpegYuvPtr, CHUNK_SIZE_OUT);
 
     while (!jpegDecodeDone) {
       if (Jpeg_IN_BufferTab[JPEG_IN_Write_BufferIndex].State == JPEG_BUFFER_EMPTY) {
@@ -664,11 +664,11 @@ cTile* loadJpegHw (const string& fileName) {
 
     printf ("jpeg image %d %d\n",  jpegInfo.ImageWidth, jpegInfo.ImageHeight);
 
-    auto rgb565pic = sdRamAlloc (jpegInfo.ImageWidth * jpegInfo.ImageHeight * 2);
+    auto rgb565pic = (uint16_t*)sdRamAlloc (jpegInfo.ImageWidth * jpegInfo.ImageHeight * 2);
     auto tile = new cTile ((uint8_t*)rgb565pic, 2, jpegInfo.ImageWidth, 0,0,
                            jpegInfo.ImageWidth, jpegInfo.ImageHeight);
-    lcd->yuvTo565 ((uint32_t*)jpegYuvBuf, (uint32_t*)rgb565pic,
-                   jpegInfo.ImageWidth, jpegInfo.ImageHeight, jpegInfo.ChromaSubsampling);
+    lcd->jpegYuvTo565 (jpegYuvBuf, (uint32_t*)rgb565pic,
+                       jpegInfo.ImageWidth, jpegInfo.ImageHeight, jpegInfo.ChromaSubsampling);
     return tile;
     }
   else
@@ -722,7 +722,7 @@ void appThread (void* arg) {
 
     findFiles ("", ".jpg");
 
-    jpegYuvBuf = (uint32_t)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*4);
+    jpegYuvBuf = sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*4);
 
     auto startTime = HAL_GetTick();
     //for (auto file : mFileVec) {
@@ -763,7 +763,8 @@ int main() {
   BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_EXTI);
 
   vPortDefineHeapRegions (kHeapRegions);
-  lcd = new cLcd (sdRamAlloc (LCD_WIDTH*LCD_HEIGHT), sdRamAlloc (LCD_WIDTH*LCD_HEIGHT));
+  lcd = new cLcd ((uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2), 
+                  (uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2));
   lcd->init (kHello);
 
   TaskHandle_t uiHandle;
