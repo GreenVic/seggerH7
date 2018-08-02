@@ -706,8 +706,8 @@ void appThread (void* arg) {
     findFiles ("", ".jpg");
 
     auto startTime = HAL_GetTick();
-    //for (auto file : mFileVec) {
-    auto file = mFileVec.front();
+    for (auto file : mFileVec)
+    //auto file = mFileVec.front();
       {
       //auto tile = loadFileSw (file, 1);
       auto tile = loadJpegHw (file);
