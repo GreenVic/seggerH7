@@ -45,7 +45,7 @@ tJpegBufs jpegBufs [2] = {
   };
 uint32_t readIndex = 0;
 uint32_t writeIndex = 0;
-__IO bool jpegInPaused = 0;
+__IO bool jpegInPaused = false;
 bool jpegDecodeDone = false;
 
 const uint32_t kJpegYuvChunkSize = 0x10000;
@@ -138,7 +138,7 @@ void HAL_JPEG_MspInit (JPEG_HandleTypeDef* jpegHandlePtr) {
 void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint32_t len) {
 
   if (len != jpegBufs[readIndex].mSize)
-    HAL_JPEG_ConfigInputBuffer (jpegHandlePtr, jpegBufs[readIndex].mBuf + len, jpegBufs[readIndex].mSize - len);
+    HAL_JPEG_ConfigInputBuffer (jpegHandlePtr, jpegBufs[readIndex].mBuf+len, jpegBufs[readIndex].mSize-len);
   else {
     jpegBufs [readIndex].mFull = false;
     jpegBufs [readIndex].mSize = 0;
@@ -611,8 +611,8 @@ cTile* loadJpegHw (const string& fileName) {
   jpegInPaused = 0;
   jpegDecodeDone = false;
 
-  FIL JPEG_File;
-  jpgFilePtr = &JPEG_File;
+  FIL jpegFile;
+  jpgFilePtr = &jpegFile;
   if (f_open (jpgFilePtr, fileName.c_str(), FA_READ) == FR_OK) {
     if (f_read (jpgFilePtr, jpegBufs[0].mBuf, 4096, &jpegBufs[0].mSize) == FR_OK)
       jpegBufs[0].mFull = true;
