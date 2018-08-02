@@ -27,8 +27,8 @@ uint8_t* mSdRamAlloc = (uint8_t*)SDRAM_DEVICE_ADDR;
 vector<string> mFileVec;
 vector<cTile*> mTileVec;
 //{{{  jpeg vars
-JPEG_HandleTypeDef JPEG_Handle;
-FIL* jpegFile;
+JPEG_HandleTypeDef jpegHandle;
+FIL* jpgFilePtr;
 
 //{{{  struct tJpegBufs
 typedef struct {
@@ -43,19 +43,17 @@ tJpegBufs jpegBufs [2] = {
   { false, jpegBuf0, 0 },
   { false, jpegBuf1, 0 }
   };
-uint32_t jpegReadIndex = 0;
-uint32_t jpegWriteIndex = 0;
-
-
-bool jpegDecodeDone = false;
+uint32_t readIndex = 0;
+uint32_t writeIndex = 0;
 __IO bool jpegInPaused = 0;
+bool jpegDecodeDone = false;
 
 const uint32_t kJpegYuvChunkSize = 0x10000;
 uint8_t* jpegYuvBuf = nullptr;
 //}}}
 
-extern "C" { void JPEG_IRQHandler() { HAL_JPEG_IRQHandler (&JPEG_Handle); }  }
-extern "C" { void MDMA_IRQHandler() { HAL_MDMA_IRQHandler (JPEG_Handle.hdmain); HAL_MDMA_IRQHandler (JPEG_Handle.hdmaout); }  }
+extern "C" { void JPEG_IRQHandler() { HAL_JPEG_IRQHandler (&jpegHandle); }  }
+extern "C" { void MDMA_IRQHandler() { HAL_MDMA_IRQHandler (jpegHandle.hdmain); HAL_MDMA_IRQHandler (jpegHandle.hdmaout); }  }
 extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
 void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
@@ -73,7 +71,7 @@ uint8_t* sdRamAlloc (uint32_t bytes) {
 //}}}
 
 //{{{
-void HAL_JPEG_MspInit (JPEG_HandleTypeDef* hjpeg) {
+void HAL_JPEG_MspInit (JPEG_HandleTypeDef* jpegHandlePtr) {
 
   static MDMA_HandleTypeDef hmdmaIn;
   static MDMA_HandleTypeDef hmdmaOut;
@@ -104,7 +102,7 @@ void HAL_JPEG_MspInit (JPEG_HandleTypeDef* hjpeg) {
   // Set MDMA buffer size to JPEG FIFO threshold size 32bytes 8words
   hmdmaIn.Init.BufferTransferLength = 32;
   hmdmaIn.Instance = MDMA_Channel7;
-  __HAL_LINKDMA (hjpeg, hdmain, hmdmaIn);
+  __HAL_LINKDMA (jpegHandlePtr, hdmain, hmdmaIn);
   HAL_MDMA_DeInit (&hmdmaIn);
   HAL_MDMA_Init (&hmdmaIn);
 
@@ -130,58 +128,55 @@ void HAL_JPEG_MspInit (JPEG_HandleTypeDef* hjpeg) {
   hmdmaOut.Instance = MDMA_Channel6;
   HAL_MDMA_DeInit (&hmdmaOut);
   HAL_MDMA_Init (&hmdmaOut);
-  __HAL_LINKDMA (hjpeg, hdmaout, hmdmaOut);
+  __HAL_LINKDMA (jpegHandlePtr, hdmaout, hmdmaOut);
 
   HAL_NVIC_SetPriority (MDMA_IRQn, 0x08, 0x0F);
   HAL_NVIC_EnableIRQ (MDMA_IRQn);
   }
 //}}}
 //{{{
-void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* hjpeg, uint32_t len) {
+void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint32_t len) {
 
-  if (len != jpegBufs[jpegReadIndex].mSize)
-    HAL_JPEG_ConfigInputBuffer (hjpeg, jpegBufs[jpegReadIndex].mBuf + len, jpegBufs[jpegReadIndex].mSize - len);
+  if (len != jpegBufs[readIndex].mSize)
+    HAL_JPEG_ConfigInputBuffer (jpegHandlePtr, jpegBufs[readIndex].mBuf + len, jpegBufs[readIndex].mSize - len);
   else {
-    jpegBufs [jpegReadIndex].mFull = false;
-    jpegBufs [jpegReadIndex].mSize = 0;
+    jpegBufs [readIndex].mFull = false;
+    jpegBufs [readIndex].mSize = 0;
 
-    jpegReadIndex = jpegReadIndex ? 0 : 1;
-    if (jpegBufs [jpegReadIndex].mFull)
-      HAL_JPEG_ConfigInputBuffer (hjpeg, jpegBufs[jpegReadIndex].mBuf, jpegBufs[jpegReadIndex].mSize);
+    readIndex = readIndex ? 0 : 1;
+    if (jpegBufs [readIndex].mFull)
+      HAL_JPEG_ConfigInputBuffer (jpegHandlePtr, jpegBufs[readIndex].mBuf, jpegBufs[readIndex].mSize);
     else {
-      HAL_JPEG_Pause (hjpeg, JPEG_PAUSE_RESUME_INPUT);
+      HAL_JPEG_Pause (jpegHandlePtr, JPEG_PAUSE_RESUME_INPUT);
       jpegInPaused = true;
       }
     }
   }
 //}}}
 //{{{
-void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* hjpeg, uint8_t* data, uint32_t len) {
+void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint8_t* data, uint32_t len) {
 
   // Update JPEG encoder output buffer address
-  HAL_JPEG_ConfigOutputBuffer (hjpeg, data+len, kJpegYuvChunkSize);
+  HAL_JPEG_ConfigOutputBuffer (jpegHandlePtr, data+len, kJpegYuvChunkSize);
   lcd->info (COL_GREEN, "HAL_JPEG_DataReadyCallback " + hex(uint32_t(data)) + ":" + hex(len));
   lcd->changed();
   }
 //}}}
 //{{{
-void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef* hjpeg) {
+void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef* jpegHandlePtr) {
   jpegDecodeDone = true;
   }
 //}}}
 //{{{
-void HAL_JPEG_InfoReadyCallback (JPEG_HandleTypeDef* hjpeg, JPEG_ConfTypeDef* pInfo) {
+void HAL_JPEG_InfoReadyCallback (JPEG_HandleTypeDef* jpegHandlePtr, JPEG_ConfTypeDef* info) {
 
-  JPEG_ConfTypeDef jpegInfo;
-  HAL_JPEG_GetInfo (&JPEG_Handle, &jpegInfo);
-  lcd->info (COL_YELLOW, "info callback " +
-                         dec (jpegInfo.ChromaSubsampling, 1, '0') +  ":" +
-                         dec (jpegInfo.ImageWidth) + "x" + dec (jpegInfo.ImageHeight));
+  lcd->info (COL_YELLOW, "info callback " + dec (info->ChromaSubsampling, 1, '0') +  ":" +
+                                            dec (info->ImageWidth) + "x" + dec (info->ImageHeight));
   lcd->changed();
   }
 //}}}
 //{{{
-void HAL_JPEG_ErrorCallback (JPEG_HandleTypeDef* hjpeg) {
+void HAL_JPEG_ErrorCallback (JPEG_HandleTypeDef* jpegHandlePtr) {
 
   lcd->info (COL_RED, "jpeg error");
   lcd->changed();
@@ -608,35 +603,40 @@ cTile* loadJpegHw (const string& fileName) {
 
   auto startTime = HAL_GetTick();
 
-  JPEG_Handle.Instance = JPEG;
-  HAL_JPEG_Init (&JPEG_Handle);
+  jpegHandle.Instance = JPEG;
+  HAL_JPEG_Init (&jpegHandle);
+
+  readIndex = 0;
+  writeIndex = 0;
+  jpegInPaused = 0;
+  jpegDecodeDone = false;
 
   FIL JPEG_File;
-  jpegFile = &JPEG_File;
-  if (f_open (jpegFile, fileName.c_str(), FA_READ) == FR_OK) {
-    if (f_read (jpegFile, jpegBufs[0].mBuf, 4096, &jpegBufs[0].mSize) == FR_OK)
+  jpgFilePtr = &JPEG_File;
+  if (f_open (jpgFilePtr, fileName.c_str(), FA_READ) == FR_OK) {
+    if (f_read (jpgFilePtr, jpegBufs[0].mBuf, 4096, &jpegBufs[0].mSize) == FR_OK)
       jpegBufs[0].mFull = true;
-    if (f_read (jpegFile, jpegBufs[1].mBuf, 4096, &jpegBufs[1].mSize) == FR_OK)
+    if (f_read (jpgFilePtr, jpegBufs[1].mBuf, 4096, &jpegBufs[1].mSize) == FR_OK)
       jpegBufs[1].mFull = true;
 
-    HAL_JPEG_Decode_DMA (&JPEG_Handle, jpegBufs[0].mBuf, jpegBufs[0].mSize, jpegYuvBuf, kJpegYuvChunkSize);
+    HAL_JPEG_Decode_DMA (&jpegHandle, jpegBufs[0].mBuf, jpegBufs[0].mSize, jpegYuvBuf, kJpegYuvChunkSize);
 
     while (!jpegDecodeDone) {
-      if (!jpegBufs[jpegWriteIndex].mFull) {
-        if (f_read (jpegFile, jpegBufs[jpegWriteIndex].mBuf, 4096, &jpegBufs[jpegWriteIndex].mSize) == FR_OK)
-          jpegBufs[jpegWriteIndex].mFull = true;
-        if (jpegInPaused && (jpegWriteIndex == jpegReadIndex)) {
+      if (!jpegBufs[writeIndex].mFull) {
+        if (f_read (jpgFilePtr, jpegBufs[writeIndex].mBuf, 4096, &jpegBufs[writeIndex].mSize) == FR_OK)
+          jpegBufs[writeIndex].mFull = true;
+        if (jpegInPaused && (writeIndex == readIndex)) {
           jpegInPaused = false;
-          HAL_JPEG_ConfigInputBuffer (&JPEG_Handle, jpegBufs[jpegReadIndex].mBuf, jpegBufs[jpegReadIndex].mSize);
-          HAL_JPEG_Resume (&JPEG_Handle, JPEG_PAUSE_RESUME_INPUT);
+          HAL_JPEG_ConfigInputBuffer (&jpegHandle, jpegBufs[readIndex].mBuf, jpegBufs[readIndex].mSize);
+          HAL_JPEG_Resume (&jpegHandle, JPEG_PAUSE_RESUME_INPUT);
           }
-        jpegWriteIndex = jpegWriteIndex ? 0 : 1;
+        writeIndex = writeIndex ? 0 : 1;
         }
       }
-    f_close (jpegFile);
+    f_close (jpgFilePtr);
 
     JPEG_ConfTypeDef jpegInfo;
-    HAL_JPEG_GetInfo (&JPEG_Handle, &jpegInfo);
+    HAL_JPEG_GetInfo (&jpegHandle, &jpegInfo);
     lcd->info (COL_YELLOW, "loadJpeg " + fileName +
                            " took " + dec (HAL_GetTick() - startTime) + " " +
                            dec (jpegInfo.ChromaSubsampling, 1, '0') +  ":" +
