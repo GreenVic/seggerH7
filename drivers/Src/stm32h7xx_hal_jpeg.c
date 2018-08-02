@@ -4,8 +4,8 @@
 #define JPEG_AC_HUFF_TABLE_SIZE  ((uint32_t)162U) /* Huffman AC table size : 162 codes*/
 #define JPEG_DC_HUFF_TABLE_SIZE  ((uint32_t)12U)  /* Huffman AC table size : 12 codes*/
 
-#define JPEG_FIFO_SIZE    ((uint32_t)16U)             /* JPEG Input/Output HW FIFO size in words*/
-#define JPEG_FIFO_TH_SIZE ((uint32_t)8U)              /* JPEG Input/Output HW FIFO Threshold in words*/
+#define JPEG_FIFO_SIZE    ((uint32_t)16U) /* JPEG Input/Output HW FIFO size in words*/
+#define JPEG_FIFO_TH_SIZE ((uint32_t)8U)  /* JPEG Input/Output HW FIFO Threshold in words*/
 
 #define JPEG_INTERRUPT_MASK  ((uint32_t)0x0000007EU) /* JPEG Interrupt Mask*/
 
@@ -17,7 +17,6 @@
 #define JPEG_CONTEXT_IT             ((uint32_t)0x00000008U)  /* JPEG context : Transfer use Interrupt */
 #define JPEG_CONTEXT_DMA            ((uint32_t)0x0000000CU)  /* JPEG context : Transfer use DMA */
 #define JPEG_CONTEXT_METHOD_MASK    ((uint32_t)0x0000000CU)  /* JPEG context : Transfer Mask */
-
 
 #define JPEG_CONTEXT_CONF_ENCODING  ((uint32_t)0x00000100U)  /* JPEG context : encoding config done */
 
@@ -35,7 +34,7 @@
 typedef struct {
   uint8_t CodeLength[JPEG_AC_HUFF_TABLE_SIZE];      /*!< Code length  */
   uint32_t HuffmanCode[JPEG_AC_HUFF_TABLE_SIZE];    /*!< HuffmanCode */
-  }JPEG_AC_HuffCodeTableTypeDef;
+  } JPEG_AC_HuffCodeTableTypeDef;
 //}}}
 //{{{  struct JPEG_DC_HuffCodeTableTypeDef
 typedef struct {
@@ -47,8 +46,8 @@ typedef struct {
 //{{{  struct JPEG_DCHuffTableTypeDef
 typedef struct {
   /* These two fields directly represent the contents of a JPEG DHT marker */
-  uint8_t Bits[16];        /*!< bits[k] = # of symbols with codes of length k bits, this parameter corresponds to BITS list in the Annex C */
-  uint8_t HuffVal[12];    /*!< The symbols, in order of incremented code length, this parameter corresponds to HUFFVAL list in the Annex C */
+  uint8_t Bits[16];     /*!< bits[k] = # of symbols with codes of length k bits, this parameter corresponds to BITS list in the Annex C */
+  uint8_t HuffVal[12];  /*!< The symbols, in order of incremented code length, this parameter corresponds to HUFFVAL list in the Annex C */
   }JPEG_DCHuffTableTypeDef;
 //}}}
 //{{{
@@ -150,7 +149,7 @@ static const uint8_t JPEG_CHROM_QuantTable[JPEG_QUANT_TABLE_SIZE] = {
   99,  99,  99,  99,  99,  99,  99,  99,
   99,  99,  99,  99,  99,  99,  99,  99,
   99,  99,  99,  99,  99,  99,  99,  99
-};
+  };
 //}}}
 //{{{
 static const uint8_t JPEG_ZIGZAG_ORDER[JPEG_QUANT_TABLE_SIZE] = {
@@ -166,70 +165,52 @@ static const uint8_t JPEG_ZIGZAG_ORDER[JPEG_QUANT_TABLE_SIZE] = {
 //}}}
 
 //{{{
-/**
-  * @brief  Configure the JPEG register huffman tables to be included in the JPEG
-  *         file header (used for encoding only)
-  * @param  hjpeg: pointer to a JPEG_HandleTypeDef structure that contains
-  *         the configuration information for JPEG module
-  * @param  HuffTableAC0: AC0 huffman table
-  * @param  HuffTableDC0: DC0 huffman table
-  * @param  HuffTableAC1: AC1 huffman table
-  * @param  HuffTableDC1: DC1 huffman table
-  * @retval None
-  */
 static void JPEG_Set_Huff_DHTMem (JPEG_HandleTypeDef* hjpeg, JPEG_ACHuffTableTypeDef *HuffTableAC0, JPEG_DCHuffTableTypeDef *HuffTableDC0 ,  JPEG_ACHuffTableTypeDef *HuffTableAC1, JPEG_DCHuffTableTypeDef *HuffTableDC1)
 {
   uint32_t value, index;
-  __IO uint32_t *address;
-  if(HuffTableDC0 != NULL)
-  {
+  __IO uint32_t* address;
+
+  if (HuffTableDC0 != NULL) {
     /* DC0 Huffman Table : BITS*/
     /* DC0 BITS is a 16 Bytes table i.e 4x32bits words from DHTMEM base address to DHTMEM + 3*/
     address = (hjpeg->Instance->DHTMEM + 3);
     index = 16;
-    while(index > 0)
-    {
-
+    while(index > 0) {
       *address = (((uint32_t)HuffTableDC0->Bits[index-1] & 0xFF) << 24)|
                  (((uint32_t)HuffTableDC0->Bits[index-2] & 0xFF) << 16)|
                  (((uint32_t)HuffTableDC0->Bits[index-3] & 0xFF) << 8) |
                  ((uint32_t)HuffTableDC0->Bits[index-4] & 0xFF);
       address--;
       index -=4;
+      }
 
-    }
     /* DC0 Huffman Table : Val*/
     /* DC0 VALS is a 12 Bytes table i.e 3x32bits words from DHTMEM base address +4 to DHTMEM + 6 */
     address = (hjpeg->Instance->DHTMEM + 6);
     index = 12;
-    while(index > 0)
-    {
+    while(index > 0) {
       *address = (((uint32_t)HuffTableDC0->HuffVal[index-1] & 0xFF) << 24)|
                  (((uint32_t)HuffTableDC0->HuffVal[index-2] & 0xFF) << 16)|
                  (((uint32_t)HuffTableDC0->HuffVal[index-3] & 0xFF) << 8) |
                  ((uint32_t)HuffTableDC0->HuffVal[index-4] & 0xFF);
       address--;
       index -=4;
+      }
     }
-  }
 
-  if(HuffTableAC0 != NULL)
-  {
+  if (HuffTableAC0 != NULL) {
     /* AC0 Huffman Table : BITS*/
     /* AC0 BITS is a 16 Bytes table i.e 4x32bits words from DHTMEM base address + 7 to DHTMEM + 10*/
     address = (hjpeg->Instance->DHTMEM + 10);
     index = 16;
-    while(index > 0)
-    {
-
+    while(index > 0) {
       *address = (((uint32_t)HuffTableAC0->Bits[index-1] & 0xFF) << 24)|
                  (((uint32_t)HuffTableAC0->Bits[index-2] & 0xFF) << 16)|
                  (((uint32_t)HuffTableAC0->Bits[index-3] & 0xFF) << 8) |
                  ((uint32_t)HuffTableAC0->Bits[index-4] & 0xFF);
       address--;
       index -=4;
-
-    }
+      }
     /* AC0 Huffman Table : Val*/
     /* AC0 VALS is a 162 Bytes table i.e 41x32bits words from DHTMEM base address + 11 to DHTMEM + 51 */
     /* only Byte 0 and Byte 1 of the last word (@ DHTMEM + 51) belong to AC0 VALS table */
@@ -241,19 +222,17 @@ static void JPEG_Set_Huff_DHTMem (JPEG_HandleTypeDef* hjpeg, JPEG_ACHuffTableTyp
     /*continue setting 160 AC0 huffman values */
     address--; /* address = hjpeg->Instance->DHTMEM + 50*/
     index = 160;
-    while(index > 0)
-    {
+    while(index > 0) {
       *address = (((uint32_t)HuffTableAC0->HuffVal[index-1] & 0xFF) << 24)|
                  (((uint32_t)HuffTableAC0->HuffVal[index-2] & 0xFF) << 16)|
                  (((uint32_t)HuffTableAC0->HuffVal[index-3] & 0xFF) << 8) |
                  ((uint32_t)HuffTableAC0->HuffVal[index-4] & 0xFF);
       address--;
       index -=4;
+      }
     }
-  }
 
-  if(HuffTableDC1 != NULL)
-  {
+  if (HuffTableDC1 != NULL) {
     /* DC1 Huffman Table : BITS*/
     /* DC1 BITS is a 16 Bytes table i.e 4x32bits words from DHTMEM + 51 base address to DHTMEM + 55*/
     /* only Byte 2 and Byte 3 of the first word (@ DHTMEM + 51) belong to DC1 Bits table */
@@ -271,17 +250,14 @@ static void JPEG_Set_Huff_DHTMem (JPEG_HandleTypeDef* hjpeg, JPEG_ACHuffTableTyp
     /*continue setting 12 DC1 huffman Bits from DHTMEM + 54 down to DHTMEM + 52*/
     address--;
     index = 12;
-    while(index > 0)
-    {
-
+    while(index > 0) {
       *address = (((uint32_t)HuffTableDC1->Bits[index+1] & 0xFF) << 24)|
                  (((uint32_t)HuffTableDC1->Bits[index] & 0xFF) << 16)|
                  (((uint32_t)HuffTableDC1->Bits[index-1] & 0xFF) << 8) |
                  ((uint32_t)HuffTableDC1->Bits[index-2] & 0xFF);
       address--;
       index -=4;
-
-    }
+      }
     /* DC1 Huffman Table : Val*/
     /* DC1 VALS is a 12 Bytes table i.e 3x32bits words from DHTMEM base address +55 to DHTMEM + 58 */
     /* only Byte 2 and Byte 3 of the first word (@ DHTMEM + 55) belong to DC1 Val table */
@@ -299,8 +275,7 @@ static void JPEG_Set_Huff_DHTMem (JPEG_HandleTypeDef* hjpeg, JPEG_ACHuffTableTyp
     /*continue setting 8 DC1 huffman val from DHTMEM + 57 down to DHTMEM + 56*/
     address--;
     index = 8;
-    while(index > 0)
-    {
+    while(index > 0) {
       *address = (((uint32_t)HuffTableDC1->HuffVal[index+1] & 0xFF) << 24)|
                  (((uint32_t)HuffTableDC1->HuffVal[index] & 0xFF) << 16)|
                  (((uint32_t)HuffTableDC1->HuffVal[index-1] & 0xFF) << 8) |
@@ -310,8 +285,7 @@ static void JPEG_Set_Huff_DHTMem (JPEG_HandleTypeDef* hjpeg, JPEG_ACHuffTableTyp
     }
   }
 
-  if(HuffTableAC1 != NULL)
-  {
+  if (HuffTableAC1 != NULL) {
     /* AC1 Huffman Table : BITS*/
     /* AC1 BITS is a 16 Bytes table i.e 4x32bits words from DHTMEM base address + 58 to DHTMEM + 62*/
     /* only Byte 2 and Byte 3 of the first word (@ DHTMEM + 58) belong to AC1 Bits table */
@@ -329,17 +303,15 @@ static void JPEG_Set_Huff_DHTMem (JPEG_HandleTypeDef* hjpeg, JPEG_ACHuffTableTyp
     /*continue setting 12 AC1 huffman Bits from DHTMEM + 61 down to DHTMEM + 59*/
     address--;
     index = 12;
-    while(index > 0)
-    {
-
+    while(index > 0) {
       *address = (((uint32_t)HuffTableAC1->Bits[index+1] & 0xFF) << 24)|
                  (((uint32_t)HuffTableAC1->Bits[index] & 0xFF) << 16)|
                  (((uint32_t)HuffTableAC1->Bits[index-1] & 0xFF) << 8) |
                  ((uint32_t)HuffTableAC1->Bits[index-2] & 0xFF);
       address--;
       index -=4;
+      }
 
-    }
     /* AC1 Huffman Table : Val*/
     /* AC1 VALS is a 162 Bytes table i.e 41x32bits words from DHTMEM base address + 62 to DHTMEM + 102 */
     /* only Byte 2 and Byte 3 of the first word (@ DHTMEM + 62) belong to AC1 VALS table */
@@ -351,46 +323,33 @@ static void JPEG_Set_Huff_DHTMem (JPEG_HandleTypeDef* hjpeg, JPEG_ACHuffTableTyp
     /*continue setting 160 AC1 huffman values from DHTMEM + 63 to DHTMEM+102 */
     address = (hjpeg->Instance->DHTMEM + 102);
     index = 160;
-    while(index > 0)
-    {
+    while(index > 0) {
       *address = (((uint32_t)HuffTableAC1->HuffVal[index+1] & 0xFF) << 24)|
                  (((uint32_t)HuffTableAC1->HuffVal[index] & 0xFF) << 16)|
                  (((uint32_t)HuffTableAC1->HuffVal[index-1] & 0xFF) << 8) |
                  ((uint32_t)HuffTableAC1->HuffVal[index-2] & 0xFF);
       address--;
       index -=4;
+      }
     }
   }
-}
 //}}}
 //{{{
-/**
-  * @brief  Generates Huffman sizes/Codes Table from Bits/vals Table
-  * @param  Bits: pointer to bits table
-  * @param  Huffsize: pointer to sizes table
-  * @param  Huffcode: pointer to codes table
-  * @param  LastK: pointer to last Coeff (table dimmension)
-  * @retval HAL status
-  */
 static HAL_StatusTypeDef JPEG_Bits_To_SizeCodes (uint8_t *Bits, uint8_t *Huffsize, uint32_t *Huffcode, uint32_t *LastK)
 {
   uint32_t i, p, l, code, si;
 
   /* Figure C.1: Generation of table of Huffman code sizes */
   p = 0;
-  for (l = 0; l < 16; l++)
-  {
+  for (l = 0; l < 16; l++) {
     i = (uint32_t)Bits[l];
     if ( (p + i) > 256)
-    {  /* check for table overflow */
       return HAL_ERROR;
-    }
-    while (i != 0)
-    {
+    while (i != 0) {
       Huffsize[p++] = (uint8_t) l+1;
       i--;
+      }
     }
-  }
   Huffsize[p] = 0;
   *LastK = p;
 
@@ -398,24 +357,21 @@ static HAL_StatusTypeDef JPEG_Bits_To_SizeCodes (uint8_t *Bits, uint8_t *Huffsiz
   code = 0;
   si = Huffsize[0];
   p = 0;
-  while (Huffsize[p] != 0)
-  {
-    while (((uint32_t) Huffsize[p]) == si)
-    {
+  while (Huffsize[p] != 0) {
+    while (((uint32_t) Huffsize[p]) == si) {
       Huffcode[p++] = code;
       code++;
-    }
+      }
     /* code must fit in "size" bits (si), no code is allowed to be all ones*/
     if (((uint32_t) code) >= (((uint32_t) 1) << si))
-    {
       return HAL_ERROR;
-    }
     code <<= 1;
     si++;
-  }
+    }
+
   /* Return function status */
   return HAL_OK;
-}
+  }
 //}}}
 //{{{
 /**
@@ -435,49 +391,37 @@ static HAL_StatusTypeDef JPEG_ACHuff_BitsVals_To_SizeCodes (JPEG_ACHuffTableType
   uint32_t lastK;
 
   error = JPEG_Bits_To_SizeCodes(AC_BitsValsTable->Bits, huffsize, huffcode, &lastK);
-  if(error != HAL_OK)
-  {
+  if (error != HAL_OK)
     return  error;
-  }
 
   /* Figure C.3: Ordering procedure for encoding procedure code tables */
-  k=0;
+  k = 0;
 
-  while(k < lastK)
-  {
+  while (k < lastK) {
     l = AC_BitsValsTable->HuffVal[k];
-    if(l == 0)
+    if (l == 0)
       l = 160; /*l = 0x00 EOB code*/
     else if(l == 0xF0)/* l = 0xF0 ZRL code*/
       l = 161;
-    else
-    {
+    else {
       msb = (l & 0xF0) >> 4;
       lsb = (l & 0x0F);
       l = (msb * 10) + lsb - 1;
-    }
-    if(l >= JPEG_AC_HUFF_TABLE_SIZE)
+      }
+    if (l >= JPEG_AC_HUFF_TABLE_SIZE)
       return HAL_ERROR; /* Huffman Table overflow error*/
-    else
-    {
+    else {
       AC_SizeCodesTable->HuffmanCode[l] = huffcode[k];
       AC_SizeCodesTable->CodeLength[l] = huffsize[k] - 1;
       k++;
+      }
     }
-  }
 
   /* Return function status */
   return HAL_OK;
-}
+  }
 //}}}
 //{{{
-/**
-  * @brief  Transform a Bits/Vals DC Huffman table to sizes/Codes huffman Table
-  *         that can programmed to the JPEG encoder registers
-  * @param  DC_BitsValsTable: pointer to DC huffman bits/vals table
-  * @param  DC_SizeCodesTable: pointer to DC huffman Sizes/Codes table
-  * @retval HAL status
-  */
 static HAL_StatusTypeDef JPEG_DCHuff_BitsVals_To_SizeCodes (JPEG_DCHuffTableTypeDef *DC_BitsValsTable, JPEG_DC_HuffCodeTableTypeDef *DC_SizeCodesTable)
 {
   HAL_StatusTypeDef error;
@@ -494,34 +438,22 @@ static HAL_StatusTypeDef JPEG_DCHuff_BitsVals_To_SizeCodes (JPEG_DCHuffTableType
   /* Figure C.3: ordering procedure for encoding procedure code tables */
   k=0;
 
-  while(k < lastK)
-  {
+  while(k < lastK) {
     l = DC_BitsValsTable->HuffVal[k];
     if(l >= JPEG_DC_HUFF_TABLE_SIZE)
-    {
       return HAL_ERROR; /* Huffman Table overflow error*/
-    }
-    else
-    {
+    else {
       DC_SizeCodesTable->HuffmanCode[l] = huffcode[k];
       DC_SizeCodesTable->CodeLength[l] = huffsize[k] - 1;
       k++;
+      }
     }
-  }
 
   /* Return function status */
   return HAL_OK;
-}
+  }
 //}}}
 //{{{
-/**
-  * @brief  Set the JPEG register with an DC huffman table at the given DC table address
-  * @param  hjpeg: pointer to a JPEG_HandleTypeDef structure that contains
-  *         the configuration information for JPEG module
-  * @param  HuffTableDC: pointer to DC huffman table
-  * @param  DCTableAddress: Encoder DC huffman table address it could be HUFFENC_DC0 or HUFFENC_DC1.
-  * @retval HAL status
-  */
 static HAL_StatusTypeDef JPEG_Set_HuffDC_Mem (JPEG_HandleTypeDef* hjpeg, JPEG_DCHuffTableTypeDef *HuffTableDC, __IO uint32_t *DCTableAddress)
 {
   HAL_StatusTypeDef error = HAL_OK;
@@ -536,8 +468,7 @@ static HAL_StatusTypeDef JPEG_Set_HuffDC_Mem (JPEG_HandleTypeDef* hjpeg, JPEG_DC
   else
     return HAL_ERROR;
 
-  if(HuffTableDC != NULL)
-  {
+  if(HuffTableDC != NULL) {
     error = JPEG_DCHuff_BitsVals_To_SizeCodes(HuffTableDC, &dcSizeCodesTable);
     if(error != HAL_OK)
       return  error;
@@ -547,8 +478,7 @@ static HAL_StatusTypeDef JPEG_Set_HuffDC_Mem (JPEG_HandleTypeDef* hjpeg, JPEG_DC
     *addressDef = 0x0FFF0FFF;
 
     i = JPEG_DC_HUFF_TABLE_SIZE;
-    while(i>0)
-    {
+    while(i>0) {
       i--;
       address --;
       msb = ((uint32_t)(((uint32_t)dcSizeCodesTable.CodeLength[i] & 0xF) << 8 )) | ((uint32_t)dcSizeCodesTable.HuffmanCode[i] & 0xFF);
@@ -564,14 +494,6 @@ static HAL_StatusTypeDef JPEG_Set_HuffDC_Mem (JPEG_HandleTypeDef* hjpeg, JPEG_DC
 }
 //}}}
 //{{{
-/**
-  * @brief  Set the JPEG register with an AC huffman table at the given AC table address
-  * @param  hjpeg: pointer to a JPEG_HandleTypeDef structure that contains
-  *         the configuration information for JPEG module
-  * @param  HuffTableAC: pointer to AC huffman table
-  * @param  ACTableAddress: Encoder AC huffman table address it could be HUFFENC_AC0 or HUFFENC_AC1.
-  * @retval HAL status
-  */
 static HAL_StatusTypeDef JPEG_Set_HuffAC_Mem (JPEG_HandleTypeDef* hjpeg, JPEG_ACHuffTableTypeDef *HuffTableAC, __IO uint32_t *ACTableAddress)
 {
   HAL_StatusTypeDef error = HAL_OK;
@@ -586,8 +508,7 @@ static HAL_StatusTypeDef JPEG_Set_HuffAC_Mem (JPEG_HandleTypeDef* hjpeg, JPEG_AC
   else
     return HAL_ERROR;
 
-  if(HuffTableAC != NULL)
-  {
+  if(HuffTableAC != NULL) {
     error = JPEG_ACHuff_BitsVals_To_SizeCodes(HuffTableAC, &acSizeCodesTable);
     if(error != HAL_OK)
       return  error;
@@ -595,8 +516,7 @@ static HAL_StatusTypeDef JPEG_Set_HuffAC_Mem (JPEG_HandleTypeDef* hjpeg, JPEG_AC
     /* Locations 162:175 of each AC table contain information used internally by the core */
 
     addressDef = address;
-    for(i=0; i<3; i++)
-    {
+    for(i=0; i<3; i++) {
       *addressDef = 0x0FFF0FFF;
       addressDef++;
     }
@@ -611,8 +531,7 @@ static HAL_StatusTypeDef JPEG_Set_HuffAC_Mem (JPEG_HandleTypeDef* hjpeg, JPEG_AC
 
 
     i = JPEG_AC_HUFF_TABLE_SIZE;
-    while (i > 0)
-    {
+    while (i > 0) {
       i--;
       address--;
       msb = ((uint32_t)(((uint32_t)acSizeCodesTable.CodeLength[i] & 0xF) << 8 )) | ((uint32_t)acSizeCodesTable.HuffmanCode[i] & 0xFF);
@@ -628,49 +547,39 @@ static HAL_StatusTypeDef JPEG_Set_HuffAC_Mem (JPEG_HandleTypeDef* hjpeg, JPEG_AC
 }
 //}}}
 //{{{
-/**
-  * @brief  Configure the JPEG encoder register huffman tables to used during
-  *         the encdoing operation
-  * @param  hjpeg: pointer to a JPEG_HandleTypeDef structure that contains
-  *         the configuration information for JPEG module
-  * @param  HuffTableAC0: AC0 huffman table
-  * @param  HuffTableDC0: DC0 huffman table
-  * @param  HuffTableAC1: AC1 huffman table
-  * @param  HuffTableDC1: DC1 huffman table
-  * @retval None
-  */
 static HAL_StatusTypeDef JPEG_Set_HuffEnc_Mem (JPEG_HandleTypeDef* hjpeg, JPEG_ACHuffTableTypeDef *HuffTableAC0, JPEG_DCHuffTableTypeDef *HuffTableDC0 ,  JPEG_ACHuffTableTypeDef *HuffTableAC1, JPEG_DCHuffTableTypeDef *HuffTableDC1)
 {
   HAL_StatusTypeDef error = HAL_OK;
 
   JPEG_Set_Huff_DHTMem(hjpeg, HuffTableAC0, HuffTableDC0, HuffTableAC1, HuffTableDC1);
 
-  if(HuffTableAC0 != NULL) {
+  if (HuffTableAC0 != NULL) {
     error = JPEG_Set_HuffAC_Mem(hjpeg, HuffTableAC0, (hjpeg->Instance->HUFFENC_AC0));
-    if(error != HAL_OK)
+    if (error != HAL_OK)
       return  error;
-  }
+    }
 
-  if(HuffTableAC1 != NULL) {
+  if (HuffTableAC1 != NULL) {
     error = JPEG_Set_HuffAC_Mem(hjpeg, HuffTableAC1, (hjpeg->Instance->HUFFENC_AC1));
-    if(error != HAL_OK)
+    if (error != HAL_OK)
       return  error;
-  }
+    }
 
-  if(HuffTableDC0 != NULL) {
+  if (HuffTableDC0 != NULL) {
     error = JPEG_Set_HuffDC_Mem(hjpeg, HuffTableDC0, hjpeg->Instance->HUFFENC_DC0);
-    if(error != HAL_OK)
+    if (error != HAL_OK)
       return  error;
-  }
+    }
 
-  if(HuffTableDC1 != NULL) {
+  if (HuffTableDC1 != NULL) {
     error = JPEG_Set_HuffDC_Mem(hjpeg, HuffTableDC1, hjpeg->Instance->HUFFENC_DC1);
-    if(error != HAL_OK)
+    if (error != HAL_OK)
       return  error;
-  }
+    }
+
   /* Return function status */
   return HAL_OK;
-}
+  }
 //}}}
 //{{{
 /**
@@ -704,11 +613,9 @@ static HAL_StatusTypeDef JPEG_Set_Quantization_Mem (JPEG_HandleTypeDef* hjpeg, u
 
   /*Quantization_table = (Standard_quanization_table * ScaleFactor + 50) / 100*/
   i = 0;
-  while( i < JPEG_QUANT_TABLE_SIZE)
-  {
+  while( i < JPEG_QUANT_TABLE_SIZE) {
     quantRow = 0;
-    for(j=0; j<4; j++)
-    {
+    for(j=0; j<4; j++) {
       /* Note that the quantization coefficients must be specified in the table in zigzag order */
       quantVal = ((((uint32_t) QTable[JPEG_ZIGZAG_ORDER[i+j]]) * ScaleFactor) + 50) / 100;
 
@@ -718,16 +625,16 @@ static HAL_StatusTypeDef JPEG_Set_Quantization_Mem (JPEG_HandleTypeDef* hjpeg, u
         quantVal = 255;
 
       quantRow |= ((quantVal & 0xFF) << (8 * j));
-    }
+      }
 
     i += 4;
     *tableAddress = quantRow;
     tableAddress ++;
-  }
+    }
 
   /* Return function status */
   return HAL_OK;
-}
+  }
 //}}}
 
 //{{{
@@ -750,8 +657,8 @@ static void JPEG_DMA_PollResidualData (JPEG_HandleTypeDef* hjpeg)
       /*Output Buffer is full, call HAL_JPEG_DataReadyCallback*/
       HAL_JPEG_DataReadyCallback (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
       hjpeg->JpegOutCount = 0;
+      }
     }
-  }
 
   if ((hjpeg->Context &  JPEG_CONTEXT_PAUSE_OUTPUT) == 0) {
     /*Stop Encoding/Decoding*/
@@ -933,7 +840,7 @@ static uint32_t JPEG_DMA_EndProcess (JPEG_HandleTypeDef* hjpeg) {
       HAL_JPEG_DecodeCpltCallback (hjpeg);
     }
 
-  else if ((hjpeg->Context &  JPEG_CONTEXT_PAUSE_OUTPUT) == 0) {
+  else if ((hjpeg->Context & JPEG_CONTEXT_PAUSE_OUTPUT) == 0) {
     JPEG_DMA_PollResidualData (hjpeg);
     return JPEG_PROCESS_DONE;
     }
@@ -1188,7 +1095,7 @@ static void JPEG_Init_Process (JPEG_HandleTypeDef* hjpeg) {
 static uint32_t JPEG_Process (JPEG_HandleTypeDef* hjpeg) {
 
   /* End of header processing flag rised*/
-  if (((hjpeg->Context & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_DECODE) && 
+  if (((hjpeg->Context & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_DECODE) &&
       (__HAL_JPEG_GET_FLAG (hjpeg, JPEG_FLAG_HPDF) != RESET)) {
     /*Call Header parsing complet callback */
     HAL_JPEG_GetInfo (hjpeg, &hjpeg->Conf);
@@ -1420,79 +1327,49 @@ HAL_StatusTypeDef HAL_JPEG_Decode_DMA (JPEG_HandleTypeDef* hjpeg ,uint8_t *pData
   }
 //}}}
 //{{{
-/**
-  * @brief  Pause the JPEG Input/Output processing
-  * @param  hjpeg: pointer to a JPEG_HandleTypeDef structure that contains
-  *         the configuration information for JPEG module
-  * @param  XferSelection: This parameter can be one of the following values :
-  *                           JPEG_PAUSE_RESUME_INPUT : Pause Input processing
-  *                           JPEG_PAUSE_RESUME_OUTPUT: Pause Output processing
-  *                           JPEG_PAUSE_RESUME_INPUT_OUTPUT: Pause Input and Output processing
-  * @retval HAL status
-  */
-HAL_StatusTypeDef HAL_JPEG_Pause (JPEG_HandleTypeDef* hjpeg, uint32_t XferSelection)
-{
+HAL_StatusTypeDef HAL_JPEG_Pause (JPEG_HandleTypeDef* hjpeg, uint32_t XferSelection) {
+
   uint32_t mask = 0;
 
   assert_param(IS_JPEG_PAUSE_RESUME_STATE(XferSelection));
 
-  if((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA)
-  {
-    if((XferSelection & JPEG_PAUSE_RESUME_INPUT) == JPEG_PAUSE_RESUME_INPUT)
+  if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA) {
+    if ((XferSelection & JPEG_PAUSE_RESUME_INPUT) == JPEG_PAUSE_RESUME_INPUT)
       hjpeg->Context |= JPEG_CONTEXT_PAUSE_INPUT;
     if((XferSelection & JPEG_PAUSE_RESUME_OUTPUT) == JPEG_PAUSE_RESUME_OUTPUT)
       hjpeg->Context |= JPEG_CONTEXT_PAUSE_OUTPUT;
-  }
-  else if((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_IT)
-  {
+    }
 
-    if((XferSelection & JPEG_PAUSE_RESUME_INPUT) == JPEG_PAUSE_RESUME_INPUT)
-    {
+  else if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_IT) {
+    if ((XferSelection & JPEG_PAUSE_RESUME_INPUT) == JPEG_PAUSE_RESUME_INPUT) {
       hjpeg->Context |= JPEG_CONTEXT_PAUSE_INPUT;
       mask |= (JPEG_IT_IFT | JPEG_IT_IFNF);
-    }
-    if((XferSelection & JPEG_PAUSE_RESUME_OUTPUT) == JPEG_PAUSE_RESUME_OUTPUT)
-    {
+      }
+    if ((XferSelection & JPEG_PAUSE_RESUME_OUTPUT) == JPEG_PAUSE_RESUME_OUTPUT) {
       hjpeg->Context |= JPEG_CONTEXT_PAUSE_OUTPUT;
       mask |=  (JPEG_IT_OFT | JPEG_IT_OFNE | JPEG_IT_EOC);
-    }
+      }
     __HAL_JPEG_DISABLE_IT(hjpeg,mask);
-
-  }
+    }
 
   /* Return function status */
   return HAL_OK;
-}
+  }
 //}}}
 //{{{
-/**
-  * @brief  Resume the JPEG Input/Output processing
-  * @param  hjpeg: pointer to a JPEG_HandleTypeDef structure that contains
-  *         the configuration information for JPEG module
-  * @param  XferSelection: This parameter can be one of the following values :
-  *                           JPEG_PAUSE_RESUME_INPUT : Resume Input processing
-  *                           JPEG_PAUSE_RESUME_OUTPUT: Resume Output processing
-  *                           JPEG_PAUSE_RESUME_INPUT_OUTPUT: Resume Input and Output processing
-  * @retval HAL status
-  */
-HAL_StatusTypeDef HAL_JPEG_Resume (JPEG_HandleTypeDef* hjpeg, uint32_t XferSelection)
-{
+HAL_StatusTypeDef HAL_JPEG_Resume (JPEG_HandleTypeDef* hjpeg, uint32_t XferSelection) {
+
   uint32_t mask = 0;
   uint32_t xfrSize = 0;
 
   assert_param(IS_JPEG_PAUSE_RESUME_STATE(XferSelection));
 
-  if((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA)
-  {
-    if((XferSelection & JPEG_PAUSE_RESUME_INPUT) == JPEG_PAUSE_RESUME_INPUT)
-    {
+  if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA) {
+    if ((XferSelection & JPEG_PAUSE_RESUME_INPUT) == JPEG_PAUSE_RESUME_INPUT) {
       hjpeg->Context &= (~JPEG_CONTEXT_PAUSE_INPUT);
 
-      /*if the MDMA In is triggred with JPEG In FIFO Threshold flag
-        then MDMA In buffer size is 32 bytes
-
-        else (MDMA In is triggred with JPEG In FIFO not full flag)
-        then MDMA In buffer size is 4 bytes
+      /*if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
+        else (MDMA In is triggred with JPEG In FIFO not full flag) then MDMA In buffer size is 4 bytes
       */
       xfrSize = hjpeg->hdmain->Init.BufferTransferLength;
 
@@ -1502,19 +1379,16 @@ HAL_StatusTypeDef HAL_JPEG_Resume (JPEG_HandleTypeDef* hjpeg, uint32_t XferSelec
       if(hjpeg->InDataLength > 0)
         /* Start DMA FIFO In transfer */
         HAL_MDMA_Start_IT(hjpeg->hdmain, (uint32_t)hjpeg->pJpegInBuffPtr, (uint32_t)&hjpeg->Instance->DIR, hjpeg->InDataLength, 1);
-    }
-    if((XferSelection & JPEG_PAUSE_RESUME_OUTPUT) == JPEG_PAUSE_RESUME_OUTPUT)
-    {
+      }
+
+    if ((XferSelection & JPEG_PAUSE_RESUME_OUTPUT) == JPEG_PAUSE_RESUME_OUTPUT) {
       hjpeg->Context &= (~JPEG_CONTEXT_PAUSE_OUTPUT);
 
-      if((hjpeg->Context & JPEG_CONTEXT_ENDING_DMA) != 0)
+      if ((hjpeg->Context & JPEG_CONTEXT_ENDING_DMA) != 0)
         JPEG_DMA_PollResidualData(hjpeg);
-      else
-      {
-        /*if the MDMA Out is triggred with JPEG Out FIFO Threshold flag
-          then MDMA out buffer size is 32 bytes
-          else (MDMA Out is triggred with JPEG Out FIFO not empty flag)
-          then MDMA buffer size is 4 bytes
+      else {
+        /*if the MDMA Out is triggred with JPEG Out FIFO Threshold flag then MDMA out buffer size is 32 bytes
+          else (MDMA Out is triggred with JPEG Out FIFO not empty flag) then MDMA buffer size is 4 bytes
         */
         xfrSize = hjpeg->hdmaout->Init.BufferTransferLength;
 
@@ -1523,28 +1397,25 @@ HAL_StatusTypeDef HAL_JPEG_Resume (JPEG_HandleTypeDef* hjpeg, uint32_t XferSelec
 
         /* Start DMA FIFO Out transfer */
         HAL_MDMA_Start_IT(hjpeg->hdmaout, (uint32_t)&hjpeg->Instance->DOR, (uint32_t)hjpeg->pJpegOutBuffPtr, hjpeg->OutDataLength, 1);
+        }
       }
     }
-  }
-  else if((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_IT)
-  {
-    if((XferSelection & JPEG_PAUSE_RESUME_INPUT) == JPEG_PAUSE_RESUME_INPUT)
-    {
+
+  else if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_IT) {
+    if ((XferSelection & JPEG_PAUSE_RESUME_INPUT) == JPEG_PAUSE_RESUME_INPUT) {
       hjpeg->Context &= (~JPEG_CONTEXT_PAUSE_INPUT);
       mask |= (JPEG_IT_IFT | JPEG_IT_IFNF);
-    }
-    if((XferSelection & JPEG_PAUSE_RESUME_OUTPUT) == JPEG_PAUSE_RESUME_OUTPUT)
-    {
+      }
+    if ((XferSelection & JPEG_PAUSE_RESUME_OUTPUT) == JPEG_PAUSE_RESUME_OUTPUT) {
       hjpeg->Context &= (~JPEG_CONTEXT_PAUSE_OUTPUT);
       mask |=  (JPEG_IT_OFT | JPEG_IT_OFNE | JPEG_IT_EOC);
-    }
+      }
     __HAL_JPEG_ENABLE_IT(hjpeg,mask);
-
-  }
+    }
 
   /* Return function status */
   return HAL_OK;
-}
+  }
 //}}}
 
 //{{{
