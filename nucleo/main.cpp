@@ -156,10 +156,9 @@ void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint32_t len) 
 //{{{
 void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint8_t* data, uint32_t len) {
 
-  // Update JPEG encoder output buffer address
   HAL_JPEG_ConfigOutputBuffer (jpegHandlePtr, data+len, kJpegYuvChunkSize);
-  lcd->info (COL_GREEN, "HAL_JPEG_DataReadyCallback " + hex(uint32_t(data)) + ":" + hex(len));
-  lcd->changed();
+  //lcd->info (COL_GREEN, "HAL_JPEG_DataReadyCallback " + hex(uint32_t(data)) + ":" + hex(len));
+  //lcd->changed();
   }
 //}}}
 //{{{
@@ -603,13 +602,13 @@ cTile* loadJpegHw (const string& fileName) {
 
   auto startTime = HAL_GetTick();
 
-  jpegHandle.Instance = JPEG;
-  HAL_JPEG_Init (&jpegHandle);
-
   readIndex = 0;
   writeIndex = 0;
   jpegInPaused = 0;
   jpegDecodeDone = false;
+
+  jpegHandle.Instance = JPEG;
+  HAL_JPEG_Init (&jpegHandle);
 
   FIL jpegFile;
   jpgFilePtr = &jpegFile;
