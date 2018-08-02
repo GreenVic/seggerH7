@@ -447,13 +447,9 @@ static HAL_StatusTypeDef JPEG_ACHuff_BitsVals_To_SizeCodes (JPEG_ACHuffTableType
   {
     l = AC_BitsValsTable->HuffVal[k];
     if(l == 0)
-    {
       l = 160; /*l = 0x00 EOB code*/
-    }
     else if(l == 0xF0)/* l = 0xF0 ZRL code*/
-    {
       l = 161;
-    }
     else
     {
       msb = (l & 0xF0) >> 4;
@@ -461,9 +457,7 @@ static HAL_StatusTypeDef JPEG_ACHuff_BitsVals_To_SizeCodes (JPEG_ACHuffTableType
       l = (msb * 10) + lsb - 1;
     }
     if(l >= JPEG_AC_HUFF_TABLE_SIZE)
-    {
       return HAL_ERROR; /* Huffman Table overflow error*/
-    }
     else
     {
       AC_SizeCodesTable->HuffmanCode[l] = huffcode[k];
@@ -495,9 +489,8 @@ static HAL_StatusTypeDef JPEG_DCHuff_BitsVals_To_SizeCodes (JPEG_DCHuffTableType
   uint32_t huffcode[257];
   error = JPEG_Bits_To_SizeCodes(DC_BitsValsTable->Bits, huffsize, huffcode, &lastK);
   if(error != HAL_OK)
-  {
     return  error;
-  }
+
   /* Figure C.3: ordering procedure for encoding procedure code tables */
   k=0;
 
@@ -537,25 +530,17 @@ static HAL_StatusTypeDef JPEG_Set_HuffDC_Mem (JPEG_HandleTypeDef* hjpeg, JPEG_DC
   __IO uint32_t *address, *addressDef;
 
   if(DCTableAddress == (hjpeg->Instance->HUFFENC_DC0))
-  {
     address = (hjpeg->Instance->HUFFENC_DC0 + (JPEG_DC_HUFF_TABLE_SIZE/2));
-  }
   else if (DCTableAddress == (hjpeg->Instance->HUFFENC_DC1))
-  {
     address = (hjpeg->Instance->HUFFENC_DC1 + (JPEG_DC_HUFF_TABLE_SIZE/2));
-  }
   else
-  {
     return HAL_ERROR;
-  }
 
   if(HuffTableDC != NULL)
   {
     error = JPEG_DCHuff_BitsVals_To_SizeCodes(HuffTableDC, &dcSizeCodesTable);
     if(error != HAL_OK)
-    {
       return  error;
-    }
     addressDef = address;
     *addressDef = 0x0FFF0FFF;
     addressDef++;
@@ -595,25 +580,17 @@ static HAL_StatusTypeDef JPEG_Set_HuffAC_Mem (JPEG_HandleTypeDef* hjpeg, JPEG_AC
   __IO uint32_t *address, *addressDef;
 
   if(ACTableAddress == (hjpeg->Instance->HUFFENC_AC0))
-  {
     address = (hjpeg->Instance->HUFFENC_AC0 + (JPEG_AC_HUFF_TABLE_SIZE/2));
-  }
   else if (ACTableAddress == (hjpeg->Instance->HUFFENC_AC1))
-  {
     address = (hjpeg->Instance->HUFFENC_AC1 + (JPEG_AC_HUFF_TABLE_SIZE/2));
-  }
   else
-  {
     return HAL_ERROR;
-  }
 
   if(HuffTableAC != NULL)
   {
     error = JPEG_ACHuff_BitsVals_To_SizeCodes(HuffTableAC, &acSizeCodesTable);
     if(error != HAL_OK)
-    {
       return  error;
-    }
     /* Default values settings: 162:167 FFFh , 168:175 FD0h_FD7h */
     /* Locations 162:175 of each AC table contain information used internally by the core */
 
@@ -668,40 +645,28 @@ static HAL_StatusTypeDef JPEG_Set_HuffEnc_Mem (JPEG_HandleTypeDef* hjpeg, JPEG_A
 
   JPEG_Set_Huff_DHTMem(hjpeg, HuffTableAC0, HuffTableDC0, HuffTableAC1, HuffTableDC1);
 
-  if(HuffTableAC0 != NULL)
-  {
+  if(HuffTableAC0 != NULL) {
     error = JPEG_Set_HuffAC_Mem(hjpeg, HuffTableAC0, (hjpeg->Instance->HUFFENC_AC0));
     if(error != HAL_OK)
-    {
       return  error;
-    }
   }
 
-  if(HuffTableAC1 != NULL)
-  {
+  if(HuffTableAC1 != NULL) {
     error = JPEG_Set_HuffAC_Mem(hjpeg, HuffTableAC1, (hjpeg->Instance->HUFFENC_AC1));
     if(error != HAL_OK)
-    {
       return  error;
-    }
   }
 
-  if(HuffTableDC0 != NULL)
-  {
+  if(HuffTableDC0 != NULL) {
     error = JPEG_Set_HuffDC_Mem(hjpeg, HuffTableDC0, hjpeg->Instance->HUFFENC_DC0);
     if(error != HAL_OK)
-    {
       return  error;
-    }
   }
 
-  if(HuffTableDC1 != NULL)
-  {
+  if(HuffTableDC1 != NULL) {
     error = JPEG_Set_HuffDC_Mem(hjpeg, HuffTableDC1, hjpeg->Instance->HUFFENC_DC1);
     if(error != HAL_OK)
-    {
       return  error;
-    }
   }
   /* Return function status */
   return HAL_OK;
@@ -726,26 +691,16 @@ static HAL_StatusTypeDef JPEG_Set_Quantization_Mem (JPEG_HandleTypeDef* hjpeg, u
      (QTableAddress == ((hjpeg->Instance->QMEM1))) ||
      (QTableAddress == ((hjpeg->Instance->QMEM2))) ||
      (QTableAddress == ((hjpeg->Instance->QMEM3))))
-  {
     tableAddress = QTableAddress;
-  }
   else
-  {
     return HAL_ERROR;
-  }
 
   if ((hjpeg->Conf.ImageQuality >= 50) && (hjpeg->Conf.ImageQuality <= 100))
-  {
     ScaleFactor = 200 - (hjpeg->Conf.ImageQuality * 2);
-  }
   else if (hjpeg->Conf.ImageQuality > 0)
-  {
     ScaleFactor = ((uint32_t) 5000) / ((uint32_t) hjpeg->Conf.ImageQuality);
-  }
   else
-  {
     return HAL_ERROR;
-  }
 
   /*Quantization_table = (Standard_quanization_table * ScaleFactor + 50) / 100*/
   i = 0;
@@ -758,13 +713,9 @@ static HAL_StatusTypeDef JPEG_Set_Quantization_Mem (JPEG_HandleTypeDef* hjpeg, u
       quantVal = ((((uint32_t) QTable[JPEG_ZIGZAG_ORDER[i+j]]) * ScaleFactor) + 50) / 100;
 
       if(quantVal == 0)
-      {
         quantVal = 1;
-      }
       else if (quantVal > 255)
-      {
         quantVal = 255;
-      }
 
       quantRow |= ((quantVal & 0xFF) << (8 * j));
     }
@@ -795,14 +746,14 @@ static void JPEG_DMA_PollResidualData (JPEG_HandleTypeDef* hjpeg)
     hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 3] = (dataOut & 0xFF000000) >> 24;
     hjpeg->JpegOutCount += 4;
 
-    if(hjpeg->JpegOutCount == hjpeg->OutDataLength) {
+    if (hjpeg->JpegOutCount == hjpeg->OutDataLength) {
       /*Output Buffer is full, call HAL_JPEG_DataReadyCallback*/
       HAL_JPEG_DataReadyCallback (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
       hjpeg->JpegOutCount = 0;
     }
   }
 
-  if((hjpeg->Context &  JPEG_CONTEXT_PAUSE_OUTPUT) == 0) {
+  if ((hjpeg->Context &  JPEG_CONTEXT_PAUSE_OUTPUT) == 0) {
     /*Stop Encoding/Decoding*/
     hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
 
@@ -1745,7 +1696,7 @@ HAL_StatusTypeDef HAL_JPEG_GetInfo (JPEG_HandleTypeDef* hjpeg, JPEG_ConfTypeDef 
   else if ((hjpeg->Instance->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF)
     pInfo->ColorSpace = JPEG_CMYK_COLORSPACE;
 
-  if ((pInfo->ColorSpace == JPEG_YCBCR_COLORSPACE) || 
+  if ((pInfo->ColorSpace == JPEG_YCBCR_COLORSPACE) ||
       (pInfo->ColorSpace == JPEG_CMYK_COLORSPACE)) {
     uint32_t yblockNb  = (hjpeg->Instance->CONFR4 & JPEG_CONFR4_NB) >> 4;
     uint32_t cBblockNb = (hjpeg->Instance->CONFR5 & JPEG_CONFR5_NB) >> 4;

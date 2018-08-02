@@ -597,8 +597,10 @@ cTile* loadJpegSw (const string& fileName, int scale) {
 cTile* loadJpegHw (const string& fileName) {
 
   jpegYuvBuf = (uint8_t*)malloc (400*272*3);
-  if (!jpegYuvBuf)
+  if (!jpegYuvBuf) {
     printf ("loadJpegHw alloc failed\n");
+    return nullptr;
+    }
 
   auto startTime = HAL_GetTick();
 
