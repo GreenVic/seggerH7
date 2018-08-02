@@ -1,5 +1,4 @@
 #include "stm32h7xx_hal.h"
-
 //{{{  defines
 #define JPEG_TIMEOUT_VALUE  ((uint32_t)1000U)     /* 1s */
 #define JPEG_AC_HUFF_TABLE_SIZE  ((uint32_t)162U) /* Huffman AC table size : 162 codes*/
@@ -32,24 +31,6 @@
 #define JPEG_PROCESS_ONGOING        ((uint32_t)0x00000000U)  /* Process is on going */
 #define JPEG_PROCESS_DONE           ((uint32_t)0x00000001U)  /* Process is done (ends) */
 //}}}
-//{{{  struct JPEG_ACHuffTableTypeDef
-/*
- JPEG Huffman Table Structure definition :
- This implementation of Huffman table structure is compliant with ISO/IEC 10918-1 standard , Annex C Huffman Table specification
- */
-typedef struct {
-  /* These two fields directly represent the contents of a JPEG DHT marker */
-  uint8_t Bits[16];        /*!< bits[k] = # of symbols with codes of length k bits, this parameter corresponds to BITS list in the Annex C */
-  uint8_t HuffVal[162];    /*!< The symbols, in order of incremented code length, this parameter corresponds to HUFFVAL list in the Annex C */
-  } JPEG_ACHuffTableTypeDef;
-//}}}
-//{{{  struct JPEG_DCHuffTableTypeDef
-typedef struct {
-  /* These two fields directly represent the contents of a JPEG DHT marker */
-  uint8_t Bits[16];        /*!< bits[k] = # of symbols with codes of length k bits, this parameter corresponds to BITS list in the Annex C */
-  uint8_t HuffVal[12];    /*!< The symbols, in order of incremented code length, this parameter corresponds to HUFFVAL list in the Annex C */
-  }JPEG_DCHuffTableTypeDef;
-//}}}
 //{{{  struct JPEG_AC_HuffCodeTableTypeDef
 typedef struct {
   uint8_t CodeLength[JPEG_AC_HUFF_TABLE_SIZE];      /*!< Code length  */
@@ -63,6 +44,13 @@ typedef struct {
   } JPEG_DC_HuffCodeTableTypeDef;
 //}}}
 
+//{{{  struct JPEG_DCHuffTableTypeDef
+typedef struct {
+  /* These two fields directly represent the contents of a JPEG DHT marker */
+  uint8_t Bits[16];        /*!< bits[k] = # of symbols with codes of length k bits, this parameter corresponds to BITS list in the Annex C */
+  uint8_t HuffVal[12];    /*!< The symbols, in order of incremented code length, this parameter corresponds to HUFFVAL list in the Annex C */
+  }JPEG_DCHuffTableTypeDef;
+//}}}
 //{{{
 static const JPEG_DCHuffTableTypeDef JPEG_DCLUM_HuffTable = {
   { 0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0 },   /*Bits*/
@@ -74,6 +62,18 @@ static const JPEG_DCHuffTableTypeDef JPEG_DCCHROM_HuffTable = {
   { 0, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0 },  /*Bits*/
   { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xa, 0xb }          /*HUFFVAL */
   };
+//}}}
+
+//{{{  struct JPEG_ACHuffTableTypeDef
+/*
+ JPEG Huffman Table Structure definition :
+ This implementation of Huffman table structure is compliant with ISO/IEC 10918-1 standard , Annex C Huffman Table specification
+ */
+typedef struct {
+  /* These two fields directly represent the contents of a JPEG DHT marker */
+  uint8_t Bits[16];        /*!< bits[k] = # of symbols with codes of length k bits, this parameter corresponds to BITS list in the Annex C */
+  uint8_t HuffVal[162];    /*!< The symbols, in order of incremented code length, this parameter corresponds to HUFFVAL list in the Annex C */
+  } JPEG_ACHuffTableTypeDef;
 //}}}
 //{{{
 static const JPEG_ACHuffTableTypeDef JPEG_ACLUM_HuffTable = {
@@ -127,6 +127,7 @@ static const JPEG_ACHuffTableTypeDef JPEG_ACCHROM_HuffTable = {
       0xf9, 0xfa }
   };
 //}}}
+
 //{{{
 static const uint8_t JPEG_LUM_QuantTable[JPEG_QUANT_TABLE_SIZE] = {
   16,  11,  10,  16,  24,  40,  51,  61,
@@ -918,7 +919,7 @@ static void JPEG_ReadInputData (JPEG_HandleTypeDef* hjpeg, uint32_t nbRequestWor
         hjpeg->JpegInCount += 4;
         }
       }
-    else { 
+    else {
       /*nBwords < nbRequestWords*/
       if(nBwords > 0) {
         for(index = 0; index < nBwords; index++) {
@@ -1047,7 +1048,7 @@ static void JPEG_MDMAInCpltCallback (MDMA_HandleTypeDef *hmdma) {
   /* Disable The JPEG IT so the DMA Input Callback can not be interrupted by the JPEG EOC IT or JPEG HPD IT */
   __HAL_JPEG_DISABLE_IT(hjpeg,JPEG_INTERRUPT_MASK);
 
-  if (((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA) && 
+  if (((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA) &&
       ((hjpeg->Context & JPEG_CONTEXT_ENDING_DMA) == 0)) {
     // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
     //  else (MDMA In is triggred with JPEG In FIFO not full flag) then MDMA In buffer size is 4 bytes
@@ -1442,61 +1443,6 @@ HAL_StatusTypeDef HAL_JPEG_Init (JPEG_HandleTypeDef* hjpeg) {
   }
 //}}}
 
-HAL_JPEG_STATETypeDef HAL_JPEG_GetState (JPEG_HandleTypeDef* hjpeg) { return hjpeg->State; }
-uint32_t HAL_JPEG_GetError (JPEG_HandleTypeDef* hjpeg) { return hjpeg->ErrorCode; }
-//{{{
-/**
-  * @brief  Extract the image configuration from the JPEG header during the decoding
-  * @param  hjpeg: pointer to a JPEG_HandleTypeDef structure that contains
-  *         the configuration information for JPEG module
-  * @param  pInfo: pointer to a JPEG_ConfTypeDef structure that contains
-  *         The JPEG decoded header informations
-  * @retval HAL status
-  */
-HAL_StatusTypeDef HAL_JPEG_GetInfo (JPEG_HandleTypeDef* hjpeg, JPEG_ConfTypeDef *pInfo)
-{
-  uint32_t yblockNb, cBblockNb, cRblockNb;
-
-  /* Check the JPEG handle allocation */
-  if((hjpeg == NULL) || (pInfo == NULL))
-    return HAL_ERROR;
-
-  /*Read the conf parameters */
-  if((hjpeg->Instance->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF_1)
-    pInfo->ColorSpace = JPEG_YCBCR_COLORSPACE;
-  else if((hjpeg->Instance->CONFR1 & JPEG_CONFR1_NF) == 0)
-    pInfo->ColorSpace = JPEG_GRAYSCALE_COLORSPACE;
-  else if((hjpeg->Instance->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF)
-    pInfo->ColorSpace = JPEG_CMYK_COLORSPACE;
-
-  pInfo->ImageHeight = (hjpeg->Instance->CONFR1 & 0xFFFF0000U) >> 16;
-  pInfo->ImageWidth  = (hjpeg->Instance->CONFR3 & 0xFFFF0000U) >> 16;
-
-  if((pInfo->ColorSpace == JPEG_YCBCR_COLORSPACE) || (pInfo->ColorSpace == JPEG_CMYK_COLORSPACE))
-  {
-    yblockNb  = (hjpeg->Instance->CONFR4 & JPEG_CONFR4_NB) >> 4;
-    cBblockNb = (hjpeg->Instance->CONFR5 & JPEG_CONFR5_NB) >> 4;
-    cRblockNb = (hjpeg->Instance->CONFR6 & JPEG_CONFR6_NB) >> 4;
-
-    if((yblockNb == 1) && (cBblockNb == 0) && (cRblockNb == 0))
-      pInfo->ChromaSubsampling = JPEG_422_SUBSAMPLING; /*16x8 block*/
-    else if((yblockNb == 0) && (cBblockNb == 0) && (cRblockNb == 0))
-      pInfo->ChromaSubsampling = JPEG_444_SUBSAMPLING;
-    else if((yblockNb == 3) && (cBblockNb == 0) && (cRblockNb == 0))
-      pInfo->ChromaSubsampling = JPEG_420_SUBSAMPLING;
-    else /*Default is 4:4:4*/
-      pInfo->ChromaSubsampling = JPEG_444_SUBSAMPLING;
-  }
-  else
-    pInfo->ChromaSubsampling = JPEG_444_SUBSAMPLING;
-
-  pInfo->ImageQuality = JPEG_GetQuality(hjpeg);
-
-  /* Return function status */
-  return HAL_OK;
-}
-//}}}
-
 //{{{
 /**
   * @brief  Starts JPEG decoding with DMA processing
@@ -1776,6 +1722,51 @@ void HAL_JPEG_ConfigOutputBuffer (JPEG_HandleTypeDef* hjpeg, uint8_t *pNewOutput
   hjpeg->pJpegOutBuffPtr = pNewOutputBuffer;
   hjpeg->OutDataLength = OutDataLength;
 }
+//}}}
+
+HAL_JPEG_STATETypeDef HAL_JPEG_GetState (JPEG_HandleTypeDef* hjpeg) { return hjpeg->State; }
+uint32_t HAL_JPEG_GetError (JPEG_HandleTypeDef* hjpeg) { return hjpeg->ErrorCode; }
+//{{{
+HAL_StatusTypeDef HAL_JPEG_GetInfo (JPEG_HandleTypeDef* hjpeg, JPEG_ConfTypeDef *pInfo) {
+
+
+  /* Check the JPEG handle allocation */
+  if ((hjpeg == NULL) || (pInfo == NULL))
+    return HAL_ERROR;
+
+  pInfo->ImageHeight = (hjpeg->Instance->CONFR1 & 0xFFFF0000U) >> 16;
+  pInfo->ImageWidth  = (hjpeg->Instance->CONFR3 & 0xFFFF0000U) >> 16;
+
+  /*Read the conf parameters */
+  if ((hjpeg->Instance->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF_1)
+    pInfo->ColorSpace = JPEG_YCBCR_COLORSPACE;
+  else if ((hjpeg->Instance->CONFR1 & JPEG_CONFR1_NF) == 0)
+    pInfo->ColorSpace = JPEG_GRAYSCALE_COLORSPACE;
+  else if ((hjpeg->Instance->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF)
+    pInfo->ColorSpace = JPEG_CMYK_COLORSPACE;
+
+  if ((pInfo->ColorSpace == JPEG_YCBCR_COLORSPACE) || 
+      (pInfo->ColorSpace == JPEG_CMYK_COLORSPACE)) {
+    uint32_t yblockNb  = (hjpeg->Instance->CONFR4 & JPEG_CONFR4_NB) >> 4;
+    uint32_t cBblockNb = (hjpeg->Instance->CONFR5 & JPEG_CONFR5_NB) >> 4;
+    uint32_t cRblockNb = (hjpeg->Instance->CONFR6 & JPEG_CONFR6_NB) >> 4;
+
+    if ((yblockNb == 1) && (cBblockNb == 0) && (cRblockNb == 0))
+      pInfo->ChromaSubsampling = JPEG_422_SUBSAMPLING; /*16x8 block*/
+    else if ((yblockNb == 0) && (cBblockNb == 0) && (cRblockNb == 0))
+      pInfo->ChromaSubsampling = JPEG_444_SUBSAMPLING;
+    else if ((yblockNb == 3) && (cBblockNb == 0) && (cRblockNb == 0))
+      pInfo->ChromaSubsampling = JPEG_420_SUBSAMPLING;
+    else /*Default is 4:4:4*/
+      pInfo->ChromaSubsampling = JPEG_444_SUBSAMPLING;
+    }
+  else
+    pInfo->ChromaSubsampling = JPEG_444_SUBSAMPLING;
+
+  pInfo->ImageQuality = JPEG_GetQuality (hjpeg);
+
+  return HAL_OK;
+  }
 //}}}
 
 //{{{
