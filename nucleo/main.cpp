@@ -50,8 +50,8 @@ uint32_t jpegWriteIndex = 0;
 bool jpegDecodeDone = false;
 __IO bool jpegInPaused = 0;
 
+const uint32_t kJpegYuvChunkSize = 0x10000;
 uint8_t* jpegYuvBuf = nullptr;
-uint8_t* jpegYuvPtr = nullptr;
 //}}}
 
 extern "C" { void JPEG_IRQHandler() { HAL_JPEG_IRQHandler (&JPEG_Handle); }  }
@@ -137,32 +137,30 @@ void HAL_JPEG_MspInit (JPEG_HandleTypeDef* hjpeg) {
   }
 //}}}
 //{{{
-void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* hjpeg, uint32_t dataLen) {
+void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* hjpeg, uint32_t len) {
 
-  if (dataLen == jpegBufs[jpegReadIndex].mSize) {
+  if (len != jpegBufs[jpegReadIndex].mSize)
+    HAL_JPEG_ConfigInputBuffer (hjpeg, jpegBufs[jpegReadIndex].mBuf + len, jpegBufs[jpegReadIndex].mSize - len);
+  else {
     jpegBufs [jpegReadIndex].mFull = false;
     jpegBufs [jpegReadIndex].mSize = 0;
 
-    jpegReadIndex = (jpegReadIndex + 1) % 2;
-    if (!jpegBufs [jpegReadIndex].mFull) {
+    jpegReadIndex = jpegReadIndex ? 0 : 1;
+    if (jpegBufs [jpegReadIndex].mFull)
+      HAL_JPEG_ConfigInputBuffer (hjpeg, jpegBufs[jpegReadIndex].mBuf, jpegBufs[jpegReadIndex].mSize);
+    else {
       HAL_JPEG_Pause (hjpeg, JPEG_PAUSE_RESUME_INPUT);
       jpegInPaused = true;
       }
-    else
-      HAL_JPEG_ConfigInputBuffer (hjpeg, jpegBufs[jpegReadIndex].mBuf, jpegBufs[jpegReadIndex].mSize);
     }
-  else
-    HAL_JPEG_ConfigInputBuffer (hjpeg, jpegBufs[jpegReadIndex].mBuf + dataLen, jpegBufs[jpegReadIndex].mSize - dataLen);
   }
 //}}}
 //{{{
-void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* hjpeg, uint8_t* pDataOut, uint32_t dataLen) {
+void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* hjpeg, uint8_t* data, uint32_t len) {
 
   // Update JPEG encoder output buffer address
-  jpegYuvPtr += dataLen;
-  HAL_JPEG_ConfigOutputBuffer (hjpeg, jpegYuvPtr, 64 * 1024);
-
-  lcd->info (COL_GREEN, "HAL_JPEG_DataReadyCallback " + dec(dataLen) + " " + dec(jpegYuvPtr - jpegYuvBuf));
+  HAL_JPEG_ConfigOutputBuffer (hjpeg, data+len, kJpegYuvChunkSize);
+  lcd->info (COL_GREEN, "HAL_JPEG_DataReadyCallback " + hex(uint32_t(data)) + ":" + hex(len));
   lcd->changed();
   }
 //}}}
@@ -604,7 +602,6 @@ cTile* loadJpegSw (const string& fileName, int scale) {
 //{{{
 cTile* loadJpegHw (const string& fileName) {
 
-  //jpegYuvBuf = sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*4);
   jpegYuvBuf = (uint8_t*)malloc (400*272*3);
   if (!jpegYuvBuf)
     printf ("loadJpegHw alloc failed\n");
@@ -617,29 +614,23 @@ cTile* loadJpegHw (const string& fileName) {
   FIL JPEG_File;
   jpegFile = &JPEG_File;
   if (f_open (jpegFile, fileName.c_str(), FA_READ) == FR_OK) {
-    for (uint32_t i = 0; i < 2; i++) {
-      if (f_read (jpegFile, jpegBufs[i].mBuf, 4096, &jpegBufs[i].mSize) == FR_OK)
-        jpegBufs[i].mFull = true;
-      else
-        printf ("loadJpegHw read failed\n");
-      }
+    if (f_read (jpegFile, jpegBufs[0].mBuf, 4096, &jpegBufs[0].mSize) == FR_OK)
+      jpegBufs[0].mFull = true;
+    if (f_read (jpegFile, jpegBufs[1].mBuf, 4096, &jpegBufs[1].mSize) == FR_OK)
+      jpegBufs[1].mFull = true;
 
-    jpegYuvPtr = jpegYuvBuf;
-    HAL_JPEG_Decode_DMA (&JPEG_Handle, jpegBufs[0].mBuf, jpegBufs[0].mSize, jpegYuvPtr, 64 * 1024);
+    HAL_JPEG_Decode_DMA (&JPEG_Handle, jpegBufs[0].mBuf, jpegBufs[0].mSize, jpegYuvBuf, kJpegYuvChunkSize);
 
     while (!jpegDecodeDone) {
       if (!jpegBufs[jpegWriteIndex].mFull) {
         if (f_read (jpegFile, jpegBufs[jpegWriteIndex].mBuf, 4096, &jpegBufs[jpegWriteIndex].mSize) == FR_OK)
           jpegBufs[jpegWriteIndex].mFull = true;
-        else
-          printf ("loadJpegHw read failed\n");
-
         if (jpegInPaused && (jpegWriteIndex == jpegReadIndex)) {
           jpegInPaused = false;
           HAL_JPEG_ConfigInputBuffer (&JPEG_Handle, jpegBufs[jpegReadIndex].mBuf, jpegBufs[jpegReadIndex].mSize);
           HAL_JPEG_Resume (&JPEG_Handle, JPEG_PAUSE_RESUME_INPUT);
           }
-        jpegWriteIndex = (jpegWriteIndex + 1) % 2;
+        jpegWriteIndex = jpegWriteIndex ? 0 : 1;
         }
       }
     f_close (jpegFile);
@@ -659,6 +650,8 @@ cTile* loadJpegHw (const string& fileName) {
                            jpegInfo.ImageWidth, jpegInfo.ImageHeight);
     lcd->jpegYuvTo565 (jpegYuvBuf, rgb565pic,
                        jpegInfo.ImageWidth, jpegInfo.ImageHeight, jpegInfo.ChromaSubsampling);
+
+    free (jpegYuvBuf);
     return tile;
     }
   else
