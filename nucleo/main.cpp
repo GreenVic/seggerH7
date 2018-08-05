@@ -351,7 +351,7 @@ void sdRamConfig() {
   SDRAM_HandleTypeDef sdramHandle;
   sdramHandle.Instance = FMC_SDRAM_DEVICE;
   sdramHandle.Init.SDBank             = FMC_SDRAM_BANK2;
-  sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_2;
+  sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_3;
   sdramHandle.Init.ReadBurst          = FMC_SDRAM_RBURST_ENABLE;
   sdramHandle.Init.CASLatency         = FMC_SDRAM_CAS_LATENCY_2;
   sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_9;  // 11
@@ -420,13 +420,11 @@ uint32_t sdRamTestIteration (int offset, uint16_t* addr, uint32_t len) {
   auto readAddress = addr;
   for (uint32_t j = 0; j < len / 2; j++) {
     uint16_t readWord1 = *readAddress++;
-    if ((readWord1 & 0xFFFF) == ((j+offset) & 0xFFFF))
+    if ((readWord1 & 0xDFFF) == ((j+offset) & 0xDFFF))
       readOk++;
     else {
       if (readErr < 8)
-        lcd->info (COL_CYAN,  " - error " + hex((uint32_t)readAddress) + " " +
-                              dec(offset) + " " +
-                              dec(readErr) + " " +
+        lcd->info (COL_CYAN,  "sdRam " + hex((uint32_t)readAddress) + " " +
                               hex( readWord1 & 0xFFFF, 4, ' ') + " " +
                               hex((j+offset) & 0xFFFF, 4, ' '));
       readErr++;
@@ -645,9 +643,14 @@ void uiThread (void* arg) {
       lcd->start();
       lcd->clear (COL_BLACK);
 
-      int item = 1;
+      int item = 0;
+      int rows = sqrt ((float)mTileVec.size()) + 1;
       for (auto tile : mTileVec) {
-        lcd->copy (tile, cPoint (item* 50, item * 50));
+        if ((tile->mWidth <= (1024/rows)) && (tile->mHeight <= (600/rows)))
+          lcd->copy (tile, cPoint ((item % rows) * (1024/rows), (item /rows) * (600/rows)));
+        else
+          lcd->size (tile, cRect ((item % rows) * (1024/rows), (item /rows) * (600/rows),
+                                  ((item % rows)+1) * (1024/rows), ((item /rows)+1) * (600/rows)));
         item++;
         }
 
@@ -701,6 +704,7 @@ void appThread (void* arg) {
       else
         lcd->info ("tile error " + file);
       lcd->changed();
+      vTaskDelay (50);
       }
     lcd->info (COL_WHITE, "appThread - loadFiles took " + dec(HAL_GetTick() - startTime));
     }
