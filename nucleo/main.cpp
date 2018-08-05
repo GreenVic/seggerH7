@@ -351,7 +351,7 @@ void sdRamConfig() {
   SDRAM_HandleTypeDef sdramHandle;
   sdramHandle.Instance = FMC_SDRAM_DEVICE;
   sdramHandle.Init.SDBank             = FMC_SDRAM_BANK2;
-  sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_3;
+  sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_2;
   sdramHandle.Init.ReadBurst          = FMC_SDRAM_RBURST_ENABLE;
   sdramHandle.Init.CASLatency         = FMC_SDRAM_CAS_LATENCY_2;
   sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_9;  // 11
@@ -704,8 +704,6 @@ void appThread (void* arg) {
     lcd->changed();
 
     findFiles ("", ".jpg");
-    //vTaskDelay (1000);
-    //simpleTest();
 
     jpegYuvBuf = (uint8_t*)malloc (400*272*3);
     //jpegYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
