@@ -407,7 +407,7 @@ void mpuConfig() {
 //}}}
 
 //{{{
-uint32_t sdRamTest (int offset, uint16_t* addr, uint32_t len) {
+uint32_t sdRamTestIteration (int offset, uint16_t* addr, uint32_t len) {
 
   uint32_t readOk = 0;
   uint32_t readErr = 0;
@@ -423,36 +423,14 @@ uint32_t sdRamTest (int offset, uint16_t* addr, uint32_t len) {
     if ((readWord1 & 0xFFFF) == ((j+offset) & 0xFFFF))
       readOk++;
     else {
-      if (readErr < 4)
-        printf ("- error %p %02x %d - r:%04x != %04x\n",
-                readAddress, offset, readErr, readWord1 & 0xFFFF, (j+offset) & 0xFFFF);
+      if (readErr < 8)
+        lcd->info (COL_CYAN,  " - error " + hex((uint32_t)readAddress) + " " +
+                              dec(offset) + " " +
+                              dec(readErr) + " " +
+                              hex( readWord1 & 0xFFFF, 4, ' ') + " " +
+                              hex((j+offset) & 0xFFFF, 4, ' '));
       readErr++;
       }
-
-    }
-
-  printf ("%p i:%x ok:%x error:%x %d\n", addr, offset, readOk, readErr, (readOk * 100) / (len/2));
-  return readErr;
-  }
-//}}}
-//{{{
-uint32_t simpleSdRamTest (int offset, uint16_t* addr, uint32_t len) {
-
-  uint32_t readOk = 0;
-  uint32_t readErr = 0;
-
-  uint16_t data = offset;
-  auto writeAddress = addr;
-  for (uint32_t j = 0; j < len/2; j++)
-    *writeAddress++ = data++;
-
-  auto readAddress = addr;
-  for (uint32_t j = 0; j < len / 2; j++) {
-    uint16_t readWord1 = *readAddress++;
-    if ((readWord1 & 0xFFFF) == ((j+offset) & 0xFFFF))
-      readOk++;
-    else
-      readErr++;
     }
 
   return readErr;
@@ -464,19 +442,21 @@ void simpleTest() {
   int i = 0;
   int k = 0;
   while (true) {
-    for (int j = 3; j < 16; j++) {
-      uint32_t errors = simpleSdRamTest (k++, (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
+    for (int j = 8; j < 16; j++) {
+      uint32_t errors = sdRamTestIteration (k++, (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
       if (errors == 0) {
-        lcd->info (COL_YELLOW, "ram - ok " + dec (j,2));
+        lcd->info (COL_YELLOW, "sdRam " + dec (j,2));
         lcd->changed();
+        vTaskDelay (200);
         }
       else  {
         float rate = (errors * 1000.f) / 0x00100000;
-        lcd->info (COL_CYAN, "ram " + dec (j,2) + " fail - err:" +
-                             dec(errors) + " " + dec (int(rate)/10,1) + "." + dec(int(rate) % 10,1) + "%");
+        lcd->info (COL_CYAN, "sdRam " + dec (j,2) +
+                             " fail " + dec(errors) + " " +
+                             dec (int(rate)/10,1) + "." + dec(int(rate) % 10,1) + "%");
         lcd->changed();
+        vTaskDelay (1000);
         }
-      vTaskDelay (500);
       }
     }
   }
@@ -684,6 +664,11 @@ void uiThread (void* arg) {
 //{{{
 void appThread (void* arg) {
 
+  jpegYuvBuf = (uint8_t*)malloc (400*272*3);
+  //jpegYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
+  if (!jpegYuvBuf)
+    printf ("loadJpegHw alloc failed\n");
+
   FATFS SDFatFs;
   char SDPath[4];
 
@@ -705,11 +690,6 @@ void appThread (void* arg) {
 
     findFiles ("", ".jpg");
 
-    jpegYuvBuf = (uint8_t*)malloc (400*272*3);
-    //jpegYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
-    if (!jpegYuvBuf)
-      printf ("loadJpegHw alloc failed\n");
-
     auto startTime = HAL_GetTick();
     for (auto file : mFileVec)
     //auto file = mFileVec.front();
@@ -724,6 +704,8 @@ void appThread (void* arg) {
       }
     lcd->info (COL_WHITE, "appThread - loadFiles took " + dec(HAL_GetTick() - startTime));
     }
+
+  simpleTest();
 
   while (true) {
     //for (int i = 30; i < 100; i++) { lcd->display (i); vTaskDelay (20); }
