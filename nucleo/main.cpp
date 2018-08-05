@@ -351,7 +351,7 @@ void sdRamConfig() {
   SDRAM_HandleTypeDef sdramHandle;
   sdramHandle.Instance = FMC_SDRAM_DEVICE;
   sdramHandle.Init.SDBank             = FMC_SDRAM_BANK2;
-  sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_2;
+  sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_3;
   sdramHandle.Init.ReadBurst          = FMC_SDRAM_RBURST_ENABLE;
   sdramHandle.Init.CASLatency         = FMC_SDRAM_CAS_LATENCY_2;
   sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_9;  // 11
@@ -465,7 +465,7 @@ void simpleTest() {
   int k = 0;
   while (true) {
     for (int j = 3; j < 16; j++) {
-      uint32_t errors = simpleSdRamTest (k++, (uint16_t*)(0x70000000 + (j * 0x00100000)), 0x00100000);
+      uint32_t errors = simpleSdRamTest (k++, (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
       if (errors == 0) {
         lcd->info (COL_YELLOW, "ram - ok " + dec (j,2));
         lcd->changed();
@@ -476,7 +476,7 @@ void simpleTest() {
                              dec(errors) + " " + dec (int(rate)/10,1) + "." + dec(int(rate) % 10,1) + "%");
         lcd->changed();
         }
-      vTaskDelay (100);
+      vTaskDelay (500);
       }
     }
   }
@@ -596,12 +596,6 @@ cTile* loadJpegSw (const string& fileName, int scale) {
 //{{{
 cTile* loadJpegHw (const string& fileName) {
 
-  jpegYuvBuf = (uint8_t*)malloc (400*272*3);
-  if (!jpegYuvBuf) {
-    printf ("loadJpegHw alloc failed\n");
-    return nullptr;
-    }
-
   auto startTime = HAL_GetTick();
 
   readIndex = 0;
@@ -652,7 +646,6 @@ cTile* loadJpegHw (const string& fileName) {
     lcd->jpegYuvTo565 (jpegYuvBuf, rgb565pic,
                        jpegInfo.ImageWidth, jpegInfo.ImageHeight, jpegInfo.ChromaSubsampling);
 
-    free (jpegYuvBuf);
     return tile;
     }
   else
@@ -663,22 +656,26 @@ cTile* loadJpegHw (const string& fileName) {
 //{{{
 void uiThread (void* arg) {
 
+  int count = 0;
   while (true) {
-    if (lcd->changed()) {
+    if (lcd->changed() || (count == 1000)) {
+      count = 100;
       lcd->start();
       lcd->clear (COL_BLACK);
 
-      int count = 1;
+      int item = 1;
       for (auto tile : mTileVec) {
-        lcd->copy (tile, cPoint (count* 50, count * 50));
-        count++;
+        lcd->copy (tile, cPoint (item* 50, item * 50));
+        item++;
         }
 
       lcd->drawInfo();
       lcd->present();
       }
-    else
-      vTaskDelay (40);
+    else {
+      count++;
+      vTaskDelay (1);
+      }
     }
   }
 //}}}
@@ -705,6 +702,13 @@ void appThread (void* arg) {
     lcd->changed();
 
     findFiles ("", ".jpg");
+    //vTaskDelay (1000);
+    //simpleTest();
+
+    jpegYuvBuf = (uint8_t*)malloc (400*272*3);
+    //jpegYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
+    if (!jpegYuvBuf)
+      printf ("loadJpegHw alloc failed\n");
 
     auto startTime = HAL_GetTick();
     for (auto file : mFileVec)
@@ -722,8 +726,8 @@ void appThread (void* arg) {
     }
 
   while (true) {
-    for (int i = 30; i < 60; i++) { lcd->display (i); vTaskDelay (20); }
-    for (int i = 60; i > 30; i--) { lcd->display (i); vTaskDelay (20); }
+    for (int i = 30; i < 70; i++) { lcd->display (i); vTaskDelay (20); }
+    for (int i = 70; i > 30; i--) { lcd->display (i); vTaskDelay (20); }
     }
   }
 //}}}
