@@ -656,9 +656,11 @@ cTile* loadJpegHw (const string& fileName) {
 //{{{
 void uiThread (void* arg) {
 
+  lcd->display (80);
+
   int count = 0;
   while (true) {
-    if (lcd->changed() || (count == 1000)) {
+    if (lcd->changed() || (count == 500)) {
       count = 100;
       lcd->start();
       lcd->clear (COL_BLACK);
@@ -726,8 +728,9 @@ void appThread (void* arg) {
     }
 
   while (true) {
-    for (int i = 30; i < 70; i++) { lcd->display (i); vTaskDelay (20); }
-    for (int i = 70; i > 30; i--) { lcd->display (i); vTaskDelay (20); }
+    //for (int i = 30; i < 100; i++) { lcd->display (i); vTaskDelay (20); }
+    //for (int i = 100; i > 30; i--) { lcd->display (i); vTaskDelay (20); }
+    vTaskDelay (1);
     }
   }
 //}}}
