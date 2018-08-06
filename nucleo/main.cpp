@@ -407,26 +407,20 @@ void mpuConfig() {
 //{{{
 void sdRamTest (uint16_t offset, uint16_t* addr, uint32_t len) {
 
-  uint32_t readOk = 0;
-  uint32_t readErr = 0;
-  uint32_t bitErr[16] = {0};
-
   uint16_t data = offset;
   auto writeAddress = addr;
   for (uint32_t j = 0; j < len/2; j++)
     *writeAddress++ = data++;
-  //vTaskDelay (1000);
 
+  uint32_t readOk = 0;
+  uint32_t readErr = 0;
+  uint32_t bitErr[16] = {0};
   auto readAddress = addr;
   for (uint32_t j = 0; j < len / 2; j++) {
     uint16_t readWord1 = *readAddress++;
     if ((readWord1 & 0xFFFF) == ((j+offset) & 0xFFFF))
       readOk++;
     else {
-      if (readErr < 0)
-        lcd->info (COL_CYAN,  "sdRam " + hex((uint32_t)readAddress) + " " +
-                              hex(readWord1 & 0xFFFF, 4, ' ') + " " +
-                              hex((j+offset) & 0xFFFF, 4, ' '));
       readErr++;
       uint32_t bit = 1;
       for (int i = 0; i < 16; i++) {
