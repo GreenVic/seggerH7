@@ -342,8 +342,12 @@ void sdRamConfig() {
   HAL_GPIO_Init (GPIOF, &gpio_init_structure);
 
   gpio_init_structure.Pin   = GPIO_PIN_0 | GPIO_PIN_1  | GPIO_PIN_2  | GPIO_PIN_4  | GPIO_PIN_5 |
-                              GPIO_PIN_8 |
                               GPIO_PIN_15;
+  HAL_GPIO_Init (GPIOG, &gpio_init_structure);
+
+  gpio_init_structure.Pin   = GPIO_PIN_8;
+  gpio_init_structure.Pull  = GPIO_NOPULL;
+  gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init (GPIOG, &gpio_init_structure);
   //}}}
   __HAL_RCC_FMC_CLK_ENABLE();
@@ -407,12 +411,13 @@ void mpuConfig() {
 //}}}
 
 //{{{
-uint32_t sdRamTestIteration (int offset, uint16_t* addr, uint32_t len) {
+void sdRamTest (uint32_t offset, uint16_t* addr, uint32_t len) {
 
   uint32_t readOk = 0;
   uint32_t readErr = 0;
+  uint32_t bitErr[16] = {0};
 
-  uint16_t data = offset;
+  uint16_t data = (uint16_t)offset;
   auto writeAddress = addr;
   for (uint32_t j = 0; j < len/2; j++)
     *writeAddress++ = data++;
@@ -420,42 +425,41 @@ uint32_t sdRamTestIteration (int offset, uint16_t* addr, uint32_t len) {
   auto readAddress = addr;
   for (uint32_t j = 0; j < len / 2; j++) {
     uint16_t readWord1 = *readAddress++;
-    if ((readWord1 & 0xDFFF) == ((j+offset) & 0xDFFF))
+    if ((readWord1 & 0xFFFF) == ((j+offset) & 0xFFFF))
       readOk++;
     else {
-      if (readErr < 8)
+      if (readErr < 0)
         lcd->info (COL_CYAN,  "sdRam " + hex((uint32_t)readAddress) + " " +
                               hex( readWord1 & 0xFFFF, 4, ' ') + " " +
                               hex((j+offset) & 0xFFFF, 4, ' '));
       readErr++;
+      uint32_t bit = 1;
+      for (int i = 0; i < 16; i++) {
+        if ((readWord1 & bit) != ((j+offset) & bit))
+          bitErr[i] += 1;
+        bit *= 2;
+        }
       }
     }
 
-  return readErr;
-  }
-//}}}
-//{{{
-void simpleTest() {
-
-  int i = 0;
-  int k = 0;
-  while (true) {
-    for (int j = 8; j < 16; j++) {
-      uint32_t errors = sdRamTestIteration (k++, (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
-      if (errors == 0) {
-        lcd->info (COL_YELLOW, "sdRam " + dec (j,2));
-        lcd->changed();
-        vTaskDelay (200);
-        }
-      else  {
-        float rate = (errors * 1000.f) / 0x00100000;
-        lcd->info (COL_CYAN, "sdRam " + dec (j,2) +
-                             " fail " + dec(errors) + " " +
-                             dec (int(rate)/10,1) + "." + dec(int(rate) % 10,1) + "%");
-        lcd->changed();
-        vTaskDelay (1000);
-        }
-      }
+  if (readErr == 0) {
+    lcd->info (COL_YELLOW, "sdRam " + dec (offset,2));
+    lcd->changed();
+    vTaskDelay (200);
+    }
+  else  {
+    float rate = (readErr * 1000.f) / 0x00100000;
+    string str = "sdRam " + dec (offset,2) +
+                 " fail " + dec(readErr) + " " +
+                 dec (int(rate)/10,1) + "." + dec(int(rate) % 10,1) + "% -";
+    for (int i = 15; i >= 0; i--)
+      if (bitErr[i])
+        str += " " + dec (bitErr[i], 4,' ');
+      else
+        str += " ____";
+    lcd->info (COL_CYAN, str);
+    lcd->changed();
+    vTaskDelay (1000);
     }
   }
 //}}}
@@ -694,9 +698,7 @@ void appThread (void* arg) {
     findFiles ("", ".jpg");
 
     auto startTime = HAL_GetTick();
-    for (auto file : mFileVec)
-    //auto file = mFileVec.front();
-      {
+    for (auto file : mFileVec) {
       //auto tile = loadFileSw (file, 1);
       auto tile = loadJpegHw (file);
       if (tile)
@@ -709,7 +711,12 @@ void appThread (void* arg) {
     lcd->info (COL_WHITE, "appThread - loadFiles took " + dec(HAL_GetTick() - startTime));
     }
 
-  simpleTest();
+  uint32_t k = 0;
+  while (true) {
+    k += HAL_GetTick();
+    for (int j = 8; j < 16; j++)
+      sdRamTest (k++, (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
+    }
 
   while (true) {
     //for (int i = 30; i < 100; i++) { lcd->display (i); vTaskDelay (20); }
