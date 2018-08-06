@@ -414,6 +414,7 @@ void sdRamTest (uint16_t offset, uint16_t* addr, uint32_t len) {
   auto writeAddress = addr;
   for (uint32_t j = 0; j < len/2; j++)
     *writeAddress++ = data++;
+  //vTaskDelay (1000);
 
   auto readAddress = addr;
   for (uint32_t j = 0; j < len / 2; j++) {
@@ -435,25 +436,21 @@ void sdRamTest (uint16_t offset, uint16_t* addr, uint32_t len) {
       }
     }
 
-  if (readErr == 0) {
-    lcd->info (COL_YELLOW, "sdRam ok " + hex((uint32_t)addr));
-    lcd->changed();
-    vTaskDelay (200);
-    }
-  else  {
-    float rate = (readErr * 1000.f) / 0x00100000;
+  if (readErr != 0) {
+    //lcd->info (COL_YELLOW, "sdRam ok " + hex((uint32_t)addr));
     string str = "errors ";
     for (int i = 15; i >= 0; i--)
       if (bitErr[i])
         str += " " + dec (bitErr[i], 4,' ');
       else
         str += " ____";
+    float rate = (readErr * 1000.f) / 0x00100000;
     str += "  " + dec(readErr) + " " + dec (int(rate)/10,1) + "." + dec(int(rate) % 10,1) + "%";
-
     lcd->info (COL_CYAN, str);
     lcd->changed();
-    vTaskDelay (1000);
     }
+
+  vTaskDelay (200);
   }
 //}}}
 
@@ -704,12 +701,14 @@ void appThread (void* arg) {
     lcd->info (COL_WHITE, "appThread - loadFiles took " + dec(HAL_GetTick() - startTime));
     }
 
-  uint32_t k = 0;
-  while (true)
-    for (int j = 8; j < 16; j++) {
-      k += HAL_GetTick();
-      sdRamTest (uint16_t(k++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
-      }
+  if (false) {
+    uint32_t k = 0;
+    while (true)
+      for (int j = 8; j < 16; j++) {
+        k += HAL_GetTick();
+        sdRamTest (uint16_t(k++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
+        }
+    }
 
   while (true) {
     //for (int i = 30; i < 100; i++) { lcd->display (i); vTaskDelay (20); }
