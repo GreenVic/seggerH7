@@ -22,6 +22,7 @@ const HeapRegion_t kHeapRegions[] = {
   { nullptr, 0 } };
 //}}}
 //#define RAM_TEST
+//#define HW_JPG
 
 cLcd* lcd = nullptr;
 uint8_t* mSdRamAlloc = (uint8_t*)SDRAM_DEVICE_ADDR;
@@ -62,6 +63,323 @@ void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
     lcd->toggle();
   }
 //}}}
+
+//{{{
+class cRtc {
+public:
+  //{{{
+  void init() {
+
+    // Configue LSE as RTC clock source
+    RCC_OscInitTypeDef rccOscInitStruct = {0};
+    rccOscInitStruct.OscillatorType =  RCC_OSCILLATORTYPE_LSI | RCC_OSCILLATORTYPE_LSE;
+    rccOscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+    rccOscInitStruct.LSEState = RCC_LSE_ON;
+    rccOscInitStruct.LSIState = RCC_LSI_OFF;
+    if (HAL_RCC_OscConfig (&rccOscInitStruct))
+      printf ("HAL_RCC_OscConfig failed\n");
+
+    RCC_PeriphCLKInitTypeDef periphClkInitStruct = {0};
+    periphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RTC;
+    periphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSE;
+    if (HAL_RCCEx_PeriphCLKConfig (&periphClkInitStruct))
+      printf ("HAL_RCCEx_PeriphCLKConfig failed\n");
+    __HAL_RCC_RTC_ENABLE();
+
+    // Configure LSE RTC prescaler and RTC data registers
+    writeProtectDisable();
+    if (enterInitMode()) {
+      //{{{  init rtc
+      RTC->CR = RTC_HOURFORMAT_24;
+      RTC->PRER = (uint32_t)(0x00FF);
+      RTC->PRER |= (uint32_t)(0x7F << 16U);
+
+      // Exit Initialization mode
+      RTC->ISR &= (uint32_t)~RTC_ISR_INIT;
+
+      // If CR_BYPSHAD bit = 0, wait for synchro else this check is not needed
+      if ((RTC->CR & RTC_CR_BYPSHAD) == RESET)
+        if (!waitForSynchro())
+          printf ("timeout waiting for synchro\n");
+
+      //RTC->TAFCR &= (uint32_t)~RTC_TAFCR_ALARMOUTTYPE;
+      //RTC->TAFCR |= (uint32_t)RTC_OUTPUT_TYPE_OPENDRAIN;
+      }
+      //}}}
+    writeProtectEnable();
+
+    loadDateTime();
+    uint32_t clockDateTimeValue = mDateTime.getValue();
+
+    cDateTime buildDateTime (mBuildDate, mBuildTime);
+    uint32_t buildDateTimeValue = buildDateTime.getValue();
+    if (clockDateTimeValue < buildDateTimeValue + kBuildSecs) {
+      // set clockDateTime from buildDateTime
+      mDateTime.setFromValue (buildDateTimeValue + kBuildSecs);
+      printf ("cRtc::init set clock < build %d < %d\n", clockDateTimeValue, buildDateTimeValue);
+      saveDateTime();
+      mClockSet = true;
+      }
+    }
+  //}}}
+
+  //{{{
+  bool getClockSet() {
+    return mClockSet;
+    }
+  //}}}
+  //{{{
+  void getClockAngles (float& hours, float& minutes, float& seconds, float& subSeconds) {
+
+    loadDateTime();
+
+    hours = (1.f - ((mDateTime.Hours + (mDateTime.Minutes / 60.f)) / 6.f)) * kPi;
+    minutes = (1.f - ((mDateTime.Minutes + (mDateTime.Seconds / 60.f))/ 30.f)) * kPi;
+    seconds =  (1.f - (mDateTime.Seconds / 30.f)) * kPi;
+    subSeconds =  (1.f - ((255 - mDateTime.SubSeconds) / 128.f)) * kPi;
+    }
+  //}}}
+  //{{{
+  std::string getClockTimeString() {
+
+    return mDateTime.getTimeString();
+    }
+  //}}}
+  //{{{
+  std::string getClockTimeDateString() {
+
+    return mDateTime.getTimeDateString();
+    }
+  //}}}
+  //{{{
+  std::string getBuildTimeDateString() {
+
+    return mBuildTime + " "  + mBuildDate;
+    }
+  //}}}
+
+private:
+  //{{{
+  uint8_t getBcdFromByte (uint8_t byte) {
+    return ((byte / 10) << 4) | (byte % 10);
+    }
+  //}}}
+  //{{{
+  uint8_t getByteFromBcd (uint8_t bcd) {
+    return (((bcd & 0xF0) >> 4) * 10) + (bcd & 0x0F);
+    }
+  //}}}
+
+  //{{{
+  void loadDateTime() {
+
+    mDateTime.SubSeconds = RTC->SSR;
+    mDateTime.SecondFraction = RTC->PRER & RTC_PRER_PREDIV_S;
+
+    uint32_t tr = RTC->TR;
+    mDateTime.TimeFormat = (tr & RTC_TR_PM) >> 16U;
+    mDateTime.Hours = getByteFromBcd ((tr & (RTC_TR_HT | RTC_TR_HU)) >> 16U);
+    mDateTime.Minutes = getByteFromBcd ((tr & (RTC_TR_MNT | RTC_TR_MNU)) >> 8U);
+    mDateTime.Seconds = getByteFromBcd (tr & (RTC_TR_ST | RTC_TR_SU));
+
+    uint32_t dr = RTC->DR;
+    mDateTime.Year = getByteFromBcd ((dr & (RTC_DR_YT | RTC_DR_YU)) >> 16U);
+    mDateTime.WeekDay = (dr & RTC_DR_WDU) >> 13U;
+    mDateTime.Month = getByteFromBcd ((dr & (RTC_DR_MT | RTC_DR_MU)) >> 8U);
+    mDateTime.Date = getByteFromBcd (dr & (RTC_DR_DT | RTC_DR_DU));
+    }
+  //}}}
+  //{{{
+  void saveDateTime() {
+
+    writeProtectDisable();
+    if (enterInitMode()) {
+      if ((RTC->CR & RTC_CR_FMT) == (uint32_t)RESET)
+        mDateTime.TimeFormat = 0x00U;
+
+      if ((mDateTime.Month & 0x10U) == 0x10U)
+        mDateTime.Month = (uint8_t)((mDateTime.Month & (uint8_t)~(0x10U)) + (uint8_t)0x0AU);
+
+      // Set the RTC_DR register
+      uint32_t tmp = (getBcdFromByte (mDateTime.Year) << 16) |
+                     (getBcdFromByte (mDateTime.Month) << 8) |
+                      getBcdFromByte (mDateTime.Date) |
+                     (mDateTime.WeekDay << 13);
+      RTC->DR = (uint32_t)(tmp & RTC_DR_RESERVED_MASK);
+
+      // Set the RTC_TR register
+      tmp = ((getBcdFromByte (mDateTime.Hours) << 16) |
+             (getBcdFromByte (mDateTime.Minutes) << 8) |
+              getBcdFromByte (mDateTime.Seconds) |
+            (mDateTime.TimeFormat) << 16);
+      RTC->TR = (uint32_t)(tmp & RTC_TR_RESERVED_MASK);
+
+      // Clear the bits to be configured
+      RTC->CR &= (uint32_t)~RTC_CR_BCK;
+
+      // Configure the RTC_CR register
+      RTC->CR |= mDateTime.DayLightSaving | mDateTime.StoreOperation;
+
+      // Exit Initialization mode
+      RTC->ISR &= (uint32_t)~RTC_ISR_INIT;
+
+      if ((RTC->CR & RTC_CR_BYPSHAD) == RESET)
+        if (!waitForSynchro())
+          printf ("setDateTime - timeout waiting for synchro\n");
+      }
+
+    writeProtectEnable();
+    }
+  //}}}
+
+  //{{{
+  void writeProtectDisable() {
+    RTC->WPR = 0xCAU;
+    RTC->WPR = 0x53U;
+    }
+  //}}}
+  //{{{
+  bool enterInitMode() {
+
+    // Check if the Initialization mode is set
+    if ((RTC->ISR & RTC_ISR_INITF) == (uint32_t)RESET) {
+      // Set the Initialization mode
+      RTC->ISR = (uint32_t)RTC_INIT_MASK;
+
+      /* Get tick */
+      uint32_t tickstart = HAL_GetTick();
+
+      // Wait till RTC is in INIT state and if Time out is reached exit
+      while ((RTC->ISR & RTC_ISR_INITF) == (uint32_t)RESET)
+        if ((HAL_GetTick() - tickstart ) > RTC_TIMEOUT_VALUE)
+          return false;
+      }
+
+    return true;
+    }
+  //}}}
+  //{{{
+  bool waitForSynchro() {
+
+    // Clear RSF flag
+    RTC->ISR &= (uint32_t)RTC_RSF_MASK;
+
+    uint32_t tickstart = HAL_GetTick();
+
+    // Wait the registers to be synchronised
+    while ((RTC->ISR & RTC_ISR_RSF) == (uint32_t)RESET)
+      if ((HAL_GetTick() - tickstart ) > RTC_TIMEOUT_VALUE)
+        return false;
+
+    return true;
+    }
+  //}}}
+  //{{{
+  void writeProtectEnable() {
+    RTC->WPR = 0xFFU;
+    }
+  //}}}
+
+  const float kPi = 3.1415926f;
+  const int kBuildSecs = 6;
+  const std::string mBuildTime = __TIME__;
+  const std::string mBuildDate = __DATE__;
+
+  //{{{
+  class cDateTime {
+  public:
+    cDateTime() {}
+    //{{{
+    cDateTime (const std::string& buildDateStr, const std::string& buildTimeStr) {
+
+      // buildDateStr - dd:mmm:yyyy
+      Date = ((buildDateStr[4] == ' ') ? 0 : buildDateStr[4] - 0x30) * 10 + (buildDateStr[5] -0x30);
+      Year = (buildDateStr[9] - 0x30) * 10 + (buildDateStr[10] -0x30);
+
+      Month = 0;
+      for (int i = 0; i < 12; i++)
+        if ((buildDateStr[0] == *kMonth[i]) && (buildDateStr[1] == *(kMonth[i]+1)) && (buildDateStr[2] == *(kMonth[i]+2))) {
+          Month = i;
+          break;
+          }
+
+      // buildTimeStr - hh:mm:ss
+      Hours = (buildTimeStr[0]  - 0x30) * 10 + (buildTimeStr[1] -0x30);
+      Minutes = (buildTimeStr[3] - 0x30) * 10 + (buildTimeStr[4] -0x30);
+      Seconds = (buildTimeStr[6] - 0x30) * 10 + (buildTimeStr[7] -0x30);
+      }
+    //}}}
+
+    //{{{
+    uint32_t getValue() {
+      return ((((Year*12 + Month)*31 + Date)*24 + Hours)*60 + Minutes)*60 + Seconds;
+      }
+    //}}}
+    //{{{
+    std::string getTimeString() {
+      return dec(Hours,2) + ":" + dec(Minutes,2) + ":" + dec(Seconds,2);
+             //dec(SubSeconds) + " " + dec(SecondFraction);
+      }
+    //}}}
+    //{{{
+    std::string getDateString() {
+      return std::string(kMonth[Month]) + " " + dec(Date,2) + " " + dec(2000 + Year,4);
+      }
+    //}}}
+    //{{{
+    std::string getTimeDateString() {
+      return dec(Hours,2) + ":" + dec(Minutes,2) + ":" + dec(Seconds,2) + " " +
+             kMonth[Month] + " " + dec(Date,2) + " " + dec(2000 + Year,4);
+             //dec(SubSeconds) + " " + dec(SecondFraction);
+      }
+    //}}}
+
+    //{{{
+    void setFromValue (uint32_t value) {
+      TimeFormat = RTC_HOURFORMAT12_AM;
+      DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
+      StoreOperation = RTC_STOREOPERATION_RESET;
+
+      Seconds = value % 60;
+      value /= 60;
+      Minutes = value % 60;
+      value /= 60;
+      Hours = value % 24;
+      value /= 24;
+      Date = value % 31;
+      value /= 31;
+      Month = value % 12;
+      value /= 12;
+      Year = value;
+
+      WeekDay = RTC_WEEKDAY_FRIDAY;  // wrong
+      }
+    //}}}
+
+    uint8_t Year;
+    uint8_t Month;
+    uint8_t WeekDay;
+    uint8_t Date;
+    uint8_t Hours;
+    uint8_t Minutes;
+    uint8_t Seconds;
+    uint8_t TimeFormat;
+    uint32_t SubSeconds;
+    uint32_t SecondFraction;
+    uint32_t DayLightSaving;
+    uint32_t StoreOperation;
+
+  private:
+    const char* kMonth[12] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    };
+  //}}}
+  cDateTime mDateTime;
+
+  RTC_HandleTypeDef mRtcHandle;
+  bool mClockSet = false;
+  };
+//}}}
+cRtc mRtc;
 
 //{{{
 uint8_t* sdRamAlloc (uint32_t bytes) {
@@ -504,7 +822,7 @@ cTile* loadJpegSw (const string& fileName, int scale) {
 
   auto buf = (uint8_t*)malloc (filInfo.fsize);
   if (!buf)  {
-    lcd->info (COL_RED, "buf fail");
+    lcd->info (COL_RED, "loadJpegSw buf fail");
     lcd->changed();
     return nullptr;
     }
@@ -544,9 +862,9 @@ cTile* loadJpegSw (const string& fileName, int scale) {
     auto allTook = HAL_GetTick() - startTime;
 
     free (buf);
-    lcd->info (COL_YELLOW, "done " + dec(mCinfo.image_width) + "x" + dec(mCinfo.image_height) + " " +
-                                    dec(mCinfo.output_width) + "x" + dec(mCinfo.output_height) + " " +
-                                    dec(loadTook) + ":" + dec(allTook));
+    lcd->info (COL_YELLOW, dec(mCinfo.image_width) + "x" + dec(mCinfo.image_height) + " " +
+                           dec(mCinfo.output_width) + "x" + dec(mCinfo.output_height) + " " +
+                           dec(loadTook) + ":" + dec(allTook));
     lcd->changed();
     jpeg_destroy_decompress (&mCinfo);
     return tile;
@@ -642,6 +960,25 @@ void uiThread (void* arg) {
         item++;
         }
 
+      float hourAngle;
+      float minuteAngle;
+      float secondAngle;
+      float subSecondAngle;
+      mRtc.getClockAngles (hourAngle, minuteAngle, secondAngle, subSecondAngle);
+
+      int radius = 60;
+      cPoint centre = cPoint (950, 490);
+      lcd->ellipse (COL_WHITE, centre, cPoint(radius, radius));
+      lcd->ellipse (COL_BLACK, centre, cPoint(radius-2, radius-2));
+      float hourRadius = radius * 0.7f;
+      lcd->line (COL_WHITE, centre, centre + cPoint (int16_t(hourRadius * sin (hourAngle)), int16_t(hourRadius * cos (hourAngle))));
+      float minuteRadius = radius * 0.8f;
+      lcd->line (COL_WHITE, centre, centre + cPoint (int16_t(minuteRadius * sin (minuteAngle)), int16_t(minuteRadius * cos (minuteAngle))));
+      float secondRadius = radius * 0.9f;
+      lcd->line (COL_RED, centre, centre + cPoint (int16_t(secondRadius * sin (secondAngle)), int16_t(secondRadius * cos (secondAngle))));
+
+      lcd->cLcd::text (COL_WHITE, 45, mRtc.getClockTimeDateString(), cRect (550,545, 1024,600));
+
       lcd->drawInfo();
       lcd->present();
       }
@@ -655,12 +992,14 @@ void uiThread (void* arg) {
 //{{{
 void appThread (void* arg) {
 
-  //jpegYuvBuf = (uint8_t*)malloc (400*272*3);
-  jpegYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
-  if (!jpegYuvBuf) {
-    printf ("jpegYuvBuf alloc fail\n");
-    return;
-    }
+  #ifdef HW_JPG
+    //jpegYuvBuf = (uint8_t*)malloc (400*272*3);
+    jpegYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
+    if (!jpegYuvBuf) {
+      printf ("jpegYuvBuf alloc fail\n");
+      return;
+      }
+  #endif
 
   FATFS SDFatFs;
   char SDPath[4];
@@ -685,8 +1024,11 @@ void appThread (void* arg) {
 
     auto startTime = HAL_GetTick();
     for (auto file : mFileVec) {
-      auto tile = loadJpegSw (file, 1);
-      //auto tile = loadJpegHw (file);
+      #ifdef HW_JPG
+        auto tile = loadJpegHw (file);
+      #else
+        auto tile = loadJpegSw (file, 1);
+      #endif
       if (tile)
         mTileVec.push_back (tile);
       else
@@ -709,7 +1051,7 @@ void appThread (void* arg) {
   while (true) {
     //for (int i = 30; i < 100; i++) { lcd->display (i); vTaskDelay (20); }
     //for (int i = 100; i > 30; i--) { lcd->display (i); vTaskDelay (20); }
-    vTaskDelay (1);
+    vTaskDelay (1000);
     }
   }
 //}}}
@@ -730,6 +1072,8 @@ int main() {
   BSP_LED_Init (LED_BLUE);
   BSP_LED_Init (LED_RED);
   BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_EXTI);
+
+  mRtc.init();
 
   vPortDefineHeapRegions (kHeapRegions);
   lcd = new cLcd ((uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2),
