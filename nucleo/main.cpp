@@ -258,45 +258,38 @@ void clockConfig() {
 //{{{
 void sdRamConfig() {
  //{{{  pins
- //  FMC_SDCKE1  PB05
- //  FMC_SDNE1   PB06
- //
- //  FMC_A0:A5   PF00:PF05
- //  FMC_A6:A9   PF12:PF15
- //  FMC_A10:A12 PG00:PG02
- //  FMC_BA0:BA1 PG04:PG05
- //
- //  FMC_SDCLK   PG08
+ //  FMC_SDCKE1  PB5
+ //  FMC_SDNE1   PB6
+
+ //  FMC_A0:A5   PF0:5
+ //  FMC_A6:A9   PF12:15
+ //  FMC_A10:A12 PG0:2
+ //  FMC_BA0:BA1 PG4:5
+
+ //  FMC_SDCLK   PG8
  //  FMC_SDNCAS  PG15
  //  FMC_SDNRAS  PF11
- //  FMC_SDNWE   PC00
- //
- //  FMC_D0:D1   PD14:PD15
- //  FMC_D2:D3   PD00:PD01
- //  FMC_D4:D12  PE07:PE15
- //  FMC_D13:D15 PD08:PD10
- //
- //  FMC_NBL0    PE00
- //  FMC_NBL1    PE01
+ //  FMC_SDNWE   PC0
+
+ //  FMC_NBL0    PE0
+ //  FMC_NBL1    PE1
+
+ //  FMC_D0:D1   PD14:15
+ //  FMC_D2:D3   PD0:1
+ //  FMC_D4:D12  PE7:15
+ //  FMC_D13:D15 PD8:10
  //}}}
 
   //{{{  defines
-  #define REFRESH_COUNT                    ((uint32_t)0x0603)
-  #define SDRAM_TIMEOUT                    ((uint32_t)0xFFFF)
-
   #define SDRAM_MODEREG_BURST_LENGTH_1             ((uint16_t)0x0000)
   #define SDRAM_MODEREG_BURST_LENGTH_2             ((uint16_t)0x0001)
   #define SDRAM_MODEREG_BURST_LENGTH_4             ((uint16_t)0x0002)
   #define SDRAM_MODEREG_BURST_LENGTH_8             ((uint16_t)0x0004)
   #define SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL      ((uint16_t)0x0000)
-  #define SDRAM_MODEREG_BURST_TYPE_INTERLEAVED     ((uint16_t)0x0008)
-
   #define SDRAM_MODEREG_CAS_LATENCY_2              ((uint16_t)0x0020)
-  #define SDRAM_MODEREG_CAS_LATENCY_3              ((uint16_t)0x0030)
-
-  #define SDRAM_MODEREG_OPERATING_MODE_STANDARD    ((uint16_t)0x0000)
-  #define SDRAM_MODEREG_WRITEBURST_MODE_PROGRAMMED ((uint16_t)0x0000)
   #define SDRAM_MODEREG_WRITEBURST_MODE_SINGLE     ((uint16_t)0x0200)
+
+  #define REFRESH_COUNT                            ((uint32_t)0x0603)
   //}}}
 
   #define kClockEnable  FMC_SDRAM_CMD_TARGET_BANK2 | FMC_SDRAM_CMD_CLK_ENABLE;
@@ -355,7 +348,7 @@ void sdRamConfig() {
   SDRAM_HandleTypeDef sdramHandle;
   sdramHandle.Instance = FMC_SDRAM_DEVICE;
   sdramHandle.Init.SDBank             = FMC_SDRAM_BANK2;
-  sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_3;
+  sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_2;
   sdramHandle.Init.ReadBurst          = FMC_SDRAM_RBURST_ENABLE;
   sdramHandle.Init.CASLatency         = FMC_SDRAM_CAS_LATENCY_2;
   sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_9;  // 11
@@ -377,7 +370,7 @@ void sdRamConfig() {
     printf ("HAL_SDRAM_Init fail\n");
 
   FMC_SDRAM_DEVICE->SDCMR = kClockEnable;
-  HAL_Delay (2);
+  HAL_Delay (1);
   FMC_SDRAM_DEVICE->SDCMR = kPreChargeAll;
   FMC_SDRAM_DEVICE->SDCMR = kAutoRefresh;
   FMC_SDRAM_DEVICE->SDCMR = kLoadMode;
@@ -411,13 +404,13 @@ void mpuConfig() {
 //}}}
 
 //{{{
-void sdRamTest (uint32_t offset, uint16_t* addr, uint32_t len) {
+void sdRamTest (uint16_t offset, uint16_t* addr, uint32_t len) {
 
   uint32_t readOk = 0;
   uint32_t readErr = 0;
   uint32_t bitErr[16] = {0};
 
-  uint16_t data = (uint16_t)offset;
+  uint16_t data = offset;
   auto writeAddress = addr;
   for (uint32_t j = 0; j < len/2; j++)
     *writeAddress++ = data++;
@@ -430,7 +423,7 @@ void sdRamTest (uint32_t offset, uint16_t* addr, uint32_t len) {
     else {
       if (readErr < 0)
         lcd->info (COL_CYAN,  "sdRam " + hex((uint32_t)readAddress) + " " +
-                              hex( readWord1 & 0xFFFF, 4, ' ') + " " +
+                              hex(readWord1 & 0xFFFF, 4, ' ') + " " +
                               hex((j+offset) & 0xFFFF, 4, ' '));
       readErr++;
       uint32_t bit = 1;
@@ -443,20 +436,20 @@ void sdRamTest (uint32_t offset, uint16_t* addr, uint32_t len) {
     }
 
   if (readErr == 0) {
-    lcd->info (COL_YELLOW, "sdRam " + dec (offset,2));
+    lcd->info (COL_YELLOW, "sdRam ok " + hex((uint32_t)addr));
     lcd->changed();
     vTaskDelay (200);
     }
   else  {
     float rate = (readErr * 1000.f) / 0x00100000;
-    string str = "sdRam " + dec (offset,2) +
-                 " fail " + dec(readErr) + " " +
-                 dec (int(rate)/10,1) + "." + dec(int(rate) % 10,1) + "% -";
+    string str = "errors ";
     for (int i = 15; i >= 0; i--)
       if (bitErr[i])
         str += " " + dec (bitErr[i], 4,' ');
       else
         str += " ____";
+    str += "  " + dec(readErr) + " " + dec (int(rate)/10,1) + "." + dec(int(rate) % 10,1) + "%";
+
     lcd->info (COL_CYAN, str);
     lcd->changed();
     vTaskDelay (1000);
@@ -712,11 +705,11 @@ void appThread (void* arg) {
     }
 
   uint32_t k = 0;
-  while (true) {
-    k += HAL_GetTick();
-    for (int j = 8; j < 16; j++)
-      sdRamTest (k++, (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
-    }
+  while (true)
+    for (int j = 8; j < 16; j++) {
+      k += HAL_GetTick();
+      sdRamTest (uint16_t(k++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
+      }
 
   while (true) {
     //for (int i = 30; i < 100; i++) { lcd->display (i); vTaskDelay (20); }
