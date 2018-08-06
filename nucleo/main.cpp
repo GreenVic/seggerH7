@@ -21,6 +21,7 @@ const HeapRegion_t kHeapRegions[] = {
   {(uint8_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4), SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4 },
   { nullptr, 0 } };
 //}}}
+//#define RAM_TEST
 
 cLcd* lcd = nullptr;
 uint8_t* mSdRamAlloc = (uint8_t*)SDRAM_DEVICE_ADDR;
@@ -661,10 +662,12 @@ void uiThread (void* arg) {
 //{{{
 void appThread (void* arg) {
 
-  jpegYuvBuf = (uint8_t*)malloc (400*272*3);
-  //jpegYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
-  if (!jpegYuvBuf)
-    printf ("loadJpegHw alloc failed\n");
+  //jpegYuvBuf = (uint8_t*)malloc (400*272*3);
+  jpegYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
+  if (!jpegYuvBuf) {
+    printf ("jpegYuvBuf alloc fail\n");
+    return;
+    }
 
   FATFS SDFatFs;
   char SDPath[4];
@@ -689,8 +692,8 @@ void appThread (void* arg) {
 
     auto startTime = HAL_GetTick();
     for (auto file : mFileVec) {
-      //auto tile = loadFileSw (file, 1);
-      auto tile = loadJpegHw (file);
+      auto tile = loadJpegSw (file, 1);
+      //auto tile = loadJpegHw (file);
       if (tile)
         mTileVec.push_back (tile);
       else
@@ -701,14 +704,14 @@ void appThread (void* arg) {
     lcd->info (COL_WHITE, "appThread - loadFiles took " + dec(HAL_GetTick() - startTime));
     }
 
-  if (false) {
+  #ifdef RAM_TEST
     uint32_t k = 0;
     while (true)
       for (int j = 8; j < 16; j++) {
         k += HAL_GetTick();
         sdRamTest (uint16_t(k++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
         }
-    }
+   #endif
 
   while (true) {
     //for (int i = 30; i < 100; i++) { lcd->display (i); vTaskDelay (20); }
