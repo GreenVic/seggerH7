@@ -14,7 +14,7 @@ using namespace std;
 //{{{  const
 const string kHello = "*stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
 
-#define SDRAM_DEVICE_ADDR 0xD0000000
+#define SDRAM_DEVICE_ADDR 0x70000000
 #define SDRAM_DEVICE_SIZE 0x01000000  // 0x01000000
 
 const HeapRegion_t kHeapRegions[] = {
@@ -286,7 +286,6 @@ void sdRamConfig() {
   #define SDRAM_MODEREG_BURST_LENGTH_2             ((uint16_t)0x0001)
   #define SDRAM_MODEREG_BURST_LENGTH_4             ((uint16_t)0x0002)
   #define SDRAM_MODEREG_BURST_LENGTH_8             ((uint16_t)0x0004)
-  #define SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL      ((uint16_t)0x0000)
   #define SDRAM_MODEREG_CAS_LATENCY_2              ((uint16_t)0x0020)
   #define SDRAM_MODEREG_WRITEBURST_MODE_SINGLE     ((uint16_t)0x0200)
 
@@ -388,10 +387,10 @@ void mpuConfig() {
   MPU_Region_InitTypeDef mpuRegion;
   mpuRegion.Enable = MPU_REGION_ENABLE;
   mpuRegion.BaseAddress = 0xD0000000;
-  mpuRegion.Size = MPU_REGION_SIZE_128MB;
+  mpuRegion.Size = MPU_REGION_SIZE_16MB;
   mpuRegion.AccessPermission = MPU_REGION_FULL_ACCESS;
   mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-  mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
+  mpuRegion.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
   mpuRegion.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
   mpuRegion.Number = MPU_REGION_NUMBER0;
   mpuRegion.TypeExtField = MPU_TEX_LEVEL0;
@@ -491,7 +490,7 @@ cTile* loadJpegSw (const string& fileName, int scale) {
     lcd->info (COL_RED, fileName + " not found");
     return nullptr;
     }
-  lcd->info ("loadFile " + fileName + " bytes:" + dec ((int)(filInfo.fsize)) + " " +
+  lcd->info (COL_YELLOW, "loadFile " + fileName + " bytes:" + dec ((int)(filInfo.fsize)) + " " +
              dec (filInfo.ftime >> 11) + ":" + dec ((filInfo.ftime >> 5) & 63) + " " +
              dec (filInfo.fdate & 31) + ":" + dec ((filInfo.fdate >> 5) & 15) + ":" + dec ((filInfo.fdate >> 9) + 1980));
   lcd->changed();
@@ -545,7 +544,7 @@ cTile* loadJpegSw (const string& fileName, int scale) {
     auto allTook = HAL_GetTick() - startTime;
 
     free (buf);
-    lcd->info (COL_WHITE, "done " + dec(mCinfo.image_width) + "x" + dec(mCinfo.image_height) + " " +
+    lcd->info (COL_YELLOW, "done " + dec(mCinfo.image_width) + "x" + dec(mCinfo.image_height) + " " +
                                     dec(mCinfo.output_width) + "x" + dec(mCinfo.output_height) + " " +
                                     dec(loadTook) + ":" + dec(allTook));
     lcd->changed();
@@ -721,10 +720,11 @@ int main() {
   HAL_Init();
   clockConfig();
   sdRamConfig();
-  //HAL_SetFMCMemorySwappingConfig (FMC_SWAPBMAP_SDRAM_SRAM);
+
+  HAL_SetFMCMemorySwappingConfig (FMC_SWAPBMAP_SDRAM_SRAM);
+  //mpuConfig();
   SCB_EnableICache();
   //SCB_EnableDCache();
-  //mpuConfig();
 
   BSP_LED_Init (LED_GREEN);
   BSP_LED_Init (LED_BLUE);
