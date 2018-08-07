@@ -846,7 +846,6 @@ static void MDMAOutAbortCallback (MDMA_HandleTypeDef* hmdma) {
     dmaEndProcess (hjpeg);
   }
 //}}}
-
 //
 //{{{
 HAL_StatusTypeDef HAL_JPEG_Init (JPEG_HandleTypeDef* hjpeg) {

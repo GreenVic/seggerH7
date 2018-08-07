@@ -459,6 +459,7 @@ void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint32_t len) 
 
   if (len != jpegBufs[readIndex].mSize)
     HAL_JPEG_ConfigInputBuffer (jpegHandlePtr, jpegBufs[readIndex].mBuf+len, jpegBufs[readIndex].mSize-len);
+
   else {
     jpegBufs [readIndex].mFull = false;
     jpegBufs [readIndex].mSize = 0;
@@ -477,17 +478,16 @@ void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint32_t len) 
 void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint8_t* data, uint32_t len) {
 
   //printf ("dataReady %x %d\n", data, len);
-
-  HAL_JPEG_ConfigOutputBuffer (jpegHandlePtr, data+len, kJpegYuvChunkSize);
   //lcd->info (COL_GREEN, "HAL_JPEG_DataReadyCallback " + hex(uint32_t(data)) + ":" + hex(len));
   //lcd->changed();
+
+  HAL_JPEG_ConfigOutputBuffer (jpegHandlePtr, data+len, kJpegYuvChunkSize);
   }
 //}}}
 //{{{
 void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef* jpegHandlePtr) {
 
   //printf ("decodeCplt\n");
-
   jpegDecodeDone = true;
   }
 //}}}
@@ -496,9 +496,9 @@ void HAL_JPEG_InfoReadyCallback (JPEG_HandleTypeDef* jpegHandlePtr, JPEG_ConfTyp
 
   //printf ("infoReady %d %dx%d\n", info->ChromaSubsampling, info->ImageWidth, info->ImageHeight);
 
-  lcd->info (COL_YELLOW, "infoReady " + dec (info->ChromaSubsampling, 1, '0') +  ":" +
-                                        dec (info->ImageWidth) + "x" + dec (info->ImageHeight));
-  lcd->changed();
+  //lcd->info (COL_YELLOW, "infoReady " + dec (info->ChromaSubsampling, 1, '0') +  ":" +
+  //                                      dec (info->ImageWidth) + "x" + dec (info->ImageHeight));
+  //lcd->changed();
   }
 //}}}
 //{{{
@@ -924,19 +924,18 @@ cTile* loadJpegHw (const string& fileName) {
         writeIndex = writeIndex ? 0 : 1;
         }
       else
-        vTaskDelay(1);
+        vTaskDelay (1);
       }
     f_close (&jpegFile);
 
     JPEG_ConfTypeDef info;
     HAL_JPEG_GetInfo (&jpegHandle, &info);
+    printf ("loadJpegHw image %dx%d\n", info.ImageWidth, info.ImageHeight);
     lcd->info (COL_YELLOW, "loadJpeg " + fileName +
                            " took " + dec (HAL_GetTick() - startTime) + " " +
                            dec (info.ChromaSubsampling, 1, '0') +  ":" +
                            dec (info.ImageWidth) + "x" + dec (info.ImageHeight));
     lcd->changed();
-
-    printf ("loadJpegHw image %dx%d\n", info.ImageWidth, info.ImageHeight);
 
     auto rgb565pic = (uint16_t*)sdRamAlloc (info.ImageWidth * info.ImageHeight * 2);
     lcd->jpegYuvTo565 (jpegYuvBuf, rgb565pic, info.ImageWidth, info.ImageHeight, info.ChromaSubsampling);
