@@ -233,7 +233,6 @@
       <file file_name="../freetype/Src/base/ftsystem.c" />
     </folder>
     <folder Name="FreeRTOS">
-      <file file_name="../FreeRTOS/portable/MemMang/heap_5.c" />
       <file file_name="../FreeRTOS/croutine.c" />
       <file file_name="../FreeRTOS/event_groups.c" />
       <file file_name="../FreeRTOS/list.c" />
@@ -255,6 +254,7 @@
       <file file_name="../FreeRTOS/cpuUsage.c" />
       <file file_name="../FreeRTOS/queueMalloc.c" />
       <file file_name="../FreeRTOS/tasksMalloc.c" />
+      <file file_name="../FreeRTOS/portable/MemMang/heap_5.c" />
     </folder>
     <configuration Name="Debug" gcc_optimization_level="Debug" />
     <folder Name="fatFs">

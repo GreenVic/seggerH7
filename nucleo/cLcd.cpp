@@ -667,10 +667,9 @@ void cLcd::drawInfo() {
   // draw footer
   auto y = getHeight() - titleHeight-4;
   text (COL_WHITE, titleHeight,
-        dec (xPortGetFreeHeapSize()) + ":" + dec (xPortGetMinimumEverFreeHeapSize()) +
-        " p:" + dec(mNumPresents) + ":" + dec (mDrawTime) + ":" + dec (mWaitTime) + "ms " +
-        dec (osGetCPUUsage()) + "% " +
-        dec (mBrightness),
+  //      dec (xPortGetFreeHeapSize()) + ":" + dec (xPortGetMinimumEverFreeHeapSize()) +
+        dec(mNumPresents) + ":" + dec (mDrawTime) + ":" + dec (mWaitTime) + "ms " +
+        dec (osGetCPUUsage()) + "% " + dec (mBrightness),
         cRect(0, y, getWidth(), titleHeight+gap));
 
   if (mShowInfo) {

@@ -15,10 +15,10 @@ using namespace std;
 const string kHello = "*stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
 
 #define SDRAM_DEVICE_ADDR 0xD0000000
-#define SDRAM_DEVICE_SIZE 0x01000000  // 0x01000000
+#define SDRAM_DEVICE_SIZE 0x01000000
 
 const HeapRegion_t kHeapRegions[] = {
-  {(uint8_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4), SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4 },
+  {(uint8_t*)(0xD0F00000), 0x00100000 },
   { nullptr, 0 } };
 //}}}
 //#define RAM_TEST
@@ -454,7 +454,7 @@ void HAL_JPEG_MspInit (JPEG_HandleTypeDef* jpegHandlePtr) {
 //{{{
 void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint32_t len) {
 
-  //printf ("getData %d\n", len);
+  printf ("getData %d\n", len);
 
   if (len != jpegBufs[readIndex].mSize)
     HAL_JPEG_ConfigInputBuffer (jpegHandlePtr, jpegBufs[readIndex].mBuf+len, jpegBufs[readIndex].mSize-len);
@@ -475,7 +475,7 @@ void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint32_t len) 
 //{{{
 void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint8_t* data, uint32_t len) {
 
-  //printf ("dataReady %x %d\n", data, len);
+  printf ("dataReady %x %d\n", data, len);
 
   HAL_JPEG_ConfigOutputBuffer (jpegHandlePtr, data+len, kJpegYuvChunkSize);
   //lcd->info (COL_GREEN, "HAL_JPEG_DataReadyCallback " + hex(uint32_t(data)) + ":" + hex(len));
@@ -485,7 +485,7 @@ void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint8_t* dat
 //{{{
 void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef* jpegHandlePtr) {
 
-  //printf ("decodeCplt\n");
+  printf ("decodeCplt\n");
 
   jpegDecodeDone = true;
   }
@@ -493,7 +493,7 @@ void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef* jpegHandlePtr) {
 //{{{
 void HAL_JPEG_InfoReadyCallback (JPEG_HandleTypeDef* jpegHandlePtr, JPEG_ConfTypeDef* info) {
 
-  //printf ("infoReady %d %dx%d\n", info->ChromaSubsampling, info->ImageWidth, info->ImageHeight);
+  printf ("infoReady %d %dx%d\n", info->ChromaSubsampling, info->ImageWidth, info->ImageHeight);
 
   lcd->info (COL_YELLOW, "infoReady " + dec (info->ChromaSubsampling, 1, '0') +  ":" +
                                         dec (info->ImageWidth) + "x" + dec (info->ImageHeight));
@@ -503,7 +503,7 @@ void HAL_JPEG_InfoReadyCallback (JPEG_HandleTypeDef* jpegHandlePtr, JPEG_ConfTyp
 //{{{
 void HAL_JPEG_ErrorCallback (JPEG_HandleTypeDef* jpegHandlePtr) {
 
-  //printf ("jpegError\n");
+  printf ("jpegError\n");
   lcd->info (COL_RED, "jpegError");
   lcd->changed();
   }
@@ -1044,7 +1044,7 @@ void appThread (void* arg) {
   #ifdef RAM_TEST
     uint32_t k = 0;
     while (true)
-      for (int j = 8; j < 16; j++) {
+      for (int j = 8; j < 15; j++) {
         k += HAL_GetTick();
         sdRamTest (uint16_t(k++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
         }
