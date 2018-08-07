@@ -14,7 +14,7 @@ using namespace std;
 //{{{  const
 const string kHello = "*stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
 
-#define SDRAM_DEVICE_ADDR 0x70000000
+#define SDRAM_DEVICE_ADDR 0xD0000000
 #define SDRAM_DEVICE_SIZE 0x01000000  // 0x01000000
 
 const HeapRegion_t kHeapRegions[] = {
@@ -22,7 +22,6 @@ const HeapRegion_t kHeapRegions[] = {
   { nullptr, 0 } };
 //}}}
 //#define RAM_TEST
-//#define HW_JPG
 
 cLcd* lcd = nullptr;
 uint8_t* mSdRamAlloc = (uint8_t*)SDRAM_DEVICE_ADDR;
@@ -51,7 +50,6 @@ __IO bool jpegInPaused = false;
 bool jpegDecodeDone = false;
 
 const uint32_t kJpegYuvChunkSize = 0x10000;
-uint8_t* jpegYuvBuf = nullptr;
 //}}}
 
 extern "C" { void JPEG_IRQHandler() { HAL_JPEG_IRQHandler (&jpegHandle); }  }
@@ -281,7 +279,7 @@ private:
   //}}}
 
   const float kPi = 3.1415926f;
-  const int kBuildSecs = 6;
+  const int kBuildSecs = 11;
   const std::string mBuildTime = __TIME__;
   const std::string mBuildDate = __DATE__;
 
@@ -398,9 +396,6 @@ void HAL_JPEG_MspInit (JPEG_HandleTypeDef* jpegHandlePtr) {
   __HAL_RCC_JPGDECEN_CLK_ENABLE();
   __HAL_RCC_MDMA_CLK_ENABLE();
 
-  HAL_NVIC_SetPriority (JPEG_IRQn, 0x07, 0x0F);
-  HAL_NVIC_EnableIRQ (JPEG_IRQn);
-
   // Input MDMA
   hmdmaIn.Init.Priority       = MDMA_PRIORITY_HIGH;
   hmdmaIn.Init.Endianness     = MDMA_LITTLE_ENDIANNESS_PRESERVE;
@@ -416,9 +411,9 @@ void HAL_JPEG_MspInit (JPEG_HandleTypeDef* jpegHandlePtr) {
 
   // use JPEG Input FIFO Threshold as a trigger for the MDMA
   // Set the MDMA HW trigger to JPEG Input FIFO Threshold flag
+  // Set MDMA buffer size to JPEG FIFO threshold size 32bytes 8words
   hmdmaIn.Init.Request = MDMA_REQUEST_JPEG_INFIFO_TH;
   hmdmaIn.Init.TransferTriggerMode = MDMA_BUFFER_TRANSFER;
-  // Set MDMA buffer size to JPEG FIFO threshold size 32bytes 8words
   hmdmaIn.Init.BufferTransferLength = 32;
   hmdmaIn.Instance = MDMA_Channel7;
   __HAL_LINKDMA (jpegHandlePtr, hdmain, hmdmaIn);
@@ -440,9 +435,9 @@ void HAL_JPEG_MspInit (JPEG_HandleTypeDef* jpegHandlePtr) {
 
   // use JPEG Output FIFO Threshold as a trigger for the MDMA
   // Set the MDMA HW trigger to JPEG Output FIFO Threshold flag
+  // Set MDMA buffer size to JPEG FIFO threshold size 32bytes 8words
   hmdmaOut.Init.Request = MDMA_REQUEST_JPEG_OUTFIFO_TH;
   hmdmaOut.Init.TransferTriggerMode = MDMA_BUFFER_TRANSFER;
-  // Set MDMA buffer size to JPEG FIFO threshold size 32bytes 8words
   hmdmaOut.Init.BufferTransferLength = 32;
   hmdmaOut.Instance = MDMA_Channel6;
   HAL_MDMA_DeInit (&hmdmaOut);
@@ -451,10 +446,15 @@ void HAL_JPEG_MspInit (JPEG_HandleTypeDef* jpegHandlePtr) {
 
   HAL_NVIC_SetPriority (MDMA_IRQn, 0x08, 0x0F);
   HAL_NVIC_EnableIRQ (MDMA_IRQn);
+
+  HAL_NVIC_SetPriority (JPEG_IRQn, 0x07, 0x0F);
+  HAL_NVIC_EnableIRQ (JPEG_IRQn);
   }
 //}}}
 //{{{
 void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint32_t len) {
+
+  //printf ("getData %d\n", len);
 
   if (len != jpegBufs[readIndex].mSize)
     HAL_JPEG_ConfigInputBuffer (jpegHandlePtr, jpegBufs[readIndex].mBuf+len, jpegBufs[readIndex].mSize-len);
@@ -475,6 +475,8 @@ void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint32_t len) 
 //{{{
 void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint8_t* data, uint32_t len) {
 
+  //printf ("dataReady %x %d\n", data, len);
+
   HAL_JPEG_ConfigOutputBuffer (jpegHandlePtr, data+len, kJpegYuvChunkSize);
   //lcd->info (COL_GREEN, "HAL_JPEG_DataReadyCallback " + hex(uint32_t(data)) + ":" + hex(len));
   //lcd->changed();
@@ -482,21 +484,26 @@ void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint8_t* dat
 //}}}
 //{{{
 void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef* jpegHandlePtr) {
+
+  //printf ("decodeCplt\n");
+
   jpegDecodeDone = true;
   }
 //}}}
 //{{{
 void HAL_JPEG_InfoReadyCallback (JPEG_HandleTypeDef* jpegHandlePtr, JPEG_ConfTypeDef* info) {
 
-  lcd->info (COL_YELLOW, "info callback " + dec (info->ChromaSubsampling, 1, '0') +  ":" +
-                                            dec (info->ImageWidth) + "x" + dec (info->ImageHeight));
+  //printf ("infoReady %d %dx%d\n", info->ChromaSubsampling, info->ImageWidth, info->ImageHeight);
+
+  lcd->info (COL_YELLOW, "infoReady " + dec (info->ChromaSubsampling, 1, '0') +  ":" +
+                                        dec (info->ImageWidth) + "x" + dec (info->ImageHeight));
   lcd->changed();
   }
 //}}}
 //{{{
 void HAL_JPEG_ErrorCallback (JPEG_HandleTypeDef* jpegHandlePtr) {
 
-  lcd->info (COL_RED, "jpeg error");
+  lcd->info (COL_RED, "jpegError");
   lcd->changed();
   }
 //}}}
@@ -880,6 +887,9 @@ cTile* loadJpegSw (const string& fileName, int scale) {
 //{{{
 cTile* loadJpegHw (const string& fileName) {
 
+  auto jpegYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
+  //auto jpegYuvBuf = (uint8_t*)malloc (400*272*3);
+
   auto startTime = HAL_GetTick();
 
   readIndex = 0;
@@ -942,15 +952,19 @@ void uiThread (void* arg) {
 
   lcd->display (80);
 
+  int tick = 0;
   int count = 0;
   while (true) {
     if (lcd->changed() || (count == 500)) {
+      tick++;
       count = 100;
       lcd->start();
       lcd->clear (COL_BLACK);
 
       int item = 0;
       int rows = sqrt ((float)mTileVec.size()) + 1;
+      //printf ("uiThread %d %d %d\n", tick, mTileVec.size(), rows);
+
       for (auto tile : mTileVec) {
         if ((tile->mWidth <= (1024/rows)) && (tile->mHeight <= (600/rows)))
           lcd->copy (tile, cPoint ((item % rows) * (1024/rows), (item /rows) * (600/rows)));
@@ -992,15 +1006,6 @@ void uiThread (void* arg) {
 //{{{
 void appThread (void* arg) {
 
-  #ifdef HW_JPG
-    //jpegYuvBuf = (uint8_t*)malloc (400*272*3);
-    jpegYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
-    if (!jpegYuvBuf) {
-      printf ("jpegYuvBuf alloc fail\n");
-      return;
-      }
-  #endif
-
   FATFS SDFatFs;
   char SDPath[4];
 
@@ -1024,17 +1029,15 @@ void appThread (void* arg) {
 
     auto startTime = HAL_GetTick();
     for (auto file : mFileVec) {
-      #ifdef HW_JPG
-        auto tile = loadJpegHw (file);
-      #else
-        auto tile = loadJpegSw (file, 1);
-      #endif
+    //auto file = mFileVec.front(); {
+      auto tile = loadJpegHw (file);
+      //auto tile = loadJpegSw (file, 1);
       if (tile)
         mTileVec.push_back (tile);
       else
         lcd->info ("tile error " + file);
       lcd->changed();
-      vTaskDelay (50);
+      taskYIELD();
       }
     lcd->info (COL_WHITE, "appThread - loadFiles took " + dec(HAL_GetTick() - startTime));
     }
@@ -1063,7 +1066,7 @@ int main() {
   clockConfig();
   sdRamConfig();
 
-  HAL_SetFMCMemorySwappingConfig (FMC_SWAPBMAP_SDRAM_SRAM);
+  //HAL_SetFMCMemorySwappingConfig (FMC_SWAPBMAP_SDRAM_SRAM);
   //mpuConfig();
   SCB_EnableICache();
   //SCB_EnableDCache();
@@ -1081,7 +1084,7 @@ int main() {
   lcd->init (kHello);
 
   TaskHandle_t uiHandle;
-  xTaskCreate ((TaskFunction_t)uiThread, "ui", 1024, 0, 3, &uiHandle);
+  xTaskCreate ((TaskFunction_t)uiThread, "ui", 1024, 0, 4, &uiHandle);
 
   TaskHandle_t appHandle;
   xTaskCreate ((TaskFunction_t)appThread, "app", 8192, 0, 4, &appHandle);
