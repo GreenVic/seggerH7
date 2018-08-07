@@ -638,15 +638,14 @@ static HAL_StatusTypeDef JPEG_Set_Quantization_Mem (JPEG_HandleTypeDef* hjpeg, u
 //}}}
 
 //{{{
-static void JPEG_DMA_PollResidualData (JPEG_HandleTypeDef* hjpeg)
-{
-  uint32_t tmpContext, count = JPEG_FIFO_SIZE, dataOut;
+static void JPEG_DMA_PollResidualData (JPEG_HandleTypeDef* hjpeg) {
 
+  uint32_t count = JPEG_FIFO_SIZE;
   while ((__HAL_JPEG_GET_FLAG(hjpeg, JPEG_FLAG_OFNEF) != 0) &&
          (count > 0) && ((hjpeg->Context &  JPEG_CONTEXT_PAUSE_OUTPUT) == 0)) {
     count--;
 
-    dataOut = hjpeg->Instance->DOR;
+    uint32_t dataOut = hjpeg->Instance->DOR;
     hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount] = dataOut & 0x000000FF;
     hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 1] = (dataOut & 0x0000FF00) >> 8;
     hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 2] = (dataOut & 0x00FF0000) >> 16;
@@ -654,188 +653,70 @@ static void JPEG_DMA_PollResidualData (JPEG_HandleTypeDef* hjpeg)
     hjpeg->JpegOutCount += 4;
 
     if (hjpeg->JpegOutCount == hjpeg->OutDataLength) {
-      /*Output Buffer is full, call HAL_JPEG_DataReadyCallback*/
+      // Output Buffer is full
       HAL_JPEG_DataReadyCallback (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
       hjpeg->JpegOutCount = 0;
       }
     }
 
   if ((hjpeg->Context &  JPEG_CONTEXT_PAUSE_OUTPUT) == 0) {
-    /*Stop Encoding/Decoding*/
+    // Stop Encoding/Decoding
     hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
 
-    if(hjpeg->JpegOutCount > 0) {
-      /*Output Buffer is not empty, call DecodedDataReadyCallback*/
+    if (hjpeg->JpegOutCount > 0) {
+      // Output Buffer is not empty
       HAL_JPEG_DataReadyCallback (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
       hjpeg->JpegOutCount = 0;
       }
 
-    tmpContext = hjpeg->Context;
-    /*Clear all context fileds execpt JPEG_CONTEXT_CONF_ENCODING and JPEG_CONTEXT_CUSTOM_TABLES*/
+    uint32_t tmpContext = hjpeg->Context;
+    // Clear all context fileds execpt JPEG_CONTEXT_CONF_ENCODING and JPEG_CONTEXT_CUSTOM_TABLES
     hjpeg->Context &= (JPEG_CONTEXT_CONF_ENCODING | JPEG_CONTEXT_CUSTOM_TABLES);
 
-    /* Process Unlocked */
+    // Process Unlocked
     __HAL_UNLOCK(hjpeg);
 
-    /* Change the JPEG state */
     hjpeg->State = HAL_JPEG_STATE_READY;
 
-    /*Call End of Encoding/Decoding callback */
-    if((tmpContext & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_DECODE)
-      HAL_JPEG_DecodeCpltCallback(hjpeg);
+    // Call End of Encoding/Decoding callback
+    if ((tmpContext & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_DECODE)
+      HAL_JPEG_DecodeCpltCallback (hjpeg);
     }
   }
 //}}}
-//{{{
-static void JPEG_StoreOutputData (JPEG_HandleTypeDef* hjpeg, uint32_t nbOutputWords) {
-
-  uint32_t index, nBwords, nbBytes , dataword;
-
-  if (hjpeg->OutDataLength >= (hjpeg->JpegOutCount + (nbOutputWords*4))) {
-    for (index = 0; index < nbOutputWords; index++) {
-      /*Transfer 32 bits from the JPEG output FIFO*/
-      dataword = hjpeg->Instance->DOR;
-      hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount] = dataword & 0x000000FF;
-      hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 1] = (dataword & 0x0000FF00) >> 8;
-      hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 2] = (dataword & 0x00FF0000) >> 16;
-      hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 3] = (dataword & 0xFF000000) >> 24;
-      hjpeg->JpegOutCount += 4;
-      }
-    if(hjpeg->OutDataLength == hjpeg->JpegOutCount) {
-      /*Output Buffer is full, call DecodedDataReadyCallback*/
-      HAL_JPEG_DataReadyCallback (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
-      hjpeg->JpegOutCount = 0;
-      }
-    }
-  else if (hjpeg->OutDataLength > hjpeg->JpegOutCount) {
-    nBwords = (hjpeg->OutDataLength - hjpeg->JpegOutCount)/4;
-    for (index = 0; index < nBwords; index++) {
-      /*Transfer 32 bits from the JPEG output FIFO*/
-      dataword = hjpeg->Instance->DOR;
-      hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount] = dataword & 0x000000FF;
-      hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 1] = (dataword & 0x0000FF00) >> 8;
-      hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 2] = (dataword & 0x00FF0000) >> 16;
-      hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 3] = (dataword & 0xFF000000) >> 24;
-      hjpeg->JpegOutCount += 4;
-      }
-
-    if (hjpeg->OutDataLength == hjpeg->JpegOutCount) {
-      /*Output Buffer is full, call DecodedDataReadyCallback*/
-      HAL_JPEG_DataReadyCallback (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
-      hjpeg->JpegOutCount = 0;
-      }
-
-    else {
-      nbBytes = hjpeg->OutDataLength - hjpeg->JpegOutCount;
-      dataword = hjpeg->Instance->DOR;
-      for(index = 0; index < nbBytes; index++) {
-        hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount] = (dataword >> (8*index)) & 0xFF;
-        hjpeg->JpegOutCount++;
-        }
-
-      /*Output Buffer is full, call DecodedDataReadyCallback*/
-      HAL_JPEG_DataReadyCallback (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
-      hjpeg->JpegOutCount = 0;
-
-      nbBytes = 4 - nbBytes;
-      for(index = nbBytes; index < 4; index++) {
-        hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount] = (dataword >> (8*index)) & 0xFF;
-        hjpeg->JpegOutCount++;
-        }
-      }
-    }
-  }
-//}}}
-//{{{
-static void JPEG_ReadInputData (JPEG_HandleTypeDef* hjpeg, uint32_t nbRequestWords)
-{
-  uint32_t nbBytes = 0, nBwords = 0, index = 0, Dataword = 0, inputCount = 0;
-
-  if ((hjpeg->InDataLength == 0) || (nbRequestWords == 0))
-    /* No more Input data : nothing to do*/
-    HAL_JPEG_Pause(hjpeg, JPEG_PAUSE_RESUME_INPUT);
-
-  else if(hjpeg->InDataLength > hjpeg->JpegInCount)
-    nbBytes = hjpeg->InDataLength - hjpeg->JpegInCount;
-
-  else if(hjpeg->InDataLength == hjpeg->JpegInCount) {
-    HAL_JPEG_GetDataCallback (hjpeg, hjpeg->JpegInCount);
-    if (hjpeg->InDataLength > 4)
-      hjpeg->InDataLength = hjpeg->InDataLength - (hjpeg->InDataLength % 4);
-    hjpeg->JpegInCount = 0;
-    nbBytes = hjpeg->InDataLength;
-    }
-
-  if ((nbBytes > 0) && ((hjpeg->Context &  JPEG_CONTEXT_PAUSE_INPUT) == 0)) {
-    nBwords = nbBytes / 4;
-    if (nBwords >= nbRequestWords) {
-      for (index = 0; index < nbRequestWords; index++) {
-        inputCount = hjpeg->JpegInCount;
-        hjpeg->Instance->DIR = (((uint32_t)(hjpeg->pJpegInBuffPtr[inputCount])) | (((uint32_t)(hjpeg->pJpegInBuffPtr[inputCount + 1])) << 8) |\
-          (((uint32_t)(hjpeg->pJpegInBuffPtr[inputCount + 2])) << 16) | (((uint32_t)(hjpeg->pJpegInBuffPtr[inputCount + 3])) << 24));
-
-        hjpeg->JpegInCount += 4;
-        }
-      }
-    else {
-      /*nBwords < nbRequestWords*/
-      if(nBwords > 0) {
-        for(index = 0; index < nBwords; index++) {
-          inputCount = hjpeg->JpegInCount;
-          hjpeg->Instance->DIR = (((uint32_t)(hjpeg->pJpegInBuffPtr[inputCount])) | (((uint32_t)(hjpeg->pJpegInBuffPtr[inputCount + 1])) << 8) |\
-            (((uint32_t)(hjpeg->pJpegInBuffPtr[inputCount + 2])) << 16) | (((uint32_t)(hjpeg->pJpegInBuffPtr[inputCount + 3])) << 24));
-
-          hjpeg->JpegInCount += 4;
-          }
-        }
-      else {
-        /* end of file*/
-        Dataword = 0;
-        for(index=0; index< nbBytes; index++) {
-          Dataword |= (uint32_t)hjpeg->pJpegInBuffPtr[hjpeg->JpegInCount] << (8 * index);
-          hjpeg->JpegInCount++;
-          }
-        hjpeg->Instance->DIR = Dataword;
-        }
-      }
-    }
-  }
-//}}}
-
 //{{{
 static uint32_t JPEG_DMA_EndProcess (JPEG_HandleTypeDef* hjpeg) {
 
-  uint32_t tmpContext;
   hjpeg->JpegOutCount = hjpeg->OutDataLength - (hjpeg->hdmaout->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
 
-  /*if Output Buffer is full, call HAL_JPEG_DataReadyCallback*/
-  if(hjpeg->JpegOutCount == hjpeg->OutDataLength) {
+  if (hjpeg->JpegOutCount == hjpeg->OutDataLength) {
+    // Output Buffer is full
     HAL_JPEG_DataReadyCallback (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
     hjpeg->JpegOutCount = 0;
     }
 
-  /*Check if remaining data in the output FIFO*/
+  // Check if remaining data in the output FIFO*/
   if (__HAL_JPEG_GET_FLAG(hjpeg, JPEG_FLAG_OFNEF) == 0) {
     if (hjpeg->JpegOutCount > 0) {
-      /*Output Buffer is not empty, call DecodedDataReadyCallback*/
+      // Output Buffer is not empty
       HAL_JPEG_DataReadyCallback (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
       hjpeg->JpegOutCount = 0;
       }
 
-    /* Stop Encoding/Decoding*/
+    // Stop Encoding/Decoding*/
     hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
 
-    tmpContext = hjpeg->Context;
-    /* Clear all context fileds execpt JPEG_CONTEXT_CONF_ENCODING and JPEG_CONTEXT_CUSTOM_TABLES*/
+    uint32_t tmpContext = hjpeg->Context;
+    // Clear all context fileds execpt JPEG_CONTEXT_CONF_ENCODING and JPEG_CONTEXT_CUSTOM_TABLES*/
     hjpeg->Context &= (JPEG_CONTEXT_CONF_ENCODING | JPEG_CONTEXT_CUSTOM_TABLES);
 
-    /* Process Unlocked */
+    // Process Unlocked */
     __HAL_UNLOCK(hjpeg);
 
-    /* Change the JPEG state */
+    // Change the JPEG state */
     hjpeg->State = HAL_JPEG_STATE_READY;
 
-    /* Call End of Encoding/Decoding callback */
+    // Call End of Encoding/Decoding callback */
     if ((tmpContext & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_DECODE)
       HAL_JPEG_DecodeCpltCallback (hjpeg);
     }
@@ -851,52 +732,49 @@ static uint32_t JPEG_DMA_EndProcess (JPEG_HandleTypeDef* hjpeg) {
 //{{{
 static uint32_t JPEG_DMA_ContinueProcess (JPEG_HandleTypeDef* hjpeg) {
 
-  /*End of header processing flag rises*/
+  // End of header processing flag rises*/
   if (((hjpeg->Context & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_DECODE) &&
       (__HAL_JPEG_GET_FLAG(hjpeg, JPEG_FLAG_HPDF) != RESET)) {
-    /*Call Header parsing complete callback */
-    HAL_JPEG_GetInfo(hjpeg, &hjpeg->Conf);
 
-    /* Reset the ImageQuality */
+    HAL_JPEG_GetInfo (hjpeg, &hjpeg->Conf);
+
+    // Reset the ImageQuality, is only available at the end of the decoding operation
     hjpeg->Conf.ImageQuality = 0;
-    /* Note : the image quality is only available at the end of the decoding operation */
-    /* at the current stage the calculated image quality is not correct so reset it */
-    /*Call Info Ready callback */
-    HAL_JPEG_InfoReadyCallback(hjpeg, &hjpeg->Conf);
+    HAL_JPEG_InfoReadyCallback (hjpeg, &hjpeg->Conf);
 
-    __HAL_JPEG_DISABLE_IT(hjpeg,JPEG_IT_HPD);
+    __HAL_JPEG_DISABLE_IT (hjpeg, JPEG_IT_HPD);
 
-    /* Clear header processing done flag */
-    __HAL_JPEG_CLEAR_FLAG(hjpeg,JPEG_FLAG_HPDF);
+    // Clear header processing done flag
+    __HAL_JPEG_CLEAR_FLAG (hjpeg, JPEG_FLAG_HPDF);
     }
 
-  /* End of Conversion handling*/
-  if (__HAL_JPEG_GET_FLAG(hjpeg, JPEG_FLAG_EOCF) != RESET) {
+  // End of Conversion handling
+  if (__HAL_JPEG_GET_FLAG (hjpeg, JPEG_FLAG_EOCF) != RESET) {
     hjpeg->Context |= JPEG_CONTEXT_ENDING_DMA;
 
-    /*Stop Encoding/Decoding*/
-    hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
+    // Stop Encoding/Decoding
+    hjpeg->Instance->CONFR0 &= ~JPEG_CONFR0_START;
 
-    __HAL_JPEG_DISABLE_IT(hjpeg,JPEG_INTERRUPT_MASK);
+    __HAL_JPEG_DISABLE_IT (hjpeg, JPEG_INTERRUPT_MASK);
 
-    /* Clear all flags */
-    __HAL_JPEG_CLEAR_FLAG(hjpeg,JPEG_FLAG_ALL);
-
+    // Clear all flags
+    __HAL_JPEG_CLEAR_FLAG (hjpeg, JPEG_FLAG_ALL);
 
     if (hjpeg->hdmain->State == HAL_MDMA_STATE_BUSY)
-      /* Stop the MDMA In Xfer*/
-      HAL_MDMA_Abort_IT(hjpeg->hdmain);
+      // Stop the MDMA In Xfer
+      HAL_MDMA_Abort_IT (hjpeg->hdmain);
 
     if (hjpeg->hdmaout->State == HAL_MDMA_STATE_BUSY)
-      /* Stop the MDMA out Xfer*/
-      HAL_MDMA_Abort_IT(hjpeg->hdmaout);
+      // Stop the MDMA out Xfer
+      HAL_MDMA_Abort_IT (hjpeg->hdmaout);
     else
-      return JPEG_DMA_EndProcess(hjpeg);
+      return JPEG_DMA_EndProcess (hjpeg);
     }
 
   return JPEG_PROCESS_ONGOING;
   }
 //}}}
+
 //{{{
 static void JPEG_MDMAInCpltCallback (MDMA_HandleTypeDef *hmdma) {
 
@@ -934,46 +812,32 @@ static void JPEG_MDMAInCpltCallback (MDMA_HandleTypeDef *hmdma) {
   }
 //}}}
 //{{{
-/**
-  * @brief  DMA output transfer complete callback
-  * @param  hmdma: pointer to a DMA_HandleTypeDef structure.
-  * @retval None
-  */
-static void JPEG_MDMAOutCpltCallback (MDMA_HandleTypeDef *hmdma)
-{
+static void JPEG_MDMAOutCpltCallback (MDMA_HandleTypeDef *hmdma) {
+
   JPEG_HandleTypeDef* hjpeg = (JPEG_HandleTypeDef*)((MDMA_HandleTypeDef*)hmdma)->Parent;
 
-
-  /* Disable The JPEG IT so the DMA Output Callback can not be interrupted by the JPEG EOC IT or JPEG HPD IT */
+  // Disable The JPEG IT so the DMA Output Callback not interrupted by the JPEG EOC IT or JPEG HPD IT
   __HAL_JPEG_DISABLE_IT(hjpeg,JPEG_INTERRUPT_MASK);
 
-  if(((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA) && ((hjpeg->Context & JPEG_CONTEXT_ENDING_DMA) == 0))
-  {
-    if(__HAL_JPEG_GET_FLAG(hjpeg, JPEG_FLAG_EOCF) == 0)
-    {
+  if (((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA) && 
+      ((hjpeg->Context & JPEG_CONTEXT_ENDING_DMA) == 0)) {
+    if (__HAL_JPEG_GET_FLAG(hjpeg, JPEG_FLAG_EOCF) == 0) {
       hjpeg->JpegOutCount = hjpeg->OutDataLength - (hmdma->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
 
-      /* Output Buffer is full, call HAL_JPEG_DataReadyCallback*/
+      // Output Buffer is full
       HAL_JPEG_DataReadyCallback (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
 
-      if((hjpeg->Context &  JPEG_CONTEXT_PAUSE_OUTPUT) == 0)
-      {
-        /* Start MDMA FIFO Out transfer */
+      if ((hjpeg->Context &  JPEG_CONTEXT_PAUSE_OUTPUT) == 0)
+        // Start MDMA FIFO Out transfer
         HAL_MDMA_Start_IT(hjpeg->hdmaout, (uint32_t)&hjpeg->Instance->DOR, (uint32_t)hjpeg->pJpegOutBuffPtr, hjpeg->OutDataLength, 1);
       }
-    }
 
-    /* JPEG Conversion still on going : Enable the JPEG IT */
+    // JPEG Conversion still on going : Enable the JPEG IT
     __HAL_JPEG_ENABLE_IT(hjpeg,JPEG_IT_EOC |JPEG_IT_HPD);
+    }
   }
-}
 //}}}
 //{{{
-/**
-  * @brief  DMA Transfer error callback
-  * @param  hmdma: pointer to a DMA_HandleTypeDef structure.
-  * @retval None
-  */
 static void JPEG_MDMAErrorCallback (MDMA_HandleTypeDef *hmdma)
 {
   JPEG_HandleTypeDef* hjpeg = (JPEG_HandleTypeDef*)((MDMA_HandleTypeDef*)hmdma)->Parent;
@@ -991,18 +855,51 @@ static void JPEG_MDMAErrorCallback (MDMA_HandleTypeDef *hmdma)
 
 //}}}
 //{{{
-/**
-  * @brief  DMA output Abort callback
-  * @param  hmdma: pointer to a DMA_HandleTypeDef structure.
-  * @retval None
-  */
 static void JPEG_MDMAOutAbortCallback (MDMA_HandleTypeDef *hmdma)
 {
   JPEG_HandleTypeDef* hjpeg = (JPEG_HandleTypeDef*)((MDMA_HandleTypeDef*)hmdma)->Parent;
 
-  if((hjpeg->Context & JPEG_CONTEXT_ENDING_DMA) != 0)
-    JPEG_DMA_EndProcess(hjpeg);
+  if ((hjpeg->Context & JPEG_CONTEXT_ENDING_DMA) != 0)
+    JPEG_DMA_EndProcess (hjpeg);
 }
+//}}}
+
+//{{{
+static void JPEG_Init_Process (JPEG_HandleTypeDef* hjpeg) {
+
+  /*Reset pause*/
+  hjpeg->Context &= (~(JPEG_CONTEXT_PAUSE_INPUT | JPEG_CONTEXT_PAUSE_OUTPUT));
+
+  if ((hjpeg->Context & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_DECODE)
+    /*Set JPEG Codec to Decoding mode */
+    hjpeg->Instance->CONFR1 |= JPEG_CONFR1_DE;
+  else if ((hjpeg->Context & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_ENCODE)
+    /*Set JPEG Codec to Encoding mode */
+    hjpeg->Instance->CONFR1 &= ~JPEG_CONFR1_DE;
+
+  /*Stop JPEG processing */
+  hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
+
+  /* Disable All Interrupts */
+  __HAL_JPEG_DISABLE_IT (hjpeg,JPEG_INTERRUPT_MASK);
+
+  /* Flush input and output FIFOs*/
+  hjpeg->Instance->CR |= JPEG_CR_IFF;
+  hjpeg->Instance->CR |= JPEG_CR_OFF;
+
+  /* Clear all flags */
+  __HAL_JPEG_CLEAR_FLAG (hjpeg,JPEG_FLAG_ALL);
+
+  /*Start Encoding/Decoding*/
+  hjpeg->Instance->CONFR0 |=  JPEG_CONFR0_START;
+
+  if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_IT)
+    /*Enable IN/OUT, end of Conversation, and end of header parsing interruptions*/
+    __HAL_JPEG_ENABLE_IT (hjpeg, JPEG_IT_IFT | JPEG_IT_IFNF | JPEG_IT_OFT | JPEG_IT_OFNE | JPEG_IT_EOC |JPEG_IT_HPD);
+  else if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA)
+    /*Enable End Of Conversation, and End Of Header parsing interruptions*/
+    __HAL_JPEG_ENABLE_IT (hjpeg, JPEG_IT_EOC |JPEG_IT_HPD);
+  }
 //}}}
 //{{{
 static HAL_StatusTypeDef JPEG_DMA_StartProcess (JPEG_HandleTypeDef* hjpeg) {
@@ -1053,123 +950,6 @@ static HAL_StatusTypeDef JPEG_DMA_StartProcess (JPEG_HandleTypeDef* hjpeg) {
   return HAL_OK;
   }
 //}}}
-
-//{{{
-static void JPEG_Init_Process (JPEG_HandleTypeDef* hjpeg) {
-
-  /*Reset pause*/
-  hjpeg->Context &= (~(JPEG_CONTEXT_PAUSE_INPUT | JPEG_CONTEXT_PAUSE_OUTPUT));
-
-  if ((hjpeg->Context & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_DECODE)
-    /*Set JPEG Codec to Decoding mode */
-    hjpeg->Instance->CONFR1 |= JPEG_CONFR1_DE;
-  else if ((hjpeg->Context & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_ENCODE)
-    /*Set JPEG Codec to Encoding mode */
-    hjpeg->Instance->CONFR1 &= ~JPEG_CONFR1_DE;
-
-  /*Stop JPEG processing */
-  hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
-
-  /* Disable All Interrupts */
-  __HAL_JPEG_DISABLE_IT (hjpeg,JPEG_INTERRUPT_MASK);
-
-  /* Flush input and output FIFOs*/
-  hjpeg->Instance->CR |= JPEG_CR_IFF;
-  hjpeg->Instance->CR |= JPEG_CR_OFF;
-
-  /* Clear all flags */
-  __HAL_JPEG_CLEAR_FLAG (hjpeg,JPEG_FLAG_ALL);
-
-  /*Start Encoding/Decoding*/
-  hjpeg->Instance->CONFR0 |=  JPEG_CONFR0_START;
-
-  if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_IT)
-    /*Enable IN/OUT, end of Conversation, and end of header parsing interruptions*/
-    __HAL_JPEG_ENABLE_IT (hjpeg, JPEG_IT_IFT | JPEG_IT_IFNF | JPEG_IT_OFT | JPEG_IT_OFNE | JPEG_IT_EOC |JPEG_IT_HPD);
-  else if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA)
-    /*Enable End Of Conversation, and End Of Header parsing interruptions*/
-    __HAL_JPEG_ENABLE_IT (hjpeg, JPEG_IT_EOC |JPEG_IT_HPD);
-  }
-//}}}
-//{{{
-static uint32_t JPEG_Process (JPEG_HandleTypeDef* hjpeg) {
-
-  /* End of header processing flag rised*/
-  if (((hjpeg->Context & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_DECODE) &&
-      (__HAL_JPEG_GET_FLAG (hjpeg, JPEG_FLAG_HPDF) != RESET)) {
-    /*Call Header parsing complet callback */
-    HAL_JPEG_GetInfo (hjpeg, &hjpeg->Conf);
-    /* Reset the ImageQuality */
-    hjpeg->Conf.ImageQuality = 0;
-    /* Note : the image quality is only available at the end of the decoding operation */
-    /* at the current stage the calculated image quality is not correct so reset it */
-    /*Call Info Ready callback */
-    HAL_JPEG_InfoReadyCallback (hjpeg, &hjpeg->Conf);
-    __HAL_JPEG_DISABLE_IT (hjpeg,JPEG_IT_HPD);
-
-    /* Clear header processing done flag */
-    __HAL_JPEG_CLEAR_FLAG (hjpeg,JPEG_FLAG_HPDF);
-    }
-
-  /* Input FIFO status handling*/
-  if ((hjpeg->Context &  JPEG_CONTEXT_PAUSE_INPUT) == 0) {
-    if (__HAL_JPEG_GET_FLAG (hjpeg, JPEG_FLAG_IFTF) != RESET)
-      /*Input FIFO threshold flag rised 4 words (16 bytes) can be written in */
-      JPEG_ReadInputData (hjpeg,JPEG_FIFO_TH_SIZE);
-    else if (__HAL_JPEG_GET_FLAG (hjpeg, JPEG_FLAG_IFNFF) != RESET)
-      /*Input FIFO Not Full flag rised 32-bit value can be written in */
-      JPEG_ReadInputData (hjpeg,1);
-    }
-
-  /* Output FIFO flag handling*/
-  if ((hjpeg->Context &  JPEG_CONTEXT_PAUSE_OUTPUT) == 0) {
-    if (__HAL_JPEG_GET_FLAG (hjpeg, JPEG_FLAG_OFTF) != RESET)
-      /*Output FIFO threshold flag rised 4 words (16 bytes) can be read out */
-      JPEG_StoreOutputData (hjpeg, JPEG_FIFO_TH_SIZE);
-    else if (__HAL_JPEG_GET_FLAG (hjpeg, JPEG_FLAG_OFNEF) != RESET)
-      /*Output FIFO Not Empty flag rised  32-bit value can be read out */
-      JPEG_StoreOutputData (hjpeg, 1);
-    }
-
-  /* End of Conversion handling :i.e EOC flag is high and OFTF low and OFNEF low*/
-  if (__HAL_JPEG_GET_FLAG(hjpeg, JPEG_FLAG_EOCF | JPEG_FLAG_OFTF | JPEG_FLAG_OFNEF) == JPEG_FLAG_EOCF) {
-    /*Stop Encoding/Decoding*/
-    hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
-    if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_IT)
-      /* Disable All Interrupts */
-      __HAL_JPEG_DISABLE_IT (hjpeg,JPEG_INTERRUPT_MASK);
-
-    /* Clear all flags */
-    __HAL_JPEG_CLEAR_FLAG (hjpeg,JPEG_FLAG_ALL);
-
-    /* Call End of conversion callback */
-    if (hjpeg->JpegOutCount > 0) {
-      /* Output Buffer is not empty, call DecodedDataReadyCallback*/
-      HAL_JPEG_DataReadyCallback (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
-      hjpeg->JpegOutCount = 0;
-      }
-
-    /* Reset Context Operation*/
-    uint32_t tmpContext = hjpeg->Context;
-
-    /* Clear all context fields execpt JPEG_CONTEXT_CONF_ENCODING and JPEG_CONTEXT_CUSTOM_TABLES*/
-    hjpeg->Context &= (JPEG_CONTEXT_CONF_ENCODING | JPEG_CONTEXT_CUSTOM_TABLES);
-
-    /* Process Unlocked */
-    __HAL_UNLOCK(hjpeg);
-
-    /* Change the JPEG state */
-    hjpeg->State = HAL_JPEG_STATE_READY;
-
-    /* Call End of Encoding/Decoding callback */
-    if ((tmpContext & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_DECODE)
-      HAL_JPEG_DecodeCpltCallback (hjpeg);
-    return JPEG_PROCESS_DONE;
-    }
-
-  return JPEG_PROCESS_ONGOING;
-  }
-//}}}
 //{{{
 static uint32_t JPEG_GetQuality (JPEG_HandleTypeDef* hjpeg) {
 
@@ -1201,7 +981,6 @@ static uint32_t JPEG_GetQuality (JPEG_HandleTypeDef* hjpeg) {
   return quality / ((uint32_t)64);
   }
 //}}}
-
 //
 //{{{
 HAL_StatusTypeDef HAL_JPEG_Init (JPEG_HandleTypeDef* hjpeg) {
@@ -1212,15 +991,8 @@ HAL_StatusTypeDef HAL_JPEG_Init (JPEG_HandleTypeDef* hjpeg) {
   uint32_t acChrom_huffmanTableAddr = (uint32_t)(&JPEG_ACCHROM_HuffTable);
   uint32_t dcChrom_huffmanTableAddr = (uint32_t)(&JPEG_DCCHROM_HuffTable);
 
-  /* Check the JPEG handle allocation */
-  if(hjpeg == NULL)
-    return HAL_ERROR;
-
   if (hjpeg->State == HAL_JPEG_STATE_RESET) {
-    /* Allocate lock resource and initialize it */
     hjpeg->Lock = HAL_UNLOCKED;
-
-    /* Init the low level hardware : GPIO, CLOCK */
     HAL_JPEG_MspInit (hjpeg);
     }
 
@@ -1280,25 +1052,18 @@ HAL_StatusTypeDef HAL_JPEG_Init (JPEG_HandleTypeDef* hjpeg) {
   }
 //}}}
 //{{{
-HAL_StatusTypeDef HAL_JPEG_Decode_DMA (JPEG_HandleTypeDef* hjpeg ,uint8_t *pDataIn ,uint32_t InDataLength ,uint8_t *pDataOutMCU ,uint32_t OutDataLength)
-{
-  /* Check the parameters */
-  assert_param((InDataLength >= 4));
-  assert_param((OutDataLength >= 4));
+HAL_StatusTypeDef HAL_JPEG_Decode_DMA (JPEG_HandleTypeDef* hjpeg,
+                                       uint8_t* pDataIn, uint32_t InDataLength,
+                                       uint8_t* pDataOutMCU ,uint32_t OutDataLength) {
 
-  /* Check In/out buffer allocation and size */
-  if((hjpeg == NULL) || (pDataIn == NULL) || (pDataOutMCU == NULL))
-    return HAL_ERROR;
-
-  /* Process Locked */
-  __HAL_LOCK(hjpeg);
+  __HAL_LOCK (hjpeg);
 
   if (hjpeg->State == HAL_JPEG_STATE_READY) {
     hjpeg->State = HAL_JPEG_STATE_BUSY_DECODING;
 
-    /* Set the Context to Decode with DMA*/
+    // Set the Context to Decode with DMA
     hjpeg->Context &= ~(JPEG_CONTEXT_OPERATION_MASK | JPEG_CONTEXT_METHOD_MASK);
-    hjpeg->Context |= (JPEG_CONTEXT_DECODE | JPEG_CONTEXT_DMA);
+    hjpeg->Context |= JPEG_CONTEXT_DECODE | JPEG_CONTEXT_DMA;
 
     hjpeg->pJpegInBuffPtr = pDataIn;
     hjpeg->InDataLength = InDataLength;
@@ -1306,23 +1071,19 @@ HAL_StatusTypeDef HAL_JPEG_Decode_DMA (JPEG_HandleTypeDef* hjpeg ,uint8_t *pData
     hjpeg->pJpegOutBuffPtr = pDataOutMCU;
     hjpeg->OutDataLength = OutDataLength;
 
-    /* Reset In/out data counter */
+    // Reset In/out data counter
     hjpeg->JpegInCount = 0;
     hjpeg->JpegOutCount = 0;
 
-    /* Init decoding process*/
     JPEG_Init_Process (hjpeg);
-
-    /* JPEG decoding process using DMA */
     JPEG_DMA_StartProcess (hjpeg);
     }
+
   else {
-    /* Process Unlocked */
     __HAL_UNLOCK(hjpeg);
     return HAL_BUSY;
     }
 
-  /* Return function status */
   return HAL_OK;
   }
 //}}}
@@ -1331,12 +1092,12 @@ HAL_StatusTypeDef HAL_JPEG_Pause (JPEG_HandleTypeDef* hjpeg, uint32_t XferSelect
 
   uint32_t mask = 0;
 
-  assert_param(IS_JPEG_PAUSE_RESUME_STATE(XferSelection));
+  assert_param (IS_JPEG_PAUSE_RESUME_STATE(XferSelection));
 
   if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA) {
     if ((XferSelection & JPEG_PAUSE_RESUME_INPUT) == JPEG_PAUSE_RESUME_INPUT)
       hjpeg->Context |= JPEG_CONTEXT_PAUSE_INPUT;
-    if((XferSelection & JPEG_PAUSE_RESUME_OUTPUT) == JPEG_PAUSE_RESUME_OUTPUT)
+    if ((XferSelection & JPEG_PAUSE_RESUME_OUTPUT) == JPEG_PAUSE_RESUME_OUTPUT)
       hjpeg->Context |= JPEG_CONTEXT_PAUSE_OUTPUT;
     }
 
@@ -1368,12 +1129,11 @@ HAL_StatusTypeDef HAL_JPEG_Resume (JPEG_HandleTypeDef* hjpeg, uint32_t XferSelec
     if ((XferSelection & JPEG_PAUSE_RESUME_INPUT) == JPEG_PAUSE_RESUME_INPUT) {
       hjpeg->Context &= (~JPEG_CONTEXT_PAUSE_INPUT);
 
-      /*if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
-        else (MDMA In is triggred with JPEG In FIFO not full flag) then MDMA In buffer size is 4 bytes
-      */
+      // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
+      // else (MDMA In is triggred with JPEG In FIFO not full flag) then MDMA In buffer size is 4 bytes
       xfrSize = hjpeg->hdmain->Init.BufferTransferLength;
 
-      /*MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)*/
+      // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)*/
       hjpeg->InDataLength = hjpeg->InDataLength - (hjpeg->InDataLength % xfrSize);
 
       if(hjpeg->InDataLength > 0)
@@ -1387,15 +1147,14 @@ HAL_StatusTypeDef HAL_JPEG_Resume (JPEG_HandleTypeDef* hjpeg, uint32_t XferSelec
       if ((hjpeg->Context & JPEG_CONTEXT_ENDING_DMA) != 0)
         JPEG_DMA_PollResidualData(hjpeg);
       else {
-        /*if the MDMA Out is triggred with JPEG Out FIFO Threshold flag then MDMA out buffer size is 32 bytes
-          else (MDMA Out is triggred with JPEG Out FIFO not empty flag) then MDMA buffer size is 4 bytes
-        */
+        // if the MDMA Out is triggred with JPEG Out FIFO Threshold flag then MDMA out buffer size is 32 bytes
+        // else (MDMA Out is triggred with JPEG Out FIFO not empty flag) then MDMA buffer size is 4 bytes
         xfrSize = hjpeg->hdmaout->Init.BufferTransferLength;
 
-        /*MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)*/
+        // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)*/
         hjpeg->OutDataLength = hjpeg->OutDataLength - (hjpeg->OutDataLength % xfrSize);
 
-        /* Start DMA FIFO Out transfer */
+        // Start DMA FIFO Out transfer
         HAL_MDMA_Start_IT(hjpeg->hdmaout, (uint32_t)&hjpeg->Instance->DOR, (uint32_t)hjpeg->pJpegOutBuffPtr, hjpeg->OutDataLength, 1);
         }
       }
@@ -1413,7 +1172,6 @@ HAL_StatusTypeDef HAL_JPEG_Resume (JPEG_HandleTypeDef* hjpeg, uint32_t XferSelec
     __HAL_JPEG_ENABLE_IT(hjpeg,mask);
     }
 
-  /* Return function status */
   return HAL_OK;
   }
 //}}}
@@ -1481,6 +1239,6 @@ HAL_StatusTypeDef HAL_JPEG_GetInfo (JPEG_HandleTypeDef* hjpeg, JPEG_ConfTypeDef 
 void HAL_JPEG_IRQHandler (JPEG_HandleTypeDef* hjpeg) {
 
   if (hjpeg->State == HAL_JPEG_STATE_BUSY_DECODING)
-    JPEG_DMA_ContinueProcess(hjpeg);
+    JPEG_DMA_ContinueProcess (hjpeg);
   }
 //}}}
