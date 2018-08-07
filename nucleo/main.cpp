@@ -965,7 +965,7 @@ void uiThread (void* arg) {
       //printf ("uiThread %d %d %d\n", tick, mTileVec.size(), rows);
 
       for (auto tile : mTileVec) {
-        if ((tile->mWidth <= (1024/rows)) && (tile->mHeight <= (600/rows)))
+        if (true || ((tile->mWidth <= (1024/rows)) && (tile->mHeight <= (600/rows))))
           lcd->copy (tile, cPoint ((item % rows) * (1024/rows), (item /rows) * (600/rows)));
         else
           lcd->size (tile, cRect ((item % rows) * (1024/rows), (item /rows) * (600/rows),
