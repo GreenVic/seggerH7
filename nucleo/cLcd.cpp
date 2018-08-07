@@ -18,6 +18,8 @@
 #endif
 //}}}
 
+extern uint8_t* sdRamAlloc (uint32_t bytes);
+
 //{{{  static var inits
 cLcd* cLcd::mLcd = nullptr;
 
@@ -755,7 +757,7 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   HAL_GPIO_Init (GPIOB, &GPIO_InitStructure);
 
   // gpioC
-  GPIO_InitStructure.Pin = GPIO_PIN_7; 
+  GPIO_InitStructure.Pin = GPIO_PIN_7;
   HAL_GPIO_Init (GPIOC, &GPIO_InitStructure);
 
   // gpioD
@@ -899,9 +901,7 @@ cFontChar* cLcd::loadChar (uint16_t fontHeight, char ch) {
     memcpy (fontChar->bitmap, FTglyphSlot->bitmap.buffer, FTglyphSlot->bitmap.pitch * FTglyphSlot->bitmap.rows);
     }
 
-  auto insertPair = mFontCharMap.insert (cFontCharMap::value_type (fontHeight<<8 | ch, fontChar));
-  auto fontCharIt = insertPair.first;
-  return fontCharIt->second;
+  return mFontCharMap.insert (cFontCharMap::value_type (fontHeight<<8 | ch, fontChar)).first->second;
   }
 //}}}
 

@@ -763,9 +763,9 @@ void sdRamTest (uint16_t offset, uint16_t* addr, uint32_t len) {
     string str = "errors ";
     for (int i = 15; i >= 0; i--)
       if (bitErr[i])
-        str += " " + dec (bitErr[i], 4,' ');
+        str += " " + dec (bitErr[i], 2,' ');
       else
-        str += " ____";
+        str += " __";
     float rate = (readErr * 1000.f) / 0x00100000;
     str += "  " + dec(readErr) + " " + dec (int(rate)/10,1) + "." + dec(int(rate) % 10,1) + "%";
     lcd->info (COL_CYAN, str);
