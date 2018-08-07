@@ -720,13 +720,10 @@ void cLcd::display (int brightness) {
 //{{{
 void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
 
-  // config clocks
   //{{{  config gpio
-  //  VS <-> PA.04 - unused
-  //  HS <-> PC.06 - unused
-  //  R2 <-> PC.10 - unused
-  //
-  //                 G2 <-> PA.06   B2 <-> PD.06
+  //  R2 <-> PC.10
+  //  B2 <-> PD.06
+  //                 G2 <-> PA.06
   //  R3 <-> PB.00   G3 <-> PG.10   B3 <-> PG.11
   //  R4 <-> PA.11   G4 <-> PB.10   B4 <-> PG.12
   //  R5 <-> PA.12   G5 <-> PB.11   B5 <-> PA.03
@@ -746,10 +743,10 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
 
   // gpioA - AF14
   GPIO_InitTypeDef GPIO_InitStructure;
-  GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_HIGH;
+  GPIO_InitStructure.Alternate = GPIO_AF14_LTDC;
   GPIO_InitStructure.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStructure.Pull = GPIO_NOPULL;
-  GPIO_InitStructure.Alternate = GPIO_AF14_LTDC;
+  GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_HIGH;
   GPIO_InitStructure.Pin = GPIO_PIN_3 | GPIO_PIN_6 | GPIO_PIN_11 | GPIO_PIN_12; // GPIO_PIN_4
   HAL_GPIO_Init (GPIOA, &GPIO_InitStructure);
 
@@ -758,7 +755,7 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   HAL_GPIO_Init (GPIOB, &GPIO_InitStructure);
 
   // gpioC
-  GPIO_InitStructure.Pin = GPIO_PIN_7; // ; | GPIO_PIN_10; // GPIO_PIN_6
+  GPIO_InitStructure.Pin = GPIO_PIN_7; 
   HAL_GPIO_Init (GPIOC, &GPIO_InitStructure);
 
   // gpioD
