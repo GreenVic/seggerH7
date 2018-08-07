@@ -503,6 +503,7 @@ void HAL_JPEG_InfoReadyCallback (JPEG_HandleTypeDef* jpegHandlePtr, JPEG_ConfTyp
 //{{{
 void HAL_JPEG_ErrorCallback (JPEG_HandleTypeDef* jpegHandlePtr) {
 
+  //printf ("jpegError\n");
   lcd->info (COL_RED, "jpegError");
   lcd->changed();
   }
@@ -888,7 +889,6 @@ cTile* loadJpegSw (const string& fileName, int scale) {
 cTile* loadJpegHw (const string& fileName) {
 
   auto jpegYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
-  //auto jpegYuvBuf = (uint8_t*)malloc (400*272*3);
 
   auto startTime = HAL_GetTick();
 
@@ -935,12 +935,11 @@ cTile* loadJpegHw (const string& fileName) {
     printf ("loadJpegHw image %dx%d\n", jpegInfo.ImageWidth, jpegInfo.ImageHeight);
 
     auto rgb565pic = (uint16_t*)sdRamAlloc (jpegInfo.ImageWidth * jpegInfo.ImageHeight * 2);
-    auto tile = new cTile ((uint8_t*)rgb565pic, 2, jpegInfo.ImageWidth, 0,0,
-                           jpegInfo.ImageWidth, jpegInfo.ImageHeight);
     lcd->jpegYuvTo565 (jpegYuvBuf, rgb565pic,
                        jpegInfo.ImageWidth, jpegInfo.ImageHeight, jpegInfo.ChromaSubsampling);
 
-    return tile;
+    return new cTile ((uint8_t*)rgb565pic, 2, jpegInfo.ImageWidth, 0,0,
+                      jpegInfo.ImageWidth, jpegInfo.ImageHeight);
     }
   else
     return nullptr;
