@@ -16,10 +16,6 @@ const string kHello = "*stm32h7 testbed " + string(__TIME__) + " " + string(__DA
 
 #define SDRAM_DEVICE_ADDR 0xD0000000
 #define SDRAM_DEVICE_SIZE 0x01000000
-
-const HeapRegion_t kHeapRegions[] = {
-  {(uint8_t*)(0xD0F00000), 0x00100000 },
-  { nullptr, 0 } };
 //}}}
 #define RAM_TEST
 
@@ -1047,7 +1043,7 @@ void appThread (void* arg) {
   #ifdef RAM_TEST
     uint32_t k = 0;
     while (true)
-      for (int j = 8; j < 15; j++) {
+      for (int j = 8; j <= 0xF; j++) {
         k += HAL_GetTick();
         sdRamTest (uint16_t(k++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
         }
@@ -1067,9 +1063,6 @@ int main() {
   HAL_Init();
   clockConfig();
   sdRamConfig();
-
-  // something still using rtos heap
-  vPortDefineHeapRegions (kHeapRegions);
 
   //HAL_SetFMCMemorySwappingConfig (FMC_SWAPBMAP_SDRAM_SRAM);
   //mpuConfig();

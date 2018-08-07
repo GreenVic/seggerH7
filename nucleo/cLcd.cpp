@@ -897,7 +897,7 @@ cFontChar* cLcd::loadChar (uint16_t fontHeight, char ch) {
   fontChar->bitmap = nullptr;
 
   if (FTglyphSlot->bitmap.buffer) {
-    fontChar->bitmap = (uint8_t*)malloc (FTglyphSlot->bitmap.pitch * FTglyphSlot->bitmap.rows);
+    fontChar->bitmap = (uint8_t*)pvPortMalloc (FTglyphSlot->bitmap.pitch * FTglyphSlot->bitmap.rows);
     memcpy (fontChar->bitmap, FTglyphSlot->bitmap.buffer, FTglyphSlot->bitmap.pitch * FTglyphSlot->bitmap.rows);
     }
 

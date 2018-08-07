@@ -252,9 +252,9 @@
         <file file_name="../FreeRTOS/include/cpuUsage.h" />
       </folder>
       <file file_name="../FreeRTOS/cpuUsage.c" />
-      <file file_name="../FreeRTOS/queueMalloc.c" />
-      <file file_name="../FreeRTOS/tasksMalloc.c" />
-      <file file_name="../FreeRTOS/portable/MemMang/heap_5.c" />
+      <file file_name="../FreeRTOS/queue.c" />
+      <file file_name="../FreeRTOS/tasks.c" />
+      <file file_name="heap.c" />
     </folder>
     <configuration Name="Debug" gcc_optimization_level="Debug" />
     <folder Name="fatFs">
