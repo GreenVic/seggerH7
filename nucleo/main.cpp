@@ -19,11 +19,7 @@ const string kHello = "*stm32h7 testbed " + string(__TIME__) + " " + string(__DA
 //}}}
 #define RAM_TEST
 
-cLcd* lcd = nullptr;
 uint8_t* mSdRamAlloc = (uint8_t*)SDRAM_DEVICE_ADDR;
-vector<string> mFileVec;
-vector<cTile*> mTileVec;
-
 //{{{
 uint8_t* sdRamAlloc (uint32_t bytes) {
   auto alloc = mSdRamAlloc;
@@ -60,6 +56,52 @@ public:
   //{{{
   uint8_t* getYuvBuf() {
     return mYuvBuf;
+    }
+  //}}}
+
+  //{{{
+  cTile* decode (const string& fileName) {
+
+    FIL file;
+    if (f_open (&file, fileName.c_str(), FA_READ) == FR_OK) {
+      if (f_read (&file, mBufs[0].mBuf, 4096, &mBufs[0].mSize) == FR_OK)
+        mBufs[0].mFull = true;
+      if (f_read (&file, mBufs[1].mBuf, 4096, &mBufs[1].mSize) == FR_OK)
+        mBufs[1].mFull = true;
+
+      if (!mYuvBuf)
+        mYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
+
+      mReadIndex = 0;
+      mWriteIndex = 0;
+      mInPaused = 0;
+      mDecodeDone = false;
+      HAL_JPEG_Decode_DMA (&mHandle, mBufs[0].mBuf, mBufs[0].mSize, mYuvBuf, kYuvChunkSize);
+
+      while (!mDecodeDone) {
+        if (!mBufs[mWriteIndex].mFull) {
+          if (f_read (&file, mBufs[mWriteIndex].mBuf, 4096, &mBufs[mWriteIndex].mSize) == FR_OK)
+            mBufs[mWriteIndex].mFull = true;
+          if (mInPaused && (mWriteIndex == mReadIndex)) {
+            mInPaused = false;
+            HAL_JPEG_ConfigInputBuffer (&mHandle, mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
+            HAL_JPEG_Resume (&mHandle, JPEG_PAUSE_RESUME_INPUT);
+            }
+          mWriteIndex = mWriteIndex ? 0 : 1;
+          }
+        else
+          vTaskDelay (1);
+        }
+
+      f_close (&file);
+
+      HAL_JPEG_GetInfo (&mHandle, &mInfo);
+      auto rgb565pic = (uint16_t*)sdRamAlloc (getWidth() * getHeight() * 2);
+      cLcd::jpegYuvTo565 (getYuvBuf(), rgb565pic, getWidth(), getHeight(), getChroma());
+      return new cTile ((uint8_t*)rgb565pic, 2, getWidth(), 0, 0, getWidth(), getHeight());
+      }
+
+    return nullptr;
     }
   //}}}
 
@@ -106,61 +148,6 @@ public:
     }
   //}}}
 
-  //{{{
-  cTile* decode (const string& fileName) {
-
-    auto startTime = HAL_GetTick();
-
-    FIL file;
-    if (f_open (&file, fileName.c_str(), FA_READ) == FR_OK) {
-      if (f_read (&file, mBufs[0].mBuf, 4096, &mBufs[0].mSize) == FR_OK)
-        mBufs[0].mFull = true;
-      if (f_read (&file, mBufs[1].mBuf, 4096, &mBufs[1].mSize) == FR_OK)
-        mBufs[1].mFull = true;
-
-      if (!mYuvBuf)
-        mYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
-
-      mReadIndex = 0;
-      mWriteIndex = 0;
-      mInPaused = 0;
-      mDecodeDone = false;
-      HAL_JPEG_Decode_DMA (&mHandle, mBufs[0].mBuf, mBufs[0].mSize, mYuvBuf, kYuvChunkSize);
-
-      while (!mDecodeDone) {
-        if (!mBufs[mWriteIndex].mFull) {
-          if (f_read (&file, mBufs[mWriteIndex].mBuf, 4096, &mBufs[mWriteIndex].mSize) == FR_OK)
-            mBufs[mWriteIndex].mFull = true;
-          if (mInPaused && (mWriteIndex == mReadIndex)) {
-            mInPaused = false;
-            HAL_JPEG_ConfigInputBuffer (&mHandle, mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
-            HAL_JPEG_Resume (&mHandle, JPEG_PAUSE_RESUME_INPUT);
-            }
-          mWriteIndex = mWriteIndex ? 0 : 1;
-          }
-        else
-          vTaskDelay (1);
-        }
-
-      HAL_JPEG_GetInfo (&mHandle, &mInfo);
-      printf ("loadJpegHw image %dx%d\n", mInfo.ImageWidth, mInfo.ImageHeight);
-      lcd->info (COL_YELLOW, "loadJpeg " + fileName +
-                             " took " + dec (HAL_GetTick() - startTime) + " " +
-                             dec (mInfo.ChromaSubsampling, 1, '0') +  ":" +
-                             dec (mInfo.ImageWidth) + "x" + dec (mInfo.ImageHeight));
-      lcd->changed();
-
-      f_close (&file);
-
-      auto rgb565pic = (uint16_t*)sdRamAlloc (getWidth() * getHeight() * 2);
-      lcd->jpegYuvTo565 (getYuvBuf(), rgb565pic, getWidth(), getHeight(), getChroma());
-      return new cTile ((uint8_t*)rgb565pic, 2, getWidth(), 0, 0, getWidth(), getHeight());
-      }
-
-    return nullptr;
-    }
-  //}}}
-
 private:
   const uint32_t kYuvChunkSize = 0x10000;
 
@@ -177,26 +164,15 @@ private:
   //}}}
   uint8_t mBuf0 [4096];
   uint8_t mBuf1 [4096];
-  tBufs mBufs [2] = { { false, mBuf0, 0 }, { false, mBuf1, 0 } };
+  tBufs mBufs[2] = { { false, mBuf0, 0 }, { false, mBuf1, 0 } };
 
   __IO uint32_t mReadIndex = 0;
   __IO uint32_t mWriteIndex = 0;
+
   __IO bool mInPaused = false;
   __IO bool mDecodeDone = false;
   };
 //}}}
-cHwJpeg mJpeg;
-
-extern "C" { void JPEG_IRQHandler() { mJpeg.jpegIrq(); }  }
-extern "C" { void MDMA_IRQHandler() { mJpeg.mdmaIrq(); }  }
-extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
-//{{{
-void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
-  if (GPIO_Pin == USER_BUTTON_PIN)
-    lcd->toggle();
-  }
-//}}}
-
 //{{{
 class cRtc {
 public:
@@ -273,19 +249,19 @@ public:
     }
   //}}}
   //{{{
-  std::string getClockTimeString() {
+  string getClockTimeString() {
 
     return mDateTime.getTimeString();
     }
   //}}}
   //{{{
-  std::string getClockTimeDateString() {
+  string getClockTimeDateString() {
 
     return mDateTime.getTimeDateString();
     }
   //}}}
   //{{{
-  std::string getBuildTimeDateString() {
+  string getBuildTimeDateString() {
 
     return mBuildTime + " "  + mBuildDate;
     }
@@ -415,15 +391,15 @@ private:
 
   const float kPi = 3.1415926f;
   const int kBuildSecs = 11;
-  const std::string mBuildTime = __TIME__;
-  const std::string mBuildDate = __DATE__;
+  const string mBuildTime = __TIME__;
+  const string mBuildDate = __DATE__;
 
   //{{{
   class cDateTime {
   public:
     cDateTime() {}
     //{{{
-    cDateTime (const std::string& buildDateStr, const std::string& buildTimeStr) {
+    cDateTime (const string& buildDateStr, const string& buildTimeStr) {
 
       // buildDateStr - dd:mmm:yyyy
       Date = ((buildDateStr[4] == ' ') ? 0 : buildDateStr[4] - 0x30) * 10 + (buildDateStr[5] -0x30);
@@ -449,18 +425,18 @@ private:
       }
     //}}}
     //{{{
-    std::string getTimeString() {
+    string getTimeString() {
       return dec(Hours,2) + ":" + dec(Minutes,2) + ":" + dec(Seconds,2);
              //dec(SubSeconds) + " " + dec(SecondFraction);
       }
     //}}}
     //{{{
-    std::string getDateString() {
-      return std::string(kMonth[Month]) + " " + dec(Date,2) + " " + dec(2000 + Year,4);
+    string getDateString() {
+      return string(kMonth[Month]) + " " + dec(Date,2) + " " + dec(2000 + Year,4);
       }
     //}}}
     //{{{
-    std::string getTimeDateString() {
+    string getTimeDateString() {
       return dec(Hours,2) + ":" + dec(Minutes,2) + ":" + dec(Seconds,2) + " " +
              kMonth[Month] + " " + dec(Date,2) + " " + dec(2000 + Year,4);
              //dec(SubSeconds) + " " + dec(SecondFraction);
@@ -512,9 +488,23 @@ private:
   bool mClockSet = false;
   };
 //}}}
-cRtc mRtc;
 
+cLcd* lcd = nullptr;
+vector<string> mFileVec;
+vector<cTile*> mTileVec;
+cHwJpeg mJpeg;
+cRtc mRtc;
 SemaphoreHandle_t mTileVecSem;
+
+extern "C" { void JPEG_IRQHandler() { mJpeg.jpegIrq(); }  }
+extern "C" { void MDMA_IRQHandler() { mJpeg.mdmaIrq(); }  }
+extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
+//{{{
+void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
+  if (GPIO_Pin == USER_BUTTON_PIN)
+    lcd->toggle();
+  }
+//}}}
 
 //{{{
 void HAL_JPEG_MspInit (JPEG_HandleTypeDef* jpegHandlePtr) {
@@ -1083,6 +1073,12 @@ void appThread (void* arg) {
     startTime = HAL_GetTick();
     for (auto fileName : mFileVec) {
       auto tile = mJpeg.decode (fileName);
+      printf ("loadJpegHw image %dx%d\n", mJpeg.getWidth(), mJpeg.getHeight());
+      lcd->info (COL_YELLOW, "loadJpeg " + fileName +
+                             dec (mJpeg.getChroma(), 1, '0') +  ":" +
+                             dec (mJpeg.getWidth()) + "x" + dec (mJpeg.getHeight()));
+      lcd->changed();
+
       //auto tile = swJepgDecode (fileName, 1);
       xSemaphoreTake (mTileVecSem, 1000);
       if (tile)
