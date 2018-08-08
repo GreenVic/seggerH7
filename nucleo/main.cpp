@@ -23,32 +23,169 @@ cLcd* lcd = nullptr;
 uint8_t* mSdRamAlloc = (uint8_t*)SDRAM_DEVICE_ADDR;
 vector<string> mFileVec;
 vector<cTile*> mTileVec;
-//{{{  jpeg vars
-JPEG_HandleTypeDef jpegHandle;
 
-//{{{  struct tJpegBufs
-typedef struct {
-  bool mFull;
-  uint8_t* mBuf;
-  uint32_t mSize;
-  } tJpegBufs;
+//{{{
+uint8_t* sdRamAlloc (uint32_t bytes) {
+  auto alloc = mSdRamAlloc;
+  mSdRamAlloc += bytes;
+  return alloc;
+  }
 //}}}
-uint8_t jpegBuf0 [4096];
-uint8_t jpegBuf1 [4096];
-tJpegBufs jpegBufs [2] = {
-  { false, jpegBuf0, 0 },
-  { false, jpegBuf1, 0 }
+
+//{{{
+class cJpeg {
+public:
+  //{{{
+  cJpeg() {
+    mHandle.Instance = JPEG;
+    }
+  //}}}
+  //{{{
+  void init() {
+
+    mReadIndex = 0;
+    mWriteIndex = 0;
+    mInPaused = 0;
+    mDecodeDone = false;
+
+    HAL_JPEG_Init (&mHandle);
+
+    if (!mYuvBuf)
+      mYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
+    }
+  //}}}
+
+  //{{{
+  uint32_t getWidth() {
+    return mInfo.ImageWidth;
+    }
+  //}}}
+  //{{{
+  uint32_t getHeight() {
+    return mInfo.ImageHeight;
+    }
+  //}}}
+  //{{{
+  uint32_t getChroma() {
+    return mInfo.ChromaSubsampling;
+    }
+  //}}}
+  //{{{
+  uint8_t* getYuvBuf() {
+    return mYuvBuf;
+    }
+  //}}}
+
+  //{{{
+  void getData (uint32_t len) {
+
+    if (len != mBufs[mReadIndex].mSize)
+      HAL_JPEG_ConfigInputBuffer (&mHandle, mBufs[mReadIndex].mBuf+len, mBufs[mReadIndex].mSize-len);
+
+    else {
+      mBufs [mReadIndex].mFull = false;
+      mBufs [mReadIndex].mSize = 0;
+
+      mReadIndex = mReadIndex ? 0 : 1;
+      if (mBufs [mReadIndex].mFull)
+        HAL_JPEG_ConfigInputBuffer (&mHandle, mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
+      else {
+        HAL_JPEG_Pause (&mHandle, JPEG_PAUSE_RESUME_INPUT);
+        mInPaused = true;
+        }
+      }
+    }
+  //}}}
+  //{{{
+  void dataReady (uint8_t* data, uint32_t len) {
+    HAL_JPEG_ConfigOutputBuffer (&mHandle, data+len, kYuvChunkSize);
+    }
+  //}}}
+  //{{{
+  void decodeDone() {
+    mDecodeDone = true;
+    }
+  //}}}
+
+  //{{{
+  cTile* hwDecode (const string& fileName) {
+
+    auto startTime = HAL_GetTick();
+
+    FIL file;
+    if (f_open (&file, fileName.c_str(), FA_READ) == FR_OK) {
+      init();
+
+      if (f_read (&file, mBufs[0].mBuf, 4096, &mBufs[0].mSize) == FR_OK)
+        mBufs[0].mFull = true;
+      if (f_read (&file, mBufs[1].mBuf, 4096, &mBufs[1].mSize) == FR_OK)
+        mBufs[1].mFull = true;
+
+      HAL_JPEG_Decode_DMA (&mHandle, mBufs[0].mBuf, mBufs[0].mSize, mYuvBuf, kYuvChunkSize);
+
+      while (!mDecodeDone) {
+        if (!mBufs[mWriteIndex].mFull) {
+          if (f_read (&file, mBufs[mWriteIndex].mBuf, 4096, &mBufs[mWriteIndex].mSize) == FR_OK)
+            mBufs[mWriteIndex].mFull = true;
+          if (mInPaused && (mWriteIndex == mReadIndex)) {
+            mInPaused = false;
+            HAL_JPEG_ConfigInputBuffer (&mHandle, mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
+            HAL_JPEG_Resume (&mHandle, JPEG_PAUSE_RESUME_INPUT);
+            }
+          mWriteIndex = mWriteIndex ? 0 : 1;
+          }
+        else
+          vTaskDelay (1);
+        }
+
+      HAL_JPEG_GetInfo (&mHandle, &mInfo);
+      printf ("loadJpegHw image %dx%d\n", mInfo.ImageWidth, mInfo.ImageHeight);
+      lcd->info (COL_YELLOW, "loadJpeg " + fileName +
+                             " took " + dec (HAL_GetTick() - startTime) + " " +
+                             dec (mInfo.ChromaSubsampling, 1, '0') +  ":" +
+                             dec (mInfo.ImageWidth) + "x" + dec (mInfo.ImageHeight));
+      lcd->changed();
+
+      f_close (&file);
+
+      auto rgb565pic = (uint16_t*)sdRamAlloc (getWidth() * getHeight() * 2);
+      lcd->jpegYuvTo565 (getYuvBuf(), rgb565pic, getWidth(), getHeight(), getChroma());
+      return new cTile ((uint8_t*)rgb565pic, 2, getWidth(), 0, 0, getWidth(), getHeight());
+      }
+    return nullptr;
+    }
+  //}}}
+
+  JPEG_HandleTypeDef mHandle;
+
+private:
+  const uint32_t kYuvChunkSize = 0x10000;
+
+  //{{{  struct tBufs
+  typedef struct {
+    bool mFull;
+    uint8_t* mBuf;
+    uint32_t mSize;
+    } tBufs;
+  //}}}
+
+  uint8_t mBuf0 [4096];
+  uint8_t mBuf1 [4096];
+  tBufs mBufs [2] = { { false, mBuf0, 0 }, { false, mBuf1, 0 } };
+
+  __IO uint32_t mReadIndex = 0;
+  __IO uint32_t mWriteIndex = 0;
+  __IO bool mInPaused = false;
+  __IO bool mDecodeDone = false;
+
+  uint8_t* mYuvBuf = nullptr;
+  JPEG_ConfTypeDef mInfo;
   };
-__IO uint32_t readIndex = 0;
-__IO uint32_t writeIndex = 0;
-__IO bool jpegInPaused = false;
-__IO bool jpegDecodeDone = false;
-
-const uint32_t kJpegYuvChunkSize = 0x10000;
 //}}}
+cJpeg mJpeg;
 
-extern "C" { void JPEG_IRQHandler() { HAL_JPEG_IRQHandler (&jpegHandle); }  }
-extern "C" { void MDMA_IRQHandler() { HAL_MDMA_IRQHandler (jpegHandle.hdmain); HAL_MDMA_IRQHandler (jpegHandle.hdmaout); }  }
+extern "C" { void JPEG_IRQHandler() { HAL_JPEG_IRQHandler (&mJpeg.mHandle); }  }
+extern "C" { void MDMA_IRQHandler() { HAL_MDMA_IRQHandler (mJpeg.mHandle.hdmain); HAL_MDMA_IRQHandler (mJpeg.mHandle.hdmaout); }  }
 extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
 void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
@@ -373,17 +510,8 @@ private:
   };
 //}}}
 cRtc mRtc;
-uint8_t* jpegYuvBuf = nullptr;
 
 SemaphoreHandle_t mTileVecSem;
-
-//{{{
-uint8_t* sdRamAlloc (uint32_t bytes) {
-  auto alloc = mSdRamAlloc;
-  mSdRamAlloc += bytes;
-  return alloc;
-  }
-//}}}
 
 //{{{
 void HAL_JPEG_MspInit (JPEG_HandleTypeDef* jpegHandlePtr) {
@@ -453,22 +581,7 @@ void HAL_JPEG_MspInit (JPEG_HandleTypeDef* jpegHandlePtr) {
 void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint32_t len) {
 
   //printf ("getData %d\n", len);
-
-  if (len != jpegBufs[readIndex].mSize)
-    HAL_JPEG_ConfigInputBuffer (jpegHandlePtr, jpegBufs[readIndex].mBuf+len, jpegBufs[readIndex].mSize-len);
-
-  else {
-    jpegBufs [readIndex].mFull = false;
-    jpegBufs [readIndex].mSize = 0;
-
-    readIndex = readIndex ? 0 : 1;
-    if (jpegBufs [readIndex].mFull)
-      HAL_JPEG_ConfigInputBuffer (jpegHandlePtr, jpegBufs[readIndex].mBuf, jpegBufs[readIndex].mSize);
-    else {
-      HAL_JPEG_Pause (jpegHandlePtr, JPEG_PAUSE_RESUME_INPUT);
-      jpegInPaused = true;
-      }
-    }
+  mJpeg.getData (len);
   }
 //}}}
 //{{{
@@ -477,15 +590,14 @@ void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint8_t* dat
   //printf ("dataReady %x %d\n", data, len);
   //lcd->info (COL_GREEN, "HAL_JPEG_DataReadyCallback " + hex(uint32_t(data)) + ":" + hex(len));
   //lcd->changed();
-
-  HAL_JPEG_ConfigOutputBuffer (jpegHandlePtr, data+len, kJpegYuvChunkSize);
+  mJpeg.dataReady (data, len);
   }
 //}}}
 //{{{
 void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef* jpegHandlePtr) {
 
   //printf ("decodeCplt\n");
-  jpegDecodeDone = true;
+  mJpeg.decodeDone();
   }
 //}}}
 //{{{
@@ -785,7 +897,7 @@ void findFiles (const string& dirPath, const string& ext) {
       if (filinfo.fname[0] == '.')
         continue;
 
-      string filePath = dirPath + "/" + filinfo.fname;
+      auto filePath = dirPath + "/" + filinfo.fname;
       if (filinfo.fattrib & AM_DIR) {
         printf ("- findFiles dir %s\n", filePath.c_str());
         lcd->info (" - findFiles dir" + filePath);
@@ -879,62 +991,8 @@ cTile* loadJpegSw (const string& fileName, int scale) {
 //{{{
 cTile* loadJpegHw (const string& fileName) {
 
-  auto startTime = HAL_GetTick();
 
-  FIL jpegFile;
-  if (f_open (&jpegFile, fileName.c_str(), FA_READ) == FR_OK) {
-    readIndex = 0;
-    writeIndex = 0;
-    jpegInPaused = 0;
-    jpegDecodeDone = false;
-
-    jpegHandle.Instance = JPEG;
-    HAL_JPEG_Init (&jpegHandle);
-
-    if (f_read (&jpegFile, jpegBufs[0].mBuf, 4096, &jpegBufs[0].mSize) == FR_OK)
-      jpegBufs[0].mFull = true;
-    if (f_read (&jpegFile, jpegBufs[1].mBuf, 4096, &jpegBufs[1].mSize) == FR_OK)
-      jpegBufs[1].mFull = true;
-
-    if (!jpegYuvBuf)
-      jpegYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
-
-    HAL_JPEG_Decode_DMA (&jpegHandle, jpegBufs[0].mBuf, jpegBufs[0].mSize, jpegYuvBuf, kJpegYuvChunkSize);
-
-    while (!jpegDecodeDone) {
-      if (!jpegBufs[writeIndex].mFull) {
-        if (f_read (&jpegFile, jpegBufs[writeIndex].mBuf, 4096, &jpegBufs[writeIndex].mSize) == FR_OK)
-          jpegBufs[writeIndex].mFull = true;
-        if (jpegInPaused && (writeIndex == readIndex)) {
-          jpegInPaused = false;
-          HAL_JPEG_ConfigInputBuffer (&jpegHandle, jpegBufs[readIndex].mBuf, jpegBufs[readIndex].mSize);
-          HAL_JPEG_Resume (&jpegHandle, JPEG_PAUSE_RESUME_INPUT);
-          }
-        writeIndex = writeIndex ? 0 : 1;
-        }
-      else
-        vTaskDelay (1);
-      }
-    f_close (&jpegFile);
-
-    JPEG_ConfTypeDef info;
-    HAL_JPEG_GetInfo (&jpegHandle, &info);
-    printf ("loadJpegHw image %dx%d\n", info.ImageWidth, info.ImageHeight);
-    lcd->info (COL_YELLOW, "loadJpeg " + fileName +
-                           " took " + dec (HAL_GetTick() - startTime) + " " +
-                           dec (info.ChromaSubsampling, 1, '0') +  ":" +
-                           dec (info.ImageWidth) + "x" + dec (info.ImageHeight));
-    lcd->changed();
-
-    auto rgb565pic = (uint16_t*)sdRamAlloc (info.ImageWidth * info.ImageHeight * 2);
-    lcd->jpegYuvTo565 (jpegYuvBuf, rgb565pic, info.ImageWidth, info.ImageHeight, info.ChromaSubsampling);
-
-    return new cTile ((uint8_t*)rgb565pic, 2, info.ImageWidth, 0,0, info.ImageWidth, info.ImageHeight);
-    }
-  else {
-    printf ("loadJpegHw fail\n");
-    return nullptr;
-    }
+  return mJpeg.hwDecode (fileName);
   }
 //}}}
 
@@ -1027,15 +1085,14 @@ void appThread (void* arg) {
     lcd->changed();
 
     startTime = HAL_GetTick();
-    for (auto file : mFileVec) {
-    //auto file = mFileVec.front(); {
-      auto tile = loadJpegHw (file);
-      //auto tile = loadJpegSw (file, 1);
+    for (auto fileName : mFileVec) {
+      auto tile = mJpeg.hwDecode (fileName);
+      //auto tile = loadJpegSw (fileName, 1);
       xSemaphoreTake (mTileVecSem, 1000);
       if (tile)
         mTileVec.push_back (tile);
       else
-        lcd->info ("tile error " + file);
+        lcd->info ("tile error " + fileName);
       xSemaphoreGive (mTileVecSem);
 
       lcd->changed();
