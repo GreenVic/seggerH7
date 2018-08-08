@@ -33,25 +33,12 @@ uint8_t* sdRamAlloc (uint32_t bytes) {
 //}}}
 
 //{{{
-class cJpeg {
+class cHwJpeg {
 public:
   //{{{
-  cJpeg() {
+  cHwJpeg() {
     mHandle.Instance = JPEG;
-    }
-  //}}}
-  //{{{
-  void init() {
-
-    mReadIndex = 0;
-    mWriteIndex = 0;
-    mInPaused = 0;
-    mDecodeDone = false;
-
     HAL_JPEG_Init (&mHandle);
-
-    if (!mYuvBuf)
-      mYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
     }
   //}}}
 
@@ -76,6 +63,7 @@ public:
     }
   //}}}
 
+  // callbacks
   //{{{
   void getData (uint32_t len) {
 
@@ -106,21 +94,37 @@ public:
     mDecodeDone = true;
     }
   //}}}
+  //{{{
+  void jpegIrq() {
+    HAL_JPEG_IRQHandler (&mHandle);
+    }
+  //}}}
+  //{{{
+  void mdmaIrq() {
+    HAL_MDMA_IRQHandler (mHandle.hdmain);
+    HAL_MDMA_IRQHandler (mHandle.hdmaout);
+    }
+  //}}}
 
   //{{{
-  cTile* hwDecode (const string& fileName) {
+  cTile* decode (const string& fileName) {
 
     auto startTime = HAL_GetTick();
 
     FIL file;
     if (f_open (&file, fileName.c_str(), FA_READ) == FR_OK) {
-      init();
-
       if (f_read (&file, mBufs[0].mBuf, 4096, &mBufs[0].mSize) == FR_OK)
         mBufs[0].mFull = true;
       if (f_read (&file, mBufs[1].mBuf, 4096, &mBufs[1].mSize) == FR_OK)
         mBufs[1].mFull = true;
 
+      if (!mYuvBuf)
+        mYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
+
+      mReadIndex = 0;
+      mWriteIndex = 0;
+      mInPaused = 0;
+      mDecodeDone = false;
       HAL_JPEG_Decode_DMA (&mHandle, mBufs[0].mBuf, mBufs[0].mSize, mYuvBuf, kYuvChunkSize);
 
       while (!mDecodeDone) {
@@ -152,14 +156,17 @@ public:
       lcd->jpegYuvTo565 (getYuvBuf(), rgb565pic, getWidth(), getHeight(), getChroma());
       return new cTile ((uint8_t*)rgb565pic, 2, getWidth(), 0, 0, getWidth(), getHeight());
       }
+
     return nullptr;
     }
   //}}}
 
-  JPEG_HandleTypeDef mHandle;
-
 private:
   const uint32_t kYuvChunkSize = 0x10000;
+
+  JPEG_HandleTypeDef mHandle;
+  uint8_t* mYuvBuf = nullptr;
+  JPEG_ConfTypeDef mInfo;
 
   //{{{  struct tBufs
   typedef struct {
@@ -168,7 +175,6 @@ private:
     uint32_t mSize;
     } tBufs;
   //}}}
-
   uint8_t mBuf0 [4096];
   uint8_t mBuf1 [4096];
   tBufs mBufs [2] = { { false, mBuf0, 0 }, { false, mBuf1, 0 } };
@@ -177,15 +183,12 @@ private:
   __IO uint32_t mWriteIndex = 0;
   __IO bool mInPaused = false;
   __IO bool mDecodeDone = false;
-
-  uint8_t* mYuvBuf = nullptr;
-  JPEG_ConfTypeDef mInfo;
   };
 //}}}
-cJpeg mJpeg;
+cHwJpeg mJpeg;
 
-extern "C" { void JPEG_IRQHandler() { HAL_JPEG_IRQHandler (&mJpeg.mHandle); }  }
-extern "C" { void MDMA_IRQHandler() { HAL_MDMA_IRQHandler (mJpeg.mHandle.hdmain); HAL_MDMA_IRQHandler (mJpeg.mHandle.hdmaout); }  }
+extern "C" { void JPEG_IRQHandler() { mJpeg.jpegIrq(); }  }
+extern "C" { void MDMA_IRQHandler() { mJpeg.mdmaIrq(); }  }
 extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
 void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
@@ -912,7 +915,7 @@ void findFiles (const string& dirPath, const string& ext) {
   }
 //}}}
 //{{{
-cTile* loadJpegSw (const string& fileName, int scale) {
+cTile* swJpegDecode (const string& fileName, int scale) {
 
   FILINFO filInfo;
   if (f_stat (fileName.c_str(), &filInfo)) {
@@ -986,13 +989,6 @@ cTile* loadJpegSw (const string& fileName, int scale) {
     lcd->changed();
     return nullptr;
     }
-  }
-//}}}
-//{{{
-cTile* loadJpegHw (const string& fileName) {
-
-
-  return mJpeg.hwDecode (fileName);
   }
 //}}}
 
@@ -1086,8 +1082,8 @@ void appThread (void* arg) {
 
     startTime = HAL_GetTick();
     for (auto fileName : mFileVec) {
-      auto tile = mJpeg.hwDecode (fileName);
-      //auto tile = loadJpegSw (fileName, 1);
+      auto tile = mJpeg.decode (fileName);
+      //auto tile = swJepgDecode (fileName, 1);
       xSemaphoreTake (mTileVecSem, 1000);
       if (tile)
         mTileVec.push_back (tile);
