@@ -1071,7 +1071,7 @@ void appThread (void* arg) {
 
     startTime = HAL_GetTick();
     for (auto fileName : mFileVec) {
-      //auto tile = swJepgDecode (fileName, 1);
+      //auto tile = swJpegDecode (fileName, 1);
       auto tile = mJpeg.decode (fileName);
       if (tile) {
         printf ("loadJpegHw image %dx%d\n", mJpeg.getWidth(), mJpeg.getHeight());
@@ -1111,7 +1111,7 @@ int main() {
   sdRamConfig();
 
   //HAL_SetFMCMemorySwappingConfig (FMC_SWAPBMAP_SDRAM_SRAM);
-  //mpuConfig();
+  mpuConfig();
   SCB_EnableICache();
   //SCB_EnableDCache();
 
