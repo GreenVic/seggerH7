@@ -774,13 +774,13 @@ void sdRamTest (uint16_t offset, uint16_t* addr, uint32_t len) {
 //}}}
 
 //{{{
-void findFiles (const string& dirPath, const string ext) {
+void findFiles (const string& dirPath, const string& ext) {
 
   DIR dir;
   if (f_opendir (&dir, dirPath.c_str()) == FR_OK) {
     while (true) {
       FILINFO filinfo;
-      if (f_readdir (&dir, &filinfo) != FR_OK || !filinfo.fname[0])
+      if ((f_readdir (&dir, &filinfo) != FR_OK) || !filinfo.fname[0])
         break;
       if (filinfo.fname[0] == '.')
         continue;
@@ -792,17 +792,9 @@ void findFiles (const string& dirPath, const string ext) {
         lcd->change();
         findFiles (filePath, ext);
         }
-      else {
-        auto found = filePath.find (ext);
-        if (found == filePath.size() - 4) {
-          mFileVec.push_back (filePath);
-          //printf ("findFiles %s\n", filePath.c_str());
-          //lcd->info ("findFiles " + filePath);
-          //lcd->change();
-          }
-        }
+      else if (filePath.find (ext) == filePath.size() - 4)
+        mFileVec.push_back (filePath);
       }
-
     f_closedir (&dir);
     }
   }
