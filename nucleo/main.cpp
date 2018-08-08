@@ -17,7 +17,6 @@ const string kHello = "*stm32h7 testbed " + string(__TIME__) + " " + string(__DA
 #define SDRAM_DEVICE_ADDR 0xD0000000
 #define SDRAM_DEVICE_SIZE 0x01000000
 //}}}
-#define RAM_TEST
 
 uint8_t* mSdRamAlloc = (uint8_t*)SDRAM_DEVICE_ADDR;
 //{{{
@@ -966,10 +965,6 @@ cTile* swJpegDecode (const string& fileName, int scale) {
     auto allTook = HAL_GetTick() - startTime;
 
     free (buf);
-    lcd->info (COL_YELLOW, dec(mCinfo.image_width) + "x" + dec(mCinfo.image_height) + " " +
-                           dec(mCinfo.output_width) + "x" + dec(mCinfo.output_height) + " " +
-                           dec(loadTook) + ":" + dec(allTook));
-    lcd->changed();
     jpeg_destroy_decompress (&mCinfo);
     return tile;
     }
@@ -985,7 +980,7 @@ cTile* swJpegDecode (const string& fileName, int scale) {
 //{{{
 void uiThread (void* arg) {
 
-  lcd->display (80);
+  lcd->display (100);
 
   int tick = 0;
   int count = 0;
@@ -1047,15 +1042,19 @@ void appThread (void* arg) {
   char SDPath[4];
 
   if (FATFS_LinkDriver (&SD_Driver, SDPath) != 0) {
+    //{{{  no driver error
     printf ("sdCard - no driver\n");
     lcd->info (COL_RED, "sdCard - no driver");
     lcd->changed();
     }
+    //}}}
   else if (f_mount (&SDFatFs, (TCHAR const*)SDPath, 1) != FR_OK) {
+    //{{{  no sdCard error
     printf ("sdCard - not mounted\n");
     lcd->info (COL_RED, "sdCard - not mounted");
     lcd->changed();
     }
+    //}}}
   else {
     char label[20] = {0};
     DWORD volumeSerialNumber = 0;
@@ -1072,42 +1071,35 @@ void appThread (void* arg) {
 
     startTime = HAL_GetTick();
     for (auto fileName : mFileVec) {
-      auto tile = mJpeg.decode (fileName);
-      printf ("loadJpegHw image %dx%d\n", mJpeg.getWidth(), mJpeg.getHeight());
-      lcd->info (COL_YELLOW, "loadJpeg " + fileName +
-                             dec (mJpeg.getChroma(), 1, '0') +  ":" +
-                             dec (mJpeg.getWidth()) + "x" + dec (mJpeg.getHeight()));
-      lcd->changed();
-
       //auto tile = swJepgDecode (fileName, 1);
-      xSemaphoreTake (mTileVecSem, 1000);
-      if (tile)
-        mTileVec.push_back (tile);
-      else
-        lcd->info ("tile error " + fileName);
-      xSemaphoreGive (mTileVecSem);
+      auto tile = mJpeg.decode (fileName);
+      if (tile) {
+        printf ("loadJpegHw image %dx%d\n", mJpeg.getWidth(), mJpeg.getHeight());
+        lcd->info (COL_YELLOW, "loadJpeg " + fileName +
+                               dec (mJpeg.getChroma(), 1, '0') +  ":" +
+                               dec (mJpeg.getWidth()) + "x" + dec (mJpeg.getHeight()));
+        lcd->changed();
 
-      lcd->changed();
-      taskYIELD();
+        xSemaphoreTake (mTileVecSem, 1000);
+        mTileVec.push_back (tile);
+        xSemaphoreGive (mTileVecSem);
+        taskYIELD();
+        }
+      else {
+        lcd->info ("load error " + fileName);
+        lcd->changed();
+        }
       }
     lcd->info (COL_WHITE, "loadFiles took " + dec(HAL_GetTick() - startTime));
     lcd->changed();
     }
 
-  #ifdef RAM_TEST
-    uint32_t k = 0;
-    while (true)
-      for (int j = 8; j <= 0xF; j++) {
-        k += HAL_GetTick();
-        sdRamTest (uint16_t(k++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
-        }
-   #endif
-
-  while (true) {
-    //for (int i = 30; i < 100; i++) { lcd->display (i); vTaskDelay (20); }
-    //for (int i = 100; i > 30; i--) { lcd->display (i); vTaskDelay (20); }
-    vTaskDelay (1000);
-    }
+  uint32_t offset = 0;
+  while (true)
+    for (int j = 8; j <= 0xF; j++) {
+      offset += HAL_GetTick();
+      sdRamTest (uint16_t(offset++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
+      }
   }
 //}}}
 

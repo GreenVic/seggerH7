@@ -17,7 +17,7 @@
       arm_target_device_name="STM32H743ZI"
       arm_target_interface_type="SWD"
       c_preprocessor_definitions="FT2_BUILD_LIBRARY"
-      c_user_include_directories=".;../CMSIS;../RTT;../system;../drivers/Inc;../FreeRTOS/include;../FreeRTOS/portable/GCC/ARM_CM4F;../FreeRTOS/CMSIS_RTOS;../freetype/Inc;../LibJPEG/include"
+      c_user_include_directories=".;../CMSIS;../RTT;../system;../drivers/Inc;../FreeRTOS/include;../FreeRTOS/portable/GCC/ARM_CM7;../FreeRTOS/CMSIS_RTOS;../freetype/Inc;../LibJPEG/include"
       debug_target_connection="J-Link"
       debug_type_file="$(StudioDir)/bin/STLport.xml"
       gcc_c_language_standard="c11"
@@ -237,7 +237,6 @@
       <file file_name="../FreeRTOS/event_groups.c" />
       <file file_name="../FreeRTOS/list.c" />
       <file file_name="../FreeRTOS/timers.c" />
-      <file file_name="../FreeRTOS/portable/GCC/ARM_CM4F/port.c" />
       <file file_name="../FreeRTOS/CMSIS_RTOS/cmsis_os.c" />
       <folder Name="inc">
         <file file_name="../FreeRTOS/include/FreeRTOS.h" />
@@ -255,6 +254,7 @@
       <file file_name="../FreeRTOS/queue.c" />
       <file file_name="../FreeRTOS/tasks.c" />
       <file file_name="heap.c" />
+      <file file_name="../FreeRTOS/portable/GCC/ARM_CM7/port.c" />
     </folder>
     <configuration Name="Debug" gcc_optimization_level="Debug" />
     <folder Name="fatFs">
