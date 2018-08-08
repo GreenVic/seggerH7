@@ -375,6 +375,7 @@ private:
 cRtc mRtc;
 uint8_t* jpegYuvBuf = nullptr;
 
+SemaphoreHandle_t mTileVecSem;
 
 //{{{
 uint8_t* sdRamAlloc (uint32_t bytes) {
@@ -794,10 +795,10 @@ void findFiles (const string& dirPath, const string ext) {
       else {
         auto found = filePath.find (ext);
         if (found == filePath.size() - 4) {
-          printf ("findFiles %s\n", filePath.c_str());
-          lcd->info ("findFiles " + filePath);
-          lcd->change();
           mFileVec.push_back (filePath);
+          //printf ("findFiles %s\n", filePath.c_str());
+          //lcd->info ("findFiles " + filePath);
+          //lcd->change();
           }
         }
       }
@@ -963,6 +964,7 @@ void uiThread (void* arg) {
       int rows = sqrt ((float)mTileVec.size()) + 1;
       //printf ("uiThread %d %d %d\n", tick, mTileVec.size(), rows);
 
+      xSemaphoreTake (mTileVecSem, 1000);
       for (auto tile : mTileVec) {
         if (true || ((tile->mWidth <= (1024/rows)) && (tile->mHeight <= (600/rows))))
           lcd->copy (tile, cPoint ((item % rows) * (1024/rows), (item /rows) * (600/rows)));
@@ -971,6 +973,7 @@ void uiThread (void* arg) {
                                   ((item % rows)+1) * (1024/rows), ((item /rows)+1) * (600/rows)));
         item++;
         }
+      xSemaphoreGive (mTileVecSem);
 
       float hourAngle;
       float minuteAngle;
@@ -1008,6 +1011,7 @@ void appThread (void* arg) {
   char SDPath[4];
 
   if (FATFS_LinkDriver (&SD_Driver, SDPath) != 0) {
+    printf ("sdCard - no driver\n");
     lcd->info (COL_RED, "sdCard - no driver");
     lcd->changed();
     }
@@ -1020,24 +1024,33 @@ void appThread (void* arg) {
     char label[20] = {0};
     DWORD volumeSerialNumber = 0;
     f_getlabel ("", label, &volumeSerialNumber);
+    printf ("sdCard mounted label %s\n", label);
     lcd->info ("sdCard mounted label:" + string (label));
     lcd->changed();
 
-    findFiles ("", ".jpg");
-
     auto startTime = HAL_GetTick();
+    findFiles ("", ".jpg");
+    printf ("findFiles took %d %d\n", HAL_GetTick() - startTime, mFileVec.size());
+    lcd->info (COL_WHITE, "findFiles took" + dec(HAL_GetTick() - startTime) + " " + dec(mFileVec.size()));
+    lcd->changed();
+
+    startTime = HAL_GetTick();
     for (auto file : mFileVec) {
     //auto file = mFileVec.front(); {
       auto tile = loadJpegHw (file);
       //auto tile = loadJpegSw (file, 1);
+      xSemaphoreTake (mTileVecSem, 1000);
       if (tile)
         mTileVec.push_back (tile);
       else
         lcd->info ("tile error " + file);
+      xSemaphoreGive (mTileVecSem);
+
       lcd->changed();
       taskYIELD();
       }
-    lcd->info (COL_WHITE, "appThread - loadFiles took " + dec(HAL_GetTick() - startTime));
+    lcd->info (COL_WHITE, "loadFiles took " + dec(HAL_GetTick() - startTime));
+    lcd->changed();
     }
 
   #ifdef RAM_TEST
@@ -1075,6 +1088,7 @@ int main() {
   BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_EXTI);
 
   mRtc.init();
+  mTileVecSem = xSemaphoreCreateMutex();
 
   lcd = new cLcd ((uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2),
                   (uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2));
