@@ -192,15 +192,15 @@ __IO bool mDecodeDone = false;
 //{{{
 void configInputBuffer (JPEG_HandleTypeDef* hjpeg, uint8_t* pNewInputBuffer, uint32_t InDataLength) {
 
-  hjpeg->pJpegInBuffPtr =  pNewInputBuffer;
-  hjpeg->InDataLength = InDataLength;
+  mHandle.pJpegInBuffPtr =  pNewInputBuffer;
+  mHandle.InDataLength = InDataLength;
   }
 //}}}
 //{{{
 void configOutputBuffer (JPEG_HandleTypeDef* hjpeg, uint8_t* pNewOutputBuffer, uint32_t OutDataLength) {
 
-  hjpeg->pJpegOutBuffPtr = pNewOutputBuffer;
-  hjpeg->OutDataLength = OutDataLength;
+  mHandle.pJpegOutBuffPtr = pNewOutputBuffer;
+  mHandle.OutDataLength = OutDataLength;
   }
 //}}}
 //{{{
@@ -215,24 +215,24 @@ void outputData (JPEG_HandleTypeDef* jpegHandlePtr, uint8_t* data, uint32_t len)
 //{{{
 void endDma (JPEG_HandleTypeDef* hjpeg) {
 
-  hjpeg->JpegOutCount = hjpeg->OutDataLength - (hjpeg->hdmaout->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
+  mHandle.JpegOutCount = mHandle.OutDataLength - (mHandle.hdmaout->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
 
-  if (hjpeg->JpegOutCount == hjpeg->OutDataLength) {
+  if (mHandle.JpegOutCount == mHandle.OutDataLength) {
     // Output Buffer full
-    outputData (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
-    hjpeg->JpegOutCount = 0;
+    outputData (hjpeg, mHandle.pJpegOutBuffPtr, mHandle.JpegOutCount);
+    mHandle.JpegOutCount = 0;
     }
 
   // Check if remaining data in the output FIFO
   if (__HAL_JPEG_GET_FLAG (hjpeg, JPEG_FLAG_OFNEF) == 0) {
-    if (hjpeg->JpegOutCount > 0) {
+    if (mHandle.JpegOutCount > 0) {
       // Output Buffer not empty
-      outputData (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
-      hjpeg->JpegOutCount = 0;
+      outputData (hjpeg, mHandle.pJpegOutBuffPtr, mHandle.JpegOutCount);
+      mHandle.JpegOutCount = 0;
       }
 
     // stop decoding
-    hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
+    JPEG->CONFR0 &=  ~JPEG_CONFR0_START;
     }
 
   else {
@@ -241,26 +241,26 @@ void endDma (JPEG_HandleTypeDef* hjpeg) {
     while ((__HAL_JPEG_GET_FLAG (hjpeg, JPEG_FLAG_OFNEF) != 0) && (count > 0) ) {
       count--;
 
-      uint32_t dataOut = hjpeg->Instance->DOR;
-      hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount] = dataOut & 0x000000FF;
-      hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 1] = (dataOut & 0x0000FF00) >> 8;
-      hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 2] = (dataOut & 0x00FF0000) >> 16;
-      hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 3] = (dataOut & 0xFF000000) >> 24;
-      hjpeg->JpegOutCount += 4;
+      uint32_t dataOut = JPEG->DOR;
+      mHandle.pJpegOutBuffPtr[mHandle.JpegOutCount] = dataOut & 0x000000FF;
+      mHandle.pJpegOutBuffPtr[mHandle.JpegOutCount + 1] = (dataOut & 0x0000FF00) >> 8;
+      mHandle.pJpegOutBuffPtr[mHandle.JpegOutCount + 2] = (dataOut & 0x00FF0000) >> 16;
+      mHandle.pJpegOutBuffPtr[mHandle.JpegOutCount + 3] = (dataOut & 0xFF000000) >> 24;
+      mHandle.JpegOutCount += 4;
 
-      if (hjpeg->JpegOutCount == hjpeg->OutDataLength) {
+      if (mHandle.JpegOutCount == mHandle.OutDataLength) {
         // Output Buffer full
-        outputData (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
-        hjpeg->JpegOutCount = 0;
+        outputData (hjpeg, mHandle.pJpegOutBuffPtr, mHandle.JpegOutCount);
+        mHandle.JpegOutCount = 0;
         }
       }
 
     // stop decoding
-    hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
-    if (hjpeg->JpegOutCount > 0) {
+    JPEG->CONFR0 &=  ~JPEG_CONFR0_START;
+    if (mHandle.JpegOutCount > 0) {
       // Output Buffer not empty
-      outputData (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
-      hjpeg->JpegOutCount = 0;
+      outputData (hjpeg, mHandle.pJpegOutBuffPtr, mHandle.JpegOutCount);
+      mHandle.JpegOutCount = 0;
       }
     }
 
@@ -358,7 +358,7 @@ void SetHuffDHTMem (JPEG_HandleTypeDef* hjpeg,
   if (HuffTableDC0 != NULL) {
     /* DC0 Huffman Table : BITS*/
     /* DC0 BITS is a 16 Bytes table i.e 4x32bits words from DHTMEM base address to DHTMEM + 3*/
-    address = (hjpeg->Instance->DHTMEM + 3);
+    address = (JPEG->DHTMEM + 3);
     index = 16;
     while(index > 0) {
       *address = (((uint32_t)HuffTableDC0->Bits[index-1] & 0xFF) << 24)|
@@ -371,7 +371,7 @@ void SetHuffDHTMem (JPEG_HandleTypeDef* hjpeg,
 
     /* DC0 Huffman Table : Val*/
     /* DC0 VALS is a 12 Bytes table i.e 3x32bits words from DHTMEM base address +4 to DHTMEM + 6 */
-    address = (hjpeg->Instance->DHTMEM + 6);
+    address = (JPEG->DHTMEM + 6);
     index = 12;
     while(index > 0) {
       *address = (((uint32_t)HuffTableDC0->HuffVal[index-1] & 0xFF) << 24)|
@@ -386,7 +386,7 @@ void SetHuffDHTMem (JPEG_HandleTypeDef* hjpeg,
   if (HuffTableAC0 != NULL) {
     /* AC0 Huffman Table : BITS*/
     /* AC0 BITS is a 16 Bytes table i.e 4x32bits words from DHTMEM base address + 7 to DHTMEM + 10*/
-    address = (hjpeg->Instance->DHTMEM + 10);
+    address = (JPEG->DHTMEM + 10);
     index = 16;
     while(index > 0) {
       *address = (((uint32_t)HuffTableAC0->Bits[index-1] & 0xFF) << 24)|
@@ -399,13 +399,13 @@ void SetHuffDHTMem (JPEG_HandleTypeDef* hjpeg,
     /* AC0 Huffman Table : Val*/
     /* AC0 VALS is a 162 Bytes table i.e 41x32bits words from DHTMEM base address + 11 to DHTMEM + 51 */
     /* only Byte 0 and Byte 1 of the last word (@ DHTMEM + 51) belong to AC0 VALS table */
-    address = (hjpeg->Instance->DHTMEM + 51);
+    address = (JPEG->DHTMEM + 51);
     value = *address & 0xFFFF0000U;
     value = value | (((uint32_t)HuffTableAC0->HuffVal[161] & 0xFF) << 8) | ((uint32_t)HuffTableAC0->HuffVal[160] & 0xFF);
     *address = value;
 
     /*continue setting 160 AC0 huffman values */
-    address--; /* address = hjpeg->Instance->DHTMEM + 50*/
+    address--; /* address = JPEG->DHTMEM + 50*/
     index = 160;
     while(index > 0) {
       *address = (((uint32_t)HuffTableAC0->HuffVal[index-1] & 0xFF) << 24)|
@@ -421,13 +421,13 @@ void SetHuffDHTMem (JPEG_HandleTypeDef* hjpeg,
     /* DC1 Huffman Table : BITS*/
     /* DC1 BITS is a 16 Bytes table i.e 4x32bits words from DHTMEM + 51 base address to DHTMEM + 55*/
     /* only Byte 2 and Byte 3 of the first word (@ DHTMEM + 51) belong to DC1 Bits table */
-    address = (hjpeg->Instance->DHTMEM + 51);
+    address = (JPEG->DHTMEM + 51);
     value = *address & 0x0000FFFFU;
     value = value | (((uint32_t)HuffTableDC1->Bits[1] & 0xFF) << 24) | (((uint32_t)HuffTableDC1->Bits[0] & 0xFF) << 16);
     *address = value;
 
     /* only Byte 0 and Byte 1 of the last word (@ DHTMEM + 55) belong to DC1 Bits table */
-    address = (hjpeg->Instance->DHTMEM + 55);
+    address = (JPEG->DHTMEM + 55);
     value = *address & 0xFFFF0000U;
     value = value | (((uint32_t)HuffTableDC1->Bits[15] & 0xFF) << 8) | ((uint32_t)HuffTableDC1->Bits[14] & 0xFF);
     *address = value;
@@ -446,13 +446,13 @@ void SetHuffDHTMem (JPEG_HandleTypeDef* hjpeg,
     /* DC1 Huffman Table : Val*/
     /* DC1 VALS is a 12 Bytes table i.e 3x32bits words from DHTMEM base address +55 to DHTMEM + 58 */
     /* only Byte 2 and Byte 3 of the first word (@ DHTMEM + 55) belong to DC1 Val table */
-    address = (hjpeg->Instance->DHTMEM + 55);
+    address = (JPEG->DHTMEM + 55);
     value = *address & 0x0000FFFF;
     value = value | (((uint32_t)HuffTableDC1->HuffVal[1] & 0xFF) << 24) | (((uint32_t)HuffTableDC1->HuffVal[0] & 0xFF) << 16);
     *address = value;
 
     /* only Byte 0 and Byte 1 of the last word (@ DHTMEM + 58) belong to DC1 Val table */
-    address = (hjpeg->Instance->DHTMEM + 58);
+    address = (JPEG->DHTMEM + 58);
     value = *address & 0xFFFF0000U;
     value = value | (((uint32_t)HuffTableDC1->HuffVal[11] & 0xFF) << 8) | ((uint32_t)HuffTableDC1->HuffVal[10] & 0xFF);
     *address = value;
@@ -474,13 +474,13 @@ void SetHuffDHTMem (JPEG_HandleTypeDef* hjpeg,
     /* AC1 Huffman Table : BITS*/
     /* AC1 BITS is a 16 Bytes table i.e 4x32bits words from DHTMEM base address + 58 to DHTMEM + 62*/
     /* only Byte 2 and Byte 3 of the first word (@ DHTMEM + 58) belong to AC1 Bits table */
-    address = (hjpeg->Instance->DHTMEM + 58);
+    address = (JPEG->DHTMEM + 58);
     value = *address & 0x0000FFFFU;
     value = value | (((uint32_t)HuffTableAC1->Bits[1] & 0xFF) << 24) | (((uint32_t)HuffTableAC1->Bits[0] & 0xFF) << 16);
     *address = value;
 
     /* only Byte 0 and Byte 1 of the last word (@ DHTMEM + 62) belong to Bits Val table */
-    address = (hjpeg->Instance->DHTMEM + 62);
+    address = (JPEG->DHTMEM + 62);
     value = *address & 0xFFFF0000U;
     value = value | (((uint32_t)HuffTableAC1->Bits[15] & 0xFF) << 8) | ((uint32_t)HuffTableAC1->Bits[14] & 0xFF);
     *address = value;
@@ -500,13 +500,13 @@ void SetHuffDHTMem (JPEG_HandleTypeDef* hjpeg,
     /* AC1 Huffman Table : Val*/
     /* AC1 VALS is a 162 Bytes table i.e 41x32bits words from DHTMEM base address + 62 to DHTMEM + 102 */
     /* only Byte 2 and Byte 3 of the first word (@ DHTMEM + 62) belong to AC1 VALS table */
-    address = (hjpeg->Instance->DHTMEM + 62);
+    address = (JPEG->DHTMEM + 62);
     value = *address & 0x0000FFFF;
     value = value | (((uint32_t)HuffTableAC1->HuffVal[1] & 0xFF) << 24) | (((uint32_t)HuffTableAC1->HuffVal[0] & 0xFF) << 16);
     *address = value;
 
     /*continue setting 160 AC1 huffman values from DHTMEM + 63 to DHTMEM+102 */
-    address = (hjpeg->Instance->DHTMEM + 102);
+    address = (JPEG->DHTMEM + 102);
     index = 160;
     while(index > 0) {
       *address = (((uint32_t)HuffTableAC1->HuffVal[index+1] & 0xFF) << 24)|
@@ -635,10 +635,10 @@ HAL_StatusTypeDef SetHuffDCMem (JPEG_HandleTypeDef* hjpeg,
   uint32_t i, lsb, msb;
   __IO uint32_t *address, *addressDef;
 
-  if (DCTableAddress == (hjpeg->Instance->HUFFENC_DC0))
-    address = (hjpeg->Instance->HUFFENC_DC0 + (JPEG_DC_HUFF_TABLE_SIZE/2));
-  else if (DCTableAddress == (hjpeg->Instance->HUFFENC_DC1))
-    address = (hjpeg->Instance->HUFFENC_DC1 + (JPEG_DC_HUFF_TABLE_SIZE/2));
+  if (DCTableAddress == (JPEG->HUFFENC_DC0))
+    address = (JPEG->HUFFENC_DC0 + (JPEG_DC_HUFF_TABLE_SIZE/2));
+  else if (DCTableAddress == (JPEG->HUFFENC_DC1))
+    address = (JPEG->HUFFENC_DC1 + (JPEG_DC_HUFF_TABLE_SIZE/2));
   else
     return HAL_ERROR;
 
@@ -674,10 +674,10 @@ HAL_StatusTypeDef SetHuffACMem (JPEG_HandleTypeDef* hjpeg,
   JPEG_AC_HuffCodeTableTypeDef acSizeCodesTable;
 
   __IO uint32_t* address;
-  if (ACTableAddress == (hjpeg->Instance->HUFFENC_AC0))
-    address = (hjpeg->Instance->HUFFENC_AC0 + (JPEG_AC_HUFF_TABLE_SIZE / 2));
-  else if (ACTableAddress == (hjpeg->Instance->HUFFENC_AC1))
-    address = (hjpeg->Instance->HUFFENC_AC1 + (JPEG_AC_HUFF_TABLE_SIZE / 2));
+  if (ACTableAddress == (JPEG->HUFFENC_AC0))
+    address = (JPEG->HUFFENC_AC0 + (JPEG_AC_HUFF_TABLE_SIZE / 2));
+  else if (ACTableAddress == (mHandle.Instance->HUFFENC_AC1))
+    address = (JPEG->HUFFENC_AC1 + (JPEG_AC_HUFF_TABLE_SIZE / 2));
   else
     return HAL_ERROR;
 
@@ -730,25 +730,25 @@ HAL_StatusTypeDef SetHuffEncMem (JPEG_HandleTypeDef* hjpeg,
   SetHuffDHTMem(hjpeg, HuffTableAC0, HuffTableDC0, HuffTableAC1, HuffTableDC1);
 
   if (HuffTableAC0 != NULL) {
-    error = SetHuffACMem(hjpeg, HuffTableAC0, (hjpeg->Instance->HUFFENC_AC0));
+    error = SetHuffACMem(hjpeg, HuffTableAC0, (JPEG->HUFFENC_AC0));
     if (error != HAL_OK)
       return  error;
     }
 
   if (HuffTableAC1 != NULL) {
-    error = SetHuffACMem(hjpeg, HuffTableAC1, (hjpeg->Instance->HUFFENC_AC1));
+    error = SetHuffACMem(hjpeg, HuffTableAC1, (JPEG->HUFFENC_AC1));
     if (error != HAL_OK)
       return  error;
     }
 
   if (HuffTableDC0 != NULL) {
-    error = SetHuffDCMem(hjpeg, HuffTableDC0, hjpeg->Instance->HUFFENC_DC0);
+    error = SetHuffDCMem(hjpeg, HuffTableDC0, JPEG->HUFFENC_DC0);
     if (error != HAL_OK)
       return  error;
     }
 
   if (HuffTableDC1 != NULL) {
-    error = SetHuffDCMem(hjpeg, HuffTableDC1, hjpeg->Instance->HUFFENC_DC1);
+    error = SetHuffDCMem(hjpeg, HuffTableDC1, JPEG->HUFFENC_DC1);
     if (error != HAL_OK)
       return  error;
     }
@@ -819,20 +819,20 @@ void init (JPEG_HandleTypeDef* hjpeg) {
   __HAL_JPEG_ENABLE (hjpeg);
 
   // Stop the JPEG encoding/decoding process*/
-  hjpeg->Instance->CONFR0 &= ~JPEG_CONFR0_START;
+  JPEG->CONFR0 &= ~JPEG_CONFR0_START;
 
   __HAL_JPEG_DISABLE_IT (hjpeg, JPEG_INTERRUPT_MASK);
 
   // Flush input and output FIFOs
-  hjpeg->Instance->CR |= JPEG_CR_IFF;
-  hjpeg->Instance->CR |= JPEG_CR_OFF;
+  JPEG->CR |= JPEG_CR_IFF;
+  JPEG->CR |= JPEG_CR_OFF;
   __HAL_JPEG_CLEAR_FLAG (hjpeg,JPEG_FLAG_ALL);
 
   // init default quantization tables
-  hjpeg->QuantTable0 = (uint8_t*)((uint32_t)LUM_QuantTable);
-  hjpeg->QuantTable1 = (uint8_t*)((uint32_t)CHROM_QuantTable);
-  hjpeg->QuantTable2 = NULL;
-  hjpeg->QuantTable3 = NULL;
+  mHandle.QuantTable0 = (uint8_t*)((uint32_t)LUM_QuantTable);
+  mHandle.QuantTable1 = (uint8_t*)((uint32_t)CHROM_QuantTable);
+  mHandle.QuantTable2 = NULL;
+  mHandle.QuantTable3 = NULL;
 
   uint32_t acLum_huffmanTableAddr = (uint32_t)(&ACLUM_HuffTable);
   uint32_t dcLum_huffmanTableAddr = (uint32_t)(&DCLUM_HuffTable);
@@ -845,13 +845,13 @@ void init (JPEG_HandleTypeDef* hjpeg) {
                  (JPEG_DCHuffTableTypeDef*)dcChrom_huffmanTableAddr);
 
   // Enable header processing
-  hjpeg->Instance->CONFR1 |= JPEG_CONFR1_HDR;
+  JPEG->CONFR1 |= JPEG_CONFR1_HDR;
 
-  hjpeg->JpegInCount = 0;
-  hjpeg->JpegOutCount = 0;
+  mHandle.JpegInCount = 0;
+  mHandle.JpegOutCount = 0;
 
   // Clear the context fields
-  hjpeg->Context = 0;
+  mHandle.Context = 0;
   }
 //}}}
 
@@ -864,16 +864,16 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
   // Disable The JPEG IT so the DMA Input Callback can not be interrupted by the JPEG EOC IT or JPEG HPD IT */
   __HAL_JPEG_DISABLE_IT(hjpeg,JPEG_INTERRUPT_MASK);
 
-  if ((hjpeg->Context & JPEG_CONTEXT_ENDING_DMA) == 0) {
+  if ((mHandle.Context & JPEG_CONTEXT_ENDING_DMA) == 0) {
     // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
     //  else (MDMA In is triggred with JPEG In FIFO not full flag) then MDMA In buffer size is 4 bytes
-    uint32_t inXfrSize = hjpeg->hdmain->Init.BufferTransferLength;
-    hjpeg->JpegInCount = hjpeg->InDataLength - (hmdma->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
+    uint32_t inXfrSize = mHandle.hdmain->Init.BufferTransferLength;
+    mHandle.JpegInCount = mHandle.InDataLength - (hmdma->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
 
-    if (hjpeg->JpegInCount != mBufs[mReadIndex].mSize)
+    if (mHandle.JpegInCount != mBufs[mReadIndex].mSize)
       configInputBuffer (hjpeg,
-                         mBufs[mReadIndex].mBuf+hjpeg->JpegInCount,
-                         mBufs[mReadIndex].mSize-hjpeg->JpegInCount);
+                         mBufs[mReadIndex].mBuf+mHandle.JpegInCount,
+                         mBufs[mReadIndex].mSize-mHandle.JpegInCount);
     else {
       mBufs [mReadIndex].mFull = false;
       mBufs [mReadIndex].mSize = 0;
@@ -883,26 +883,26 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
         configInputBuffer (hjpeg, mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
       else {
         // pause
-        hjpeg->Context |= JPEG_CONTEXT_PAUSE_INPUT;
+        mHandle.Context |= JPEG_CONTEXT_PAUSE_INPUT;
         mInPaused = true;
         }
       }
 
-    if (hjpeg->InDataLength >= inXfrSize) {
+    if (mHandle.InDataLength >= inXfrSize) {
       // JPEG Input DMA transfer data number must be multiple of MDMA buffer size
       // as the destination is a 32 bits register */
-      hjpeg->InDataLength = hjpeg->InDataLength - (hjpeg->InDataLength % inXfrSize);
+      mHandle.InDataLength = mHandle.InDataLength - (mHandle.InDataLength % inXfrSize);
 
       }
-    else if(hjpeg->InDataLength > 0) {
+    else if(mHandle.InDataLength > 0) {
       // Transfer the remaining Data, must be multiple of source data size (byte) and destination data size (word) */
-      if((hjpeg->InDataLength % 4) != 0)
-        hjpeg->InDataLength = ((hjpeg->InDataLength / 4) + 1) * 4;
+      if((mHandle.InDataLength % 4) != 0)
+        mHandle.InDataLength = ((mHandle.InDataLength / 4) + 1) * 4;
       }
 
-    if (((hjpeg->Context &  JPEG_CONTEXT_PAUSE_INPUT) == 0) && (hjpeg->InDataLength > 0))
+    if (((mHandle.Context &  JPEG_CONTEXT_PAUSE_INPUT) == 0) && (mHandle.InDataLength > 0))
       // Start MDMA FIFO In transfer
-      HAL_MDMA_Start_IT (hjpeg->hdmain, (uint32_t)hjpeg->pJpegInBuffPtr, (uint32_t)&hjpeg->Instance->DIR, hjpeg->InDataLength, 1);
+      HAL_MDMA_Start_IT (mHandle.hdmain, (uint32_t)mHandle.pJpegInBuffPtr, (uint32_t)&JPEG->DIR, mHandle.InDataLength, 1);
 
     // JPEG Conversion still on going : Enable the JPEG IT
     __HAL_JPEG_ENABLE_IT (hjpeg,JPEG_IT_EOC |JPEG_IT_HPD);
@@ -917,15 +917,15 @@ void MDMAOutCpltCallback (MDMA_HandleTypeDef* hmdma) {
   // Disable The JPEG IT so the DMA Output Callback not interrupted by the JPEG EOC IT or JPEG HPD IT
   __HAL_JPEG_DISABLE_IT(hjpeg, JPEG_INTERRUPT_MASK);
 
-  if ((hjpeg->Context & JPEG_CONTEXT_ENDING_DMA) == 0) {
+  if ((mHandle.Context & JPEG_CONTEXT_ENDING_DMA) == 0) {
     if (__HAL_JPEG_GET_FLAG(hjpeg, JPEG_FLAG_EOCF) == 0) {
-      hjpeg->JpegOutCount = hjpeg->OutDataLength - (hmdma->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
+      mHandle.JpegOutCount = mHandle.OutDataLength - (hmdma->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
 
       // Output Buffer full
-      outputData (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
+      outputData (hjpeg, mHandle.pJpegOutBuffPtr, mHandle.JpegOutCount);
 
       // Start MDMA FIFO Out transfer
-      HAL_MDMA_Start_IT (hjpeg->hdmaout, (uint32_t)&hjpeg->Instance->DOR, (uint32_t)hjpeg->pJpegOutBuffPtr, hjpeg->OutDataLength, 1);
+      HAL_MDMA_Start_IT (mHandle.hdmaout, (uint32_t)&JPEG->DOR, (uint32_t)mHandle.pJpegOutBuffPtr, mHandle.OutDataLength, 1);
       }
 
     // JPEG Conversion still on going : Enable the JPEG IT
@@ -939,7 +939,7 @@ void MDMAErrorCallback (MDMA_HandleTypeDef* hmdma)
   JPEG_HandleTypeDef* hjpeg = (JPEG_HandleTypeDef*)((MDMA_HandleTypeDef*)hmdma)->Parent;
 
   /*Stop Encoding/Decoding*/
-  hjpeg->Instance->CONFR0 &= ~JPEG_CONFR0_START;
+  JPEG->CONFR0 &= ~JPEG_CONFR0_START;
 
   /* Disable All Interrupts */
   __HAL_JPEG_DISABLE_IT (hjpeg,JPEG_INTERRUPT_MASK);
@@ -951,7 +951,7 @@ void MDMAOutAbortCallback (MDMA_HandleTypeDef* hmdma) {
 
   JPEG_HandleTypeDef* hjpeg = (JPEG_HandleTypeDef*)((MDMA_HandleTypeDef*)hmdma)->Parent;
 
-  if ((hjpeg->Context & JPEG_CONTEXT_ENDING_DMA) != 0)
+  if ((mHandle.Context & JPEG_CONTEXT_ENDING_DMA) != 0)
     endDma (hjpeg);
   }
 //}}}
@@ -962,67 +962,67 @@ void decodeDma (JPEG_HandleTypeDef* hjpeg,
                  uint8_t* pDataOutMCU ,uint32_t OutDataLength) {
 
   // Set the Context to Decode with DMA
-  hjpeg->Context = 0;
+  mHandle.Context = 0;
 
-  hjpeg->pJpegInBuffPtr = pDataIn;
-  hjpeg->InDataLength = InDataLength;
+  mHandle.pJpegInBuffPtr = pDataIn;
+  mHandle.InDataLength = InDataLength;
 
-  hjpeg->pJpegOutBuffPtr = pDataOutMCU;
-  hjpeg->OutDataLength = OutDataLength;
+  mHandle.pJpegOutBuffPtr = pDataOutMCU;
+  mHandle.OutDataLength = OutDataLength;
 
   // Reset In/out data counter
-  hjpeg->JpegInCount = 0;
-  hjpeg->JpegOutCount = 0;
+  mHandle.JpegInCount = 0;
+  mHandle.JpegOutCount = 0;
 
   // Reset pause
-  hjpeg->Context = 0;
+  mHandle.Context = 0;
 
   // set JPEG Codec to Decoding mode
-  hjpeg->Instance->CONFR1 |= JPEG_CONFR1_DE;
+  JPEG->CONFR1 |= JPEG_CONFR1_DE;
 
   // Stop JPEG processing
-  hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
+  JPEG->CONFR0 &=  ~JPEG_CONFR0_START;
 
   __HAL_JPEG_DISABLE_IT (hjpeg,JPEG_INTERRUPT_MASK);
 
   // Flush input and output FIFOs
-  hjpeg->Instance->CR |= JPEG_CR_IFF;
-  hjpeg->Instance->CR |= JPEG_CR_OFF;
+  JPEG->CR |= JPEG_CR_IFF;
+  JPEG->CR |= JPEG_CR_OFF;
   __HAL_JPEG_CLEAR_FLAG (hjpeg,JPEG_FLAG_ALL);
 
   // Start Encoding/Decoding
-  hjpeg->Instance->CONFR0 |=  JPEG_CONFR0_START;
+  JPEG->CONFR0 |=  JPEG_CONFR0_START;
 
   // Enable End Of Conversation, and End Of Header parsing interruptions
   __HAL_JPEG_ENABLE_IT (hjpeg, JPEG_IT_EOC |JPEG_IT_HPD);
 
   // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
   // else (MDMA In is triggred with JPEG In FIFO not full flag then MDMA In buffer size is 4 bytes
-  uint32_t inXfrSize = hjpeg->hdmain->Init.BufferTransferLength;
+  uint32_t inXfrSize = mHandle.hdmain->Init.BufferTransferLength;
 
   // if the MDMA Out is triggred with JPEG Out FIFO Threshold flag then MDMA out buffer size is 32 bytes
   // else (MDMA Out is triggred with JPEG Out FIFO not empty flag then MDMA buffer size is 4 bytes
-  uint32_t outXfrSize = hjpeg->hdmaout->Init.BufferTransferLength;
+  uint32_t outXfrSize = mHandle.hdmaout->Init.BufferTransferLength;
 
-  hjpeg->hdmain->XferCpltCallback = MDMAInCpltCallback;
-  hjpeg->hdmain->XferErrorCallback = MDMAErrorCallback;
-  hjpeg->hdmaout->XferCpltCallback = MDMAOutCpltCallback;
-  hjpeg->hdmaout->XferErrorCallback = MDMAErrorCallback;
-  hjpeg->hdmaout->XferAbortCallback = MDMAOutAbortCallback;
-
-  // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)
-  hjpeg->InDataLength = hjpeg->InDataLength - (hjpeg->InDataLength % inXfrSize);
+  mHandle.hdmain->XferCpltCallback = MDMAInCpltCallback;
+  mHandle.hdmain->XferErrorCallback = MDMAErrorCallback;
+  mHandle.hdmaout->XferCpltCallback = MDMAOutCpltCallback;
+  mHandle.hdmaout->XferErrorCallback = MDMAErrorCallback;
+  mHandle.hdmaout->XferAbortCallback = MDMAOutAbortCallback;
 
   // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)
-  hjpeg->OutDataLength = hjpeg->OutDataLength - (hjpeg->OutDataLength % outXfrSize);
+  mHandle.InDataLength = mHandle.InDataLength - (mHandle.InDataLength % inXfrSize);
+
+  // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)
+  mHandle.OutDataLength = mHandle.OutDataLength - (mHandle.OutDataLength % outXfrSize);
 
   // Start MDMA FIFO Out transfer
-  HAL_MDMA_Start_IT (hjpeg->hdmaout, (uint32_t)&hjpeg->Instance->DOR,
-                     (uint32_t)hjpeg->pJpegOutBuffPtr, hjpeg->OutDataLength, 1);
+  HAL_MDMA_Start_IT (mHandle.hdmaout, (uint32_t)&JPEG->DOR,
+                     (uint32_t)mHandle.pJpegOutBuffPtr, mHandle.OutDataLength, 1);
 
   // Start DMA FIFO In transfer
-  HAL_MDMA_Start_IT (hjpeg->hdmain, (uint32_t)hjpeg->pJpegInBuffPtr,
-                    (uint32_t)&hjpeg->Instance->DIR, hjpeg->InDataLength, 1);
+  HAL_MDMA_Start_IT (mHandle.hdmain, (uint32_t)mHandle.pJpegInBuffPtr,
+                    (uint32_t)&JPEG->DIR, mHandle.InDataLength, 1);
   }
 //}}}
 //{{{
@@ -1031,18 +1031,18 @@ void resume (JPEG_HandleTypeDef* hjpeg) {
   uint32_t mask = 0;
   uint32_t xfrSize = 0;
 
-  hjpeg->Context &= (~JPEG_CONTEXT_PAUSE_INPUT);
+  mHandle.Context &= (~JPEG_CONTEXT_PAUSE_INPUT);
 
   // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
   // else (MDMA In is triggred with JPEG In FIFO not full flag) then MDMA In buffer size is 4 bytes
-  xfrSize = hjpeg->hdmain->Init.BufferTransferLength;
+  xfrSize = mHandle.hdmain->Init.BufferTransferLength;
 
   // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)*/
-  hjpeg->InDataLength = hjpeg->InDataLength - (hjpeg->InDataLength % xfrSize);
+  mHandle.InDataLength = mHandle.InDataLength - (mHandle.InDataLength % xfrSize);
 
-  if (hjpeg->InDataLength > 0)
+  if (mHandle.InDataLength > 0)
     /* Start DMA FIFO In transfer */
-    HAL_MDMA_Start_IT(hjpeg->hdmain, (uint32_t)hjpeg->pJpegInBuffPtr, (uint32_t)&hjpeg->Instance->DIR, hjpeg->InDataLength, 1);
+    HAL_MDMA_Start_IT(mHandle.hdmain, (uint32_t)mHandle.pJpegInBuffPtr, (uint32_t)&JPEG->DIR, mHandle.InDataLength, 1);
   }
 //}}}
 
