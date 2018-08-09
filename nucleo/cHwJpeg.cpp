@@ -269,83 +269,6 @@ void endDma() {
 //}}}
 
 //{{{
-extern "C" { void JPEG_IRQHandler() {
-
-  if (__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_HPDF) != RESET) {
-    //{{{  end of header, get info
-    mInfo.ImageHeight = (JPEG->CONFR1 & 0xFFFF0000U) >> 16;
-    mInfo.ImageWidth  = (JPEG->CONFR3 & 0xFFFF0000U) >> 16;
-
-    // Read the conf parameters
-    if ((JPEG->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF_1)
-      mInfo.ColorSpace = JPEG_YCBCR_COLORSPACE;
-    else if ((JPEG->CONFR1 & JPEG_CONFR1_NF) == 0)
-      mInfo.ColorSpace = JPEG_GRAYSCALE_COLORSPACE;
-    else if ((JPEG->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF)
-      mInfo.ColorSpace = JPEG_CMYK_COLORSPACE;
-
-    if ((mInfo.ColorSpace == JPEG_YCBCR_COLORSPACE) ||
-        (mInfo.ColorSpace == JPEG_CMYK_COLORSPACE)) {
-      uint32_t yblockNb  = (JPEG->CONFR4 & JPEG_CONFR4_NB) >> 4;
-      uint32_t cBblockNb = (JPEG->CONFR5 & JPEG_CONFR5_NB) >> 4;
-      uint32_t cRblockNb = (JPEG->CONFR6 & JPEG_CONFR6_NB) >> 4;
-
-      if ((yblockNb == 1) && (cBblockNb == 0) && (cRblockNb == 0))
-        mInfo.ChromaSubsampling = JPEG_422_SUBSAMPLING; /*16x8 block*/
-      else if ((yblockNb == 0) && (cBblockNb == 0) && (cRblockNb == 0))
-        mInfo.ChromaSubsampling = JPEG_444_SUBSAMPLING;
-      else if ((yblockNb == 3) && (cBblockNb == 0) && (cRblockNb == 0))
-        mInfo.ChromaSubsampling = JPEG_420_SUBSAMPLING;
-      else /*Default is 4:4:4*/
-        mInfo.ChromaSubsampling = JPEG_444_SUBSAMPLING;
-      }
-    else
-      mInfo.ChromaSubsampling = JPEG_444_SUBSAMPLING;
-
-    // reset the ImageQuality, is only available at the end of the decoding operation
-    mHandle.Conf.ImageQuality = 0;
-    mInfo.ImageQuality = 0;
-    // !!!info ready !!!!
-
-    __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_IT_HPD);
-
-    // clear header processing done flag
-    __HAL_JPEG_CLEAR_FLAG (&mHandle, JPEG_FLAG_HPDF);
-    }
-    //}}}
-  if (__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_EOCF) != RESET) {
-    //{{{  end of conversion
-    mHandle.Context |= JPEG_CONTEXT_ENDING_DMA;
-
-    // stop decoding
-    mHandle.Instance->CONFR0 &= ~JPEG_CONFR0_START;
-
-    __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_INTERRUPT_MASK);
-    __HAL_JPEG_CLEAR_FLAG (&mHandle, JPEG_FLAG_ALL);
-
-    if (mHandle.hdmain->State == HAL_MDMA_STATE_BUSY)
-      // Stop the MDMA In Xfer
-      HAL_MDMA_Abort_IT (mHandle.hdmain);
-
-    if (mHandle.hdmaout->State == HAL_MDMA_STATE_BUSY)
-      // Stop the MDMA out Xfer
-      HAL_MDMA_Abort_IT (mHandle.hdmaout);
-    else
-      endDma();
-    }
-    //}}}
-  }
-}
-//}}}
-//{{{
-extern "C" { void MDMA_IRQHandler() {
-  HAL_MDMA_IRQHandler (mHandle.hdmain);
-  HAL_MDMA_IRQHandler (mHandle.hdmaout);
-  }
-}
-//}}}
-
-//{{{
 void SetHuffDHTMem (JPEG_ACHuffTableTypeDef* HuffTableAC0,
                     JPEG_DCHuffTableTypeDef* HuffTableDC0,
                     JPEG_ACHuffTableTypeDef* HuffTableAC1,
@@ -844,8 +767,6 @@ void init() {
 
   mHandle.JpegInCount = 0;
   mHandle.JpegOutCount = 0;
-
-  // Clear the context
   mHandle.Context = 0;
   }
 //}}}
@@ -854,7 +775,7 @@ void init() {
 //{{{
 void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
 
-  // Disable The JPEG IT so the DMA Input Callback can not be interrupted by the JPEG EOC IT or JPEG HPD IT */
+  // Disable JPEG IT so DMA Input Callback can not be interrupted by the JPEG EOC IT or JPEG HPD IT
   __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_INTERRUPT_MASK);
 
   if ((mHandle.Context & JPEG_CONTEXT_ENDING_DMA) == 0) {
@@ -887,7 +808,7 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
 
       }
     else if(mHandle.InDataLength > 0) {
-      // Transfer the remaining Data, must be multiple of source data size (byte) and destination data size (word) */
+      // Transfer remaining Data, multiple of source data size (byte) and destination data size (word)
       if((mHandle.InDataLength % 4) != 0)
         mHandle.InDataLength = ((mHandle.InDataLength / 4) + 1) * 4;
       }
@@ -904,7 +825,7 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
 //{{{
 void MDMAOutCpltCallback (MDMA_HandleTypeDef* hmdma) {
 
-  // Disable The JPEG IT so the DMA Output Callback not interrupted by the JPEG EOC IT or JPEG HPD IT
+  // Disable JPEG IT so DMA Output Callback not interrupted by the JPEG EOC IT or JPEG HPD IT
   __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_INTERRUPT_MASK);
 
   if ((mHandle.Context & JPEG_CONTEXT_ENDING_DMA) == 0) {
@@ -940,6 +861,83 @@ void MDMAOutAbortCallback (MDMA_HandleTypeDef* hmdma) {
   if ((mHandle.Context & JPEG_CONTEXT_ENDING_DMA) != 0)
     endDma();
   }
+//}}}
+
+//{{{
+extern "C" { void JPEG_IRQHandler() {
+
+  if (__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_HPDF) != RESET) {
+    //{{{  end of header, get info
+    mInfo.ImageHeight = (JPEG->CONFR1 & 0xFFFF0000U) >> 16;
+    mInfo.ImageWidth  = (JPEG->CONFR3 & 0xFFFF0000U) >> 16;
+
+    // Read the conf parameters
+    if ((JPEG->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF_1)
+      mInfo.ColorSpace = JPEG_YCBCR_COLORSPACE;
+    else if ((JPEG->CONFR1 & JPEG_CONFR1_NF) == 0)
+      mInfo.ColorSpace = JPEG_GRAYSCALE_COLORSPACE;
+    else if ((JPEG->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF)
+      mInfo.ColorSpace = JPEG_CMYK_COLORSPACE;
+
+    if ((mInfo.ColorSpace == JPEG_YCBCR_COLORSPACE) ||
+        (mInfo.ColorSpace == JPEG_CMYK_COLORSPACE)) {
+      uint32_t yblockNb  = (JPEG->CONFR4 & JPEG_CONFR4_NB) >> 4;
+      uint32_t cBblockNb = (JPEG->CONFR5 & JPEG_CONFR5_NB) >> 4;
+      uint32_t cRblockNb = (JPEG->CONFR6 & JPEG_CONFR6_NB) >> 4;
+
+      if ((yblockNb == 1) && (cBblockNb == 0) && (cRblockNb == 0))
+        mInfo.ChromaSubsampling = JPEG_422_SUBSAMPLING; /*16x8 block*/
+      else if ((yblockNb == 0) && (cBblockNb == 0) && (cRblockNb == 0))
+        mInfo.ChromaSubsampling = JPEG_444_SUBSAMPLING;
+      else if ((yblockNb == 3) && (cBblockNb == 0) && (cRblockNb == 0))
+        mInfo.ChromaSubsampling = JPEG_420_SUBSAMPLING;
+      else /*Default is 4:4:4*/
+        mInfo.ChromaSubsampling = JPEG_444_SUBSAMPLING;
+      }
+    else
+      mInfo.ChromaSubsampling = JPEG_444_SUBSAMPLING;
+
+    // reset the ImageQuality, is only available at the end of the decoding operation
+    mHandle.Conf.ImageQuality = 0;
+    mInfo.ImageQuality = 0;
+    // !!!info ready !!!!
+
+    __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_IT_HPD);
+
+    // clear header processing done flag
+    __HAL_JPEG_CLEAR_FLAG (&mHandle, JPEG_FLAG_HPDF);
+    }
+    //}}}
+  if (__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_EOCF) != RESET) {
+    //{{{  end of conversion
+    mHandle.Context |= JPEG_CONTEXT_ENDING_DMA;
+
+    // stop decoding
+    mHandle.Instance->CONFR0 &= ~JPEG_CONFR0_START;
+
+    __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_INTERRUPT_MASK);
+    __HAL_JPEG_CLEAR_FLAG (&mHandle, JPEG_FLAG_ALL);
+
+    if (mHandle.hdmain->State == HAL_MDMA_STATE_BUSY)
+      // Stop the MDMA In Xfer
+      HAL_MDMA_Abort_IT (mHandle.hdmain);
+
+    if (mHandle.hdmaout->State == HAL_MDMA_STATE_BUSY)
+      // Stop the MDMA out Xfer
+      HAL_MDMA_Abort_IT (mHandle.hdmaout);
+    else
+      endDma();
+    }
+    //}}}
+  }
+}
+//}}}
+//{{{
+extern "C" { void MDMA_IRQHandler() {
+  HAL_MDMA_IRQHandler (mHandle.hdmain);
+  HAL_MDMA_IRQHandler (mHandle.hdmaout);
+  }
+}
 //}}}
 
 //{{{
@@ -1017,7 +1015,7 @@ void resume() {
   mHandle.InDataLength = mHandle.InDataLength - (mHandle.InDataLength % xfrSize);
 
   if (mHandle.InDataLength > 0)
-    // Start DMA FIFO In transfer 
+    // Start DMA FIFO In transfer
     HAL_MDMA_Start_IT (mHandle.hdmain, (uint32_t)mHandle.pJpegInBuffPtr, (uint32_t)&JPEG->DIR, mHandle.InDataLength, 1);
   }
 //}}}
