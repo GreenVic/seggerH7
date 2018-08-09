@@ -691,7 +691,6 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
     else {
       mBufs [mReadIndex].mFull = false;
       mBufs [mReadIndex].mSize = 0;
-
       mReadIndex = mReadIndex ? 0 : 1;
       if (mBufs [mReadIndex].mFull)
         configInputBuffer (mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
@@ -700,24 +699,21 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
         mHandle.Context |= JPEG_CONTEXT_PAUSE_INPUT;
       }
 
-    if (mHandle.InDataLength >= inXfrSize) {
-      // JPEG Input DMA transfer data number must be multiple of MDMA buffer size
-      // as the destination is a 32 bits register */
+    if (mHandle.InDataLength >= inXfrSize)
+      // JPEG Input DMA transfer len must be multiple of MDMA buffer size as destination is 32 bits reg
       mHandle.InDataLength = mHandle.InDataLength - (mHandle.InDataLength % inXfrSize);
-
-      }
-    else if(mHandle.InDataLength > 0) {
+    else if (mHandle.InDataLength > 0) {
       // Transfer remaining Data, multiple of source data size (byte) and destination data size (word)
-      if((mHandle.InDataLength % 4) != 0)
+      if ((mHandle.InDataLength % 4) != 0)
         mHandle.InDataLength = ((mHandle.InDataLength / 4) + 1) * 4;
       }
 
+    // if notpaused and some data, start MDMA FIFO In transfer
     if (((mHandle.Context & JPEG_CONTEXT_PAUSE_INPUT) == 0) && (mHandle.InDataLength > 0))
-      // Start MDMA FIFO In transfer
       HAL_MDMA_Start_IT (mHandle.hdmain, (uint32_t)mHandle.pJpegInBuffPtr, (uint32_t)&JPEG->DIR, mHandle.InDataLength, 1);
 
     // JPEG Conversion still on going : Enable the JPEG IT
-    __HAL_JPEG_ENABLE_IT (&mHandle, JPEG_IT_EOC |JPEG_IT_HPD);
+    __HAL_JPEG_ENABLE_IT (&mHandle, JPEG_IT_EOC | JPEG_IT_HPD);
     }
   }
 //}}}
