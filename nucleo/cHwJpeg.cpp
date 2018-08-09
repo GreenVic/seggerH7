@@ -190,44 +190,44 @@ __IO bool mInPaused = false;
 __IO bool mDecodeDone = false;
 
 //{{{
-void configInputBuffer (JPEG_HandleTypeDef* hjpeg, uint8_t* pNewInputBuffer, uint32_t InDataLength) {
+void configInputBuffer (uint8_t* buff, uint32_t len) {
 
-  mHandle.pJpegInBuffPtr =  pNewInputBuffer;
-  mHandle.InDataLength = InDataLength;
+  mHandle.pJpegInBuffPtr =  buff;
+  mHandle.InDataLength = len;
   }
 //}}}
 //{{{
-void configOutputBuffer (JPEG_HandleTypeDef* hjpeg, uint8_t* pNewOutputBuffer, uint32_t OutDataLength) {
+void configOutputBuffer (uint8_t* buff, uint32_t len) {
 
-  mHandle.pJpegOutBuffPtr = pNewOutputBuffer;
-  mHandle.OutDataLength = OutDataLength;
+  mHandle.pJpegOutBuffPtr = buff;
+  mHandle.OutDataLength = len;
   }
 //}}}
 //{{{
-void outputData (JPEG_HandleTypeDef* jpegHandlePtr, uint8_t* data, uint32_t len) {
+void outputData (uint8_t* data, uint32_t len) {
 
   //printf ("outputData %x %d\n", data, len);
   //lcd->info (COL_GREEN, "outputData " + hex(uint32_t(data)) + ":" + hex(len));
   //lcd->changed();
-  configOutputBuffer (&mHandle, data+len, kYuvChunkSize);
+  configOutputBuffer (data+len, kYuvChunkSize);
   }
 //}}}
 //{{{
-void endDma (JPEG_HandleTypeDef* hjpeg) {
+void endDma() {
 
   mHandle.JpegOutCount = mHandle.OutDataLength - (mHandle.hdmaout->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
 
   if (mHandle.JpegOutCount == mHandle.OutDataLength) {
     // Output Buffer full
-    outputData (hjpeg, mHandle.pJpegOutBuffPtr, mHandle.JpegOutCount);
+    outputData (mHandle.pJpegOutBuffPtr, mHandle.JpegOutCount);
     mHandle.JpegOutCount = 0;
     }
 
   // Check if remaining data in the output FIFO
-  if (__HAL_JPEG_GET_FLAG (hjpeg, JPEG_FLAG_OFNEF) == 0) {
+  if (__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_OFNEF) == 0) {
     if (mHandle.JpegOutCount > 0) {
       // Output Buffer not empty
-      outputData (hjpeg, mHandle.pJpegOutBuffPtr, mHandle.JpegOutCount);
+      outputData (mHandle.pJpegOutBuffPtr, mHandle.JpegOutCount);
       mHandle.JpegOutCount = 0;
       }
 
@@ -238,7 +238,7 @@ void endDma (JPEG_HandleTypeDef* hjpeg) {
   else {
     // dma residual data
     uint32_t count = JPEG_FIFO_SIZE;
-    while ((__HAL_JPEG_GET_FLAG (hjpeg, JPEG_FLAG_OFNEF) != 0) && (count > 0) ) {
+    while ((__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_OFNEF) != 0) && (count > 0) ) {
       count--;
 
       uint32_t dataOut = JPEG->DOR;
@@ -250,7 +250,7 @@ void endDma (JPEG_HandleTypeDef* hjpeg) {
 
       if (mHandle.JpegOutCount == mHandle.OutDataLength) {
         // Output Buffer full
-        outputData (hjpeg, mHandle.pJpegOutBuffPtr, mHandle.JpegOutCount);
+        outputData (mHandle.pJpegOutBuffPtr, mHandle.JpegOutCount);
         mHandle.JpegOutCount = 0;
         }
       }
@@ -259,7 +259,7 @@ void endDma (JPEG_HandleTypeDef* hjpeg) {
     JPEG->CONFR0 &=  ~JPEG_CONFR0_START;
     if (mHandle.JpegOutCount > 0) {
       // Output Buffer not empty
-      outputData (hjpeg, mHandle.pJpegOutBuffPtr, mHandle.JpegOutCount);
+      outputData (mHandle.pJpegOutBuffPtr, mHandle.JpegOutCount);
       mHandle.JpegOutCount = 0;
       }
     }
@@ -331,7 +331,7 @@ extern "C" { void JPEG_IRQHandler() {
       // Stop the MDMA out Xfer
       HAL_MDMA_Abort_IT (mHandle.hdmaout);
     else
-      endDma (&mHandle);
+      endDma();
     }
     //}}}
   }
@@ -346,8 +346,7 @@ extern "C" { void MDMA_IRQHandler() {
 //}}}
 
 //{{{
-void SetHuffDHTMem (JPEG_HandleTypeDef* hjpeg,
-                    JPEG_ACHuffTableTypeDef* HuffTableAC0,
+void SetHuffDHTMem (JPEG_ACHuffTableTypeDef* HuffTableAC0,
                     JPEG_DCHuffTableTypeDef* HuffTableDC0,
                     JPEG_ACHuffTableTypeDef* HuffTableAC1,
                     JPEG_DCHuffTableTypeDef* HuffTableDC1) {
@@ -626,9 +625,7 @@ HAL_StatusTypeDef DCHuffBitsValsToSizeCodes (JPEG_DCHuffTableTypeDef* DC_BitsVal
   }
 //}}}
 //{{{
-HAL_StatusTypeDef SetHuffDCMem (JPEG_HandleTypeDef* hjpeg,
-                                       JPEG_DCHuffTableTypeDef *HuffTableDC,
-                                       __IO uint32_t *DCTableAddress) {
+HAL_StatusTypeDef SetHuffDCMem (JPEG_DCHuffTableTypeDef *HuffTableDC, __IO uint32_t *DCTableAddress) {
 
   HAL_StatusTypeDef error = HAL_OK;
   JPEG_DC_HuffCodeTableTypeDef dcSizeCodesTable;
@@ -643,7 +640,7 @@ HAL_StatusTypeDef SetHuffDCMem (JPEG_HandleTypeDef* hjpeg,
     return HAL_ERROR;
 
   if (HuffTableDC != NULL) {
-    error = DCHuffBitsValsToSizeCodes(HuffTableDC, &dcSizeCodesTable);
+    error = DCHuffBitsValsToSizeCodes (HuffTableDC, &dcSizeCodesTable);
     if(error != HAL_OK)
       return  error;
     addressDef = address;
@@ -655,9 +652,11 @@ HAL_StatusTypeDef SetHuffDCMem (JPEG_HandleTypeDef* hjpeg,
     while (i > 0) {
       i--;
       address --;
-      msb = ((uint32_t)(((uint32_t)dcSizeCodesTable.CodeLength[i] & 0xF) << 8 )) | ((uint32_t)dcSizeCodesTable.HuffmanCode[i] & 0xFF);
+      msb = ((uint32_t)(((uint32_t)dcSizeCodesTable.CodeLength[i] & 0xF) << 8 )) |
+                        ((uint32_t)dcSizeCodesTable.HuffmanCode[i] & 0xFF);
       i--;
-      lsb = ((uint32_t)(((uint32_t)dcSizeCodesTable.CodeLength[i] & 0xF) << 8 )) | ((uint32_t)dcSizeCodesTable.HuffmanCode[i] & 0xFF);
+      lsb = ((uint32_t)(((uint32_t)dcSizeCodesTable.CodeLength[i] & 0xF) << 8 )) |
+                        ((uint32_t)dcSizeCodesTable.HuffmanCode[i] & 0xFF);
       *address = lsb | (msb << 16);
       }
     }
@@ -666,9 +665,7 @@ HAL_StatusTypeDef SetHuffDCMem (JPEG_HandleTypeDef* hjpeg,
   }
 //}}}
 //{{{
-HAL_StatusTypeDef SetHuffACMem (JPEG_HandleTypeDef* hjpeg,
-                                JPEG_ACHuffTableTypeDef* HuffTableAC,
-                                __IO uint32_t* ACTableAddress) {
+HAL_StatusTypeDef SetHuffACMem (JPEG_ACHuffTableTypeDef* HuffTableAC, __IO uint32_t* ACTableAddress) {
 
   HAL_StatusTypeDef error = HAL_OK;
   JPEG_AC_HuffCodeTableTypeDef acSizeCodesTable;
@@ -719,36 +716,35 @@ HAL_StatusTypeDef SetHuffACMem (JPEG_HandleTypeDef* hjpeg,
   }
 //}}}
 //{{{
-HAL_StatusTypeDef SetHuffEncMem (JPEG_HandleTypeDef* hjpeg,
-                                 JPEG_ACHuffTableTypeDef *HuffTableAC0,
+HAL_StatusTypeDef SetHuffEncMem (JPEG_ACHuffTableTypeDef *HuffTableAC0,
                                  JPEG_DCHuffTableTypeDef *HuffTableDC0,
                                  JPEG_ACHuffTableTypeDef *HuffTableAC1,
                                  JPEG_DCHuffTableTypeDef *HuffTableDC1) {
 
   HAL_StatusTypeDef error = HAL_OK;
 
-  SetHuffDHTMem(hjpeg, HuffTableAC0, HuffTableDC0, HuffTableAC1, HuffTableDC1);
+  SetHuffDHTMem (HuffTableAC0, HuffTableDC0, HuffTableAC1, HuffTableDC1);
 
   if (HuffTableAC0 != NULL) {
-    error = SetHuffACMem(hjpeg, HuffTableAC0, (JPEG->HUFFENC_AC0));
+    error = SetHuffACMem (HuffTableAC0, (JPEG->HUFFENC_AC0));
     if (error != HAL_OK)
       return  error;
     }
 
   if (HuffTableAC1 != NULL) {
-    error = SetHuffACMem(hjpeg, HuffTableAC1, (JPEG->HUFFENC_AC1));
+    error = SetHuffACMem (HuffTableAC1, (JPEG->HUFFENC_AC1));
     if (error != HAL_OK)
       return  error;
     }
 
   if (HuffTableDC0 != NULL) {
-    error = SetHuffDCMem(hjpeg, HuffTableDC0, JPEG->HUFFENC_DC0);
+    error = SetHuffDCMem (HuffTableDC0, JPEG->HUFFENC_DC0);
     if (error != HAL_OK)
       return  error;
     }
 
   if (HuffTableDC1 != NULL) {
-    error = SetHuffDCMem(hjpeg, HuffTableDC1, JPEG->HUFFENC_DC1);
+    error = SetHuffDCMem (HuffTableDC1, JPEG->HUFFENC_DC1);
     if (error != HAL_OK)
       return  error;
     }
@@ -757,7 +753,7 @@ HAL_StatusTypeDef SetHuffEncMem (JPEG_HandleTypeDef* hjpeg,
   }
 //}}}
 //{{{
-void init (JPEG_HandleTypeDef* hjpeg) {
+void init() {
 
   __HAL_RCC_JPGDECEN_CLK_ENABLE();
   __HAL_RCC_MDMA_CLK_ENABLE();
@@ -782,7 +778,7 @@ void init (JPEG_HandleTypeDef* hjpeg) {
   hmdmaIn.Init.TransferTriggerMode = MDMA_BUFFER_TRANSFER;
   hmdmaIn.Init.BufferTransferLength = 32;
   hmdmaIn.Instance = MDMA_Channel7;
-  __HAL_LINKDMA (hjpeg, hdmain, hmdmaIn);
+  __HAL_LINKDMA (&mHandle, hdmain, hmdmaIn);
   HAL_MDMA_DeInit (&hmdmaIn);
   HAL_MDMA_Init (&hmdmaIn);
   //}}}
@@ -808,7 +804,7 @@ void init (JPEG_HandleTypeDef* hjpeg) {
   hmdmaOut.Instance = MDMA_Channel6;
   HAL_MDMA_DeInit (&hmdmaOut);
   HAL_MDMA_Init (&hmdmaOut);
-  __HAL_LINKDMA (hjpeg, hdmaout, hmdmaOut);
+  __HAL_LINKDMA (&mHandle, hdmaout, hmdmaOut);
   //}}}
   HAL_NVIC_SetPriority (MDMA_IRQn, 0x08, 0x0F);
   HAL_NVIC_EnableIRQ (MDMA_IRQn);
@@ -816,17 +812,17 @@ void init (JPEG_HandleTypeDef* hjpeg) {
   HAL_NVIC_SetPriority (JPEG_IRQn, 0x07, 0x0F);
   HAL_NVIC_EnableIRQ (JPEG_IRQn);
 
-  __HAL_JPEG_ENABLE (hjpeg);
+  __HAL_JPEG_ENABLE (&mHandle);
 
   // Stop the JPEG encoding/decoding process*/
   JPEG->CONFR0 &= ~JPEG_CONFR0_START;
 
-  __HAL_JPEG_DISABLE_IT (hjpeg, JPEG_INTERRUPT_MASK);
+  __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_INTERRUPT_MASK);
 
   // Flush input and output FIFOs
   JPEG->CR |= JPEG_CR_IFF;
   JPEG->CR |= JPEG_CR_OFF;
-  __HAL_JPEG_CLEAR_FLAG (hjpeg,JPEG_FLAG_ALL);
+  __HAL_JPEG_CLEAR_FLAG (&mHandle, JPEG_FLAG_ALL);
 
   // init default quantization tables
   mHandle.QuantTable0 = (uint8_t*)((uint32_t)LUM_QuantTable);
@@ -838,8 +834,7 @@ void init (JPEG_HandleTypeDef* hjpeg) {
   uint32_t dcLum_huffmanTableAddr = (uint32_t)(&DCLUM_HuffTable);
   uint32_t acChrom_huffmanTableAddr = (uint32_t)(&ACCHROM_HuffTable);
   uint32_t dcChrom_huffmanTableAddr = (uint32_t)(&DCCHROM_HuffTable);
-  SetHuffEncMem (hjpeg,
-                 (JPEG_ACHuffTableTypeDef*)acLum_huffmanTableAddr,
+  SetHuffEncMem ((JPEG_ACHuffTableTypeDef*)acLum_huffmanTableAddr,
                  (JPEG_DCHuffTableTypeDef*)dcLum_huffmanTableAddr,
                  (JPEG_ACHuffTableTypeDef*)acChrom_huffmanTableAddr,
                  (JPEG_DCHuffTableTypeDef*)dcChrom_huffmanTableAddr);
@@ -850,7 +845,7 @@ void init (JPEG_HandleTypeDef* hjpeg) {
   mHandle.JpegInCount = 0;
   mHandle.JpegOutCount = 0;
 
-  // Clear the context fields
+  // Clear the context
   mHandle.Context = 0;
   }
 //}}}
@@ -859,10 +854,8 @@ void init (JPEG_HandleTypeDef* hjpeg) {
 //{{{
 void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
 
-  JPEG_HandleTypeDef* hjpeg = (JPEG_HandleTypeDef*)((MDMA_HandleTypeDef*)hmdma)->Parent;
-
   // Disable The JPEG IT so the DMA Input Callback can not be interrupted by the JPEG EOC IT or JPEG HPD IT */
-  __HAL_JPEG_DISABLE_IT(hjpeg,JPEG_INTERRUPT_MASK);
+  __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_INTERRUPT_MASK);
 
   if ((mHandle.Context & JPEG_CONTEXT_ENDING_DMA) == 0) {
     // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
@@ -871,16 +864,15 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
     mHandle.JpegInCount = mHandle.InDataLength - (hmdma->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
 
     if (mHandle.JpegInCount != mBufs[mReadIndex].mSize)
-      configInputBuffer (hjpeg,
-                         mBufs[mReadIndex].mBuf+mHandle.JpegInCount,
-                         mBufs[mReadIndex].mSize-mHandle.JpegInCount);
+      configInputBuffer (mBufs[mReadIndex].mBuf + mHandle.JpegInCount,
+                         mBufs[mReadIndex].mSize - mHandle.JpegInCount);
     else {
       mBufs [mReadIndex].mFull = false;
       mBufs [mReadIndex].mSize = 0;
 
       mReadIndex = mReadIndex ? 0 : 1;
       if (mBufs [mReadIndex].mFull)
-        configInputBuffer (hjpeg, mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
+        configInputBuffer (mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
       else {
         // pause
         mHandle.Context |= JPEG_CONTEXT_PAUSE_INPUT;
@@ -905,96 +897,80 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
       HAL_MDMA_Start_IT (mHandle.hdmain, (uint32_t)mHandle.pJpegInBuffPtr, (uint32_t)&JPEG->DIR, mHandle.InDataLength, 1);
 
     // JPEG Conversion still on going : Enable the JPEG IT
-    __HAL_JPEG_ENABLE_IT (hjpeg,JPEG_IT_EOC |JPEG_IT_HPD);
+    __HAL_JPEG_ENABLE_IT (&mHandle, JPEG_IT_EOC |JPEG_IT_HPD);
     }
   }
 //}}}
 //{{{
 void MDMAOutCpltCallback (MDMA_HandleTypeDef* hmdma) {
 
-  JPEG_HandleTypeDef* hjpeg = (JPEG_HandleTypeDef*)((MDMA_HandleTypeDef*)hmdma)->Parent;
-
   // Disable The JPEG IT so the DMA Output Callback not interrupted by the JPEG EOC IT or JPEG HPD IT
-  __HAL_JPEG_DISABLE_IT(hjpeg, JPEG_INTERRUPT_MASK);
+  __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_INTERRUPT_MASK);
 
   if ((mHandle.Context & JPEG_CONTEXT_ENDING_DMA) == 0) {
-    if (__HAL_JPEG_GET_FLAG(hjpeg, JPEG_FLAG_EOCF) == 0) {
+    if (__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_EOCF) == 0) {
       mHandle.JpegOutCount = mHandle.OutDataLength - (hmdma->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
 
       // Output Buffer full
-      outputData (hjpeg, mHandle.pJpegOutBuffPtr, mHandle.JpegOutCount);
+      outputData (mHandle.pJpegOutBuffPtr, mHandle.JpegOutCount);
 
       // Start MDMA FIFO Out transfer
       HAL_MDMA_Start_IT (mHandle.hdmaout, (uint32_t)&JPEG->DOR, (uint32_t)mHandle.pJpegOutBuffPtr, mHandle.OutDataLength, 1);
       }
 
     // JPEG Conversion still on going : Enable the JPEG IT
-    __HAL_JPEG_ENABLE_IT (hjpeg, JPEG_IT_EOC | JPEG_IT_HPD);
+    __HAL_JPEG_ENABLE_IT (&mHandle, JPEG_IT_EOC | JPEG_IT_HPD);
     }
   }
 //}}}
 //{{{
-void MDMAErrorCallback (MDMA_HandleTypeDef* hmdma)
-{
-  JPEG_HandleTypeDef* hjpeg = (JPEG_HandleTypeDef*)((MDMA_HandleTypeDef*)hmdma)->Parent;
+void MDMAErrorCallback (MDMA_HandleTypeDef* hmdma) {
 
-  /*Stop Encoding/Decoding*/
+  // Stop Decoding
   JPEG->CONFR0 &= ~JPEG_CONFR0_START;
 
-  /* Disable All Interrupts */
-  __HAL_JPEG_DISABLE_IT (hjpeg,JPEG_INTERRUPT_MASK);
+  // Disable All Interrupts
+  __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_INTERRUPT_MASK);
   }
 
 //}}}
 //{{{
 void MDMAOutAbortCallback (MDMA_HandleTypeDef* hmdma) {
 
-  JPEG_HandleTypeDef* hjpeg = (JPEG_HandleTypeDef*)((MDMA_HandleTypeDef*)hmdma)->Parent;
-
   if ((mHandle.Context & JPEG_CONTEXT_ENDING_DMA) != 0)
-    endDma (hjpeg);
+    endDma();
   }
 //}}}
 
 //{{{
-void decodeDma (JPEG_HandleTypeDef* hjpeg,
-                 uint8_t* pDataIn, uint32_t InDataLength,
-                 uint8_t* pDataOutMCU ,uint32_t OutDataLength) {
-
-  // Set the Context to Decode with DMA
-  mHandle.Context = 0;
+void decodeDma (uint8_t* pDataIn, uint32_t InDataLength,
+                uint8_t* pDataOutMCU ,uint32_t OutDataLength) {
 
   mHandle.pJpegInBuffPtr = pDataIn;
   mHandle.InDataLength = InDataLength;
-
   mHandle.pJpegOutBuffPtr = pDataOutMCU;
   mHandle.OutDataLength = OutDataLength;
-
-  // Reset In/out data counter
   mHandle.JpegInCount = 0;
   mHandle.JpegOutCount = 0;
-
-  // Reset pause
   mHandle.Context = 0;
 
   // set JPEG Codec to Decoding mode
   JPEG->CONFR1 |= JPEG_CONFR1_DE;
 
-  // Stop JPEG processing
+  // stop JPEG processing
   JPEG->CONFR0 &=  ~JPEG_CONFR0_START;
+  __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_INTERRUPT_MASK);
 
-  __HAL_JPEG_DISABLE_IT (hjpeg,JPEG_INTERRUPT_MASK);
-
-  // Flush input and output FIFOs
+  // flush input and output FIFOs
   JPEG->CR |= JPEG_CR_IFF;
   JPEG->CR |= JPEG_CR_OFF;
-  __HAL_JPEG_CLEAR_FLAG (hjpeg,JPEG_FLAG_ALL);
+  __HAL_JPEG_CLEAR_FLAG (&mHandle, JPEG_FLAG_ALL);
 
-  // Start Encoding/Decoding
+  // start Encoding/Decoding
   JPEG->CONFR0 |=  JPEG_CONFR0_START;
 
-  // Enable End Of Conversation, and End Of Header parsing interruptions
-  __HAL_JPEG_ENABLE_IT (hjpeg, JPEG_IT_EOC |JPEG_IT_HPD);
+  // enable End Of Conversation, and End Of Header parsing interruptions
+  __HAL_JPEG_ENABLE_IT (&mHandle, JPEG_IT_EOC |JPEG_IT_HPD);
 
   // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
   // else (MDMA In is triggred with JPEG In FIFO not full flag then MDMA In buffer size is 4 bytes
@@ -1016,22 +992,22 @@ void decodeDma (JPEG_HandleTypeDef* hjpeg,
   // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)
   mHandle.OutDataLength = mHandle.OutDataLength - (mHandle.OutDataLength % outXfrSize);
 
-  // Start MDMA FIFO Out transfer
+  // start MDMA FIFO Out transfer
   HAL_MDMA_Start_IT (mHandle.hdmaout, (uint32_t)&JPEG->DOR,
                      (uint32_t)mHandle.pJpegOutBuffPtr, mHandle.OutDataLength, 1);
 
-  // Start DMA FIFO In transfer
+  // start DMA FIFO In transfer
   HAL_MDMA_Start_IT (mHandle.hdmain, (uint32_t)mHandle.pJpegInBuffPtr,
                     (uint32_t)&JPEG->DIR, mHandle.InDataLength, 1);
   }
 //}}}
 //{{{
-void resume (JPEG_HandleTypeDef* hjpeg) {
+void resume() {
 
   uint32_t mask = 0;
   uint32_t xfrSize = 0;
 
-  mHandle.Context &= (~JPEG_CONTEXT_PAUSE_INPUT);
+  mHandle.Context &= ~JPEG_CONTEXT_PAUSE_INPUT;
 
   // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
   // else (MDMA In is triggred with JPEG In FIFO not full flag) then MDMA In buffer size is 4 bytes
@@ -1041,8 +1017,8 @@ void resume (JPEG_HandleTypeDef* hjpeg) {
   mHandle.InDataLength = mHandle.InDataLength - (mHandle.InDataLength % xfrSize);
 
   if (mHandle.InDataLength > 0)
-    /* Start DMA FIFO In transfer */
-    HAL_MDMA_Start_IT(mHandle.hdmain, (uint32_t)mHandle.pJpegInBuffPtr, (uint32_t)&JPEG->DIR, mHandle.InDataLength, 1);
+    // Start DMA FIFO In transfer 
+    HAL_MDMA_Start_IT (mHandle.hdmain, (uint32_t)mHandle.pJpegInBuffPtr, (uint32_t)&JPEG->DIR, mHandle.InDataLength, 1);
   }
 //}}}
 
@@ -1052,22 +1028,22 @@ cTile* cHwJpeg::decode (const string& fileName) {
 
   FIL file;
   if (f_open (&file, fileName.c_str(), FA_READ) == FR_OK) {
+    if (!mYuvBuf) {
+      mYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
+      mHandle.Instance = JPEG;
+      init();
+      }
+
     if (f_read (&file, mBufs[0].mBuf, 4096, &mBufs[0].mSize) == FR_OK)
       mBufs[0].mFull = true;
     if (f_read (&file, mBufs[1].mBuf, 4096, &mBufs[1].mSize) == FR_OK)
       mBufs[1].mFull = true;
 
-    if (!mYuvBuf) {
-      mHandle.Instance = JPEG;
-      init (&mHandle);
-      mYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
-      }
-
     mReadIndex = 0;
     mWriteIndex = 0;
     mInPaused = 0;
     mDecodeDone = false;
-    decodeDma (&mHandle, mBufs[0].mBuf, mBufs[0].mSize, mYuvBuf, kYuvChunkSize);
+    decodeDma (mBufs[0].mBuf, mBufs[0].mSize, mYuvBuf, kYuvChunkSize);
 
     while (!mDecodeDone) {
       if (!mBufs[mWriteIndex].mFull) {
@@ -1075,8 +1051,8 @@ cTile* cHwJpeg::decode (const string& fileName) {
           mBufs[mWriteIndex].mFull = true;
         if (mInPaused && (mWriteIndex == mReadIndex)) {
           mInPaused = false;
-          configInputBuffer (&mHandle, mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
-          resume (&mHandle);
+          configInputBuffer (mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
+          resume();
           }
         mWriteIndex = mWriteIndex ? 0 : 1;
         }
