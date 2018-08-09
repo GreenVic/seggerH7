@@ -215,44 +215,7 @@ void dataReady (JPEG_HandleTypeDef* jpegHandlePtr, uint8_t* data, uint32_t len) 
 //}}}
 
 //{{{
-void dmaPollResidualData (JPEG_HandleTypeDef* hjpeg) {
-
-  uint32_t count = JPEG_FIFO_SIZE;
-  while ((__HAL_JPEG_GET_FLAG (hjpeg, JPEG_FLAG_OFNEF) != 0) &&
-         (count > 0) && ((hjpeg->Context & JPEG_CONTEXT_PAUSE_OUTPUT) == 0)) {
-    count--;
-
-    uint32_t dataOut = hjpeg->Instance->DOR;
-    hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount] = dataOut & 0x000000FF;
-    hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 1] = (dataOut & 0x0000FF00) >> 8;
-    hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 2] = (dataOut & 0x00FF0000) >> 16;
-    hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 3] = (dataOut & 0xFF000000) >> 24;
-    hjpeg->JpegOutCount += 4;
-
-    if (hjpeg->JpegOutCount == hjpeg->OutDataLength) {
-      // Output Buffer is full
-      dataReady (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
-      hjpeg->JpegOutCount = 0;
-      }
-    }
-
-  if ((hjpeg->Context &  JPEG_CONTEXT_PAUSE_OUTPUT) == 0) {
-    // Stop Encoding/Decoding
-    hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
-
-    if (hjpeg->JpegOutCount > 0) {
-      // Output Buffer is not empty
-      dataReady (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
-      hjpeg->JpegOutCount = 0;
-      }
-
-    // end of Encoding/Decoding callback
-    mDecodeDone = true;
-    }
-  }
-//}}}
-//{{{
-uint32_t dmaEndProcess (JPEG_HandleTypeDef* hjpeg) {
+void dmaEndProcess (JPEG_HandleTypeDef* hjpeg) {
 
   hjpeg->JpegOutCount = hjpeg->OutDataLength - (hjpeg->hdmaout->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
 
@@ -270,19 +233,43 @@ uint32_t dmaEndProcess (JPEG_HandleTypeDef* hjpeg) {
       hjpeg->JpegOutCount = 0;
       }
 
-    // Stop Encoding/Decoding
+    // stop decoding
     hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
-
-    // end of Encoding/Decoding callback
     mDecodeDone = true;
     }
 
   else if ((hjpeg->Context & JPEG_CONTEXT_PAUSE_OUTPUT) == 0) {
-    dmaPollResidualData (hjpeg);
-    return JPEG_PROCESS_DONE;
-    }
+    // dma residual data
+    uint32_t count = JPEG_FIFO_SIZE;
+    while ((__HAL_JPEG_GET_FLAG (hjpeg, JPEG_FLAG_OFNEF) != 0) &&
+           (count > 0) && ((hjpeg->Context & JPEG_CONTEXT_PAUSE_OUTPUT) == 0)) {
+      count--;
 
-  return JPEG_PROCESS_ONGOING;
+      uint32_t dataOut = hjpeg->Instance->DOR;
+      hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount] = dataOut & 0x000000FF;
+      hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 1] = (dataOut & 0x0000FF00) >> 8;
+      hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 2] = (dataOut & 0x00FF0000) >> 16;
+      hjpeg->pJpegOutBuffPtr[hjpeg->JpegOutCount + 3] = (dataOut & 0xFF000000) >> 24;
+      hjpeg->JpegOutCount += 4;
+
+      if (hjpeg->JpegOutCount == hjpeg->OutDataLength) {
+        // Output Buffer is full
+        dataReady (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
+        hjpeg->JpegOutCount = 0;
+        }
+      }
+
+    if ((hjpeg->Context & JPEG_CONTEXT_PAUSE_OUTPUT) == 0) {
+      // stop decoding
+      hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
+      if (hjpeg->JpegOutCount > 0) {
+        // Output Buffer is not empty
+        dataReady (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
+        hjpeg->JpegOutCount = 0;
+        }
+      mDecodeDone = true;
+      }
+    }
   }
 //}}}
 
@@ -290,7 +277,7 @@ uint32_t dmaEndProcess (JPEG_HandleTypeDef* hjpeg) {
 extern "C" { void JPEG_IRQHandler() {
 
   if (__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_HPDF) != RESET) {
-    // end of header, get info
+    //{{{  end of header, get info
     mInfo.ImageHeight = (JPEG->CONFR1 & 0xFFFF0000U) >> 16;
     mInfo.ImageWidth  = (JPEG->CONFR3 & 0xFFFF0000U) >> 16;
 
@@ -329,12 +316,12 @@ extern "C" { void JPEG_IRQHandler() {
     // clear header processing done flag
     __HAL_JPEG_CLEAR_FLAG (&mHandle, JPEG_FLAG_HPDF);
     }
-
+    //}}}
   if (__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_EOCF) != RESET) {
-    // end of Conversion
+    //{{{  end of conversion
     mHandle.Context |= JPEG_CONTEXT_ENDING_DMA;
 
-    // stop Encoding/Decoding
+    // stop decoding
     mHandle.Instance->CONFR0 &= ~JPEG_CONFR0_START;
 
     __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_INTERRUPT_MASK);
@@ -349,6 +336,7 @@ extern "C" { void JPEG_IRQHandler() {
     else
       dmaEndProcess (&mHandle);
     }
+    //}}}
   }
 }
 //}}}
