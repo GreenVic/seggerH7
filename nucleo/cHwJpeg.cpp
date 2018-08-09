@@ -175,7 +175,6 @@ uint8_t mBuf1[4096];
 tBufs mBufs[2] = { { false, mBuf0, 0 }, { false, mBuf1, 0 } };
 __IO uint32_t mReadIndex = 0;
 __IO uint32_t mWriteIndex = 0;
-__IO bool mInPaused = false;
 __IO bool mDecodeDone = false;
 //}}}
 
@@ -308,26 +307,6 @@ void dmaEnd() {
     }
 
   mDecodeDone = true;
-  }
-//}}}
-//{{{
-void resume() {
-
-  uint32_t mask = 0;
-  uint32_t xfrSize = 0;
-
-  mHandle.Context &= ~JPEG_CONTEXT_PAUSE_INPUT;
-
-  // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
-  // else (MDMA In is triggred with JPEG In FIFO not full flag) then MDMA In buffer size is 4 bytes
-  xfrSize = mHandle.hdmain->Init.BufferTransferLength;
-
-  // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)*/
-  mHandle.InDataLength = mHandle.InDataLength - (mHandle.InDataLength % xfrSize);
-
-  if (mHandle.InDataLength > 0)
-    // Start DMA FIFO In transfer
-    HAL_MDMA_Start_IT (mHandle.hdmain, (uint32_t)mHandle.pJpegInBuffPtr, (uint32_t)&JPEG->DIR, mHandle.InDataLength, 1);
   }
 //}}}
 
@@ -701,8 +680,8 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
   __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_INTERRUPT_MASK);
 
   if ((mHandle.Context & JPEG_CONTEXT_ENDING_DMA) == 0) {
-    // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
-    //  else (MDMA In is triggred with JPEG In FIFO not full flag) then MDMA In buffer size is 4 bytes
+    // if  MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
+    // else MDMA In is triggred with JPEG In FIFO not full flag then MDMA In buffer size is 4 bytes
     uint32_t inXfrSize = mHandle.hdmain->Init.BufferTransferLength;
     mHandle.JpegInCount = mHandle.InDataLength - (hmdma->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
 
@@ -716,11 +695,9 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
       mReadIndex = mReadIndex ? 0 : 1;
       if (mBufs [mReadIndex].mFull)
         configInputBuffer (mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
-      else {
+      else
         // pause
         mHandle.Context |= JPEG_CONTEXT_PAUSE_INPUT;
-        mInPaused = true;
-        }
       }
 
     if (mHandle.InDataLength >= inXfrSize) {
@@ -735,7 +712,7 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
         mHandle.InDataLength = ((mHandle.InDataLength / 4) + 1) * 4;
       }
 
-    if (((mHandle.Context &  JPEG_CONTEXT_PAUSE_INPUT) == 0) && (mHandle.InDataLength > 0))
+    if (((mHandle.Context & JPEG_CONTEXT_PAUSE_INPUT) == 0) && (mHandle.InDataLength > 0))
       // Start MDMA FIFO In transfer
       HAL_MDMA_Start_IT (mHandle.hdmain, (uint32_t)mHandle.pJpegInBuffPtr, (uint32_t)&JPEG->DIR, mHandle.InDataLength, 1);
 
@@ -981,7 +958,6 @@ cTile* cHwJpeg::decode (const string& fileName) {
 
     mReadIndex = 0;
     mWriteIndex = 0;
-    mInPaused = 0;
     mDecodeDone = false;
     dmaDecode (mBufs[0].mBuf, mBufs[0].mSize, mYuvBuf, kYuvChunkSize);
 
@@ -989,11 +965,22 @@ cTile* cHwJpeg::decode (const string& fileName) {
       if (!mBufs[mWriteIndex].mFull) {
         if (f_read (&file, mBufs[mWriteIndex].mBuf, 4096, &mBufs[mWriteIndex].mSize) == FR_OK)
           mBufs[mWriteIndex].mFull = true;
-        if (mInPaused && (mWriteIndex == mReadIndex)) {
-          mInPaused = false;
+
+        if (((mHandle.Context & JPEG_CONTEXT_PAUSE_INPUT) != 0) && (mWriteIndex == mReadIndex)) {
+          // resume
           configInputBuffer (mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
-          resume();
+          mHandle.Context &= ~JPEG_CONTEXT_PAUSE_INPUT;
+
+          // if MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
+          // else MDMA In is triggred with JPEG In FIFO not full flag then MDMA In buffer size is 4 bytes
+          // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)
+          uint32_t xfrSize = mHandle.hdmain->Init.BufferTransferLength;
+          mHandle.InDataLength = mHandle.InDataLength - (mHandle.InDataLength % xfrSize);
+          if (mHandle.InDataLength > 0)
+            // Start DMA FIFO In transfer
+            HAL_MDMA_Start_IT (mHandle.hdmain, (uint32_t)mHandle.pJpegInBuffPtr, (uint32_t)&JPEG->DIR, mHandle.InDataLength, 1);
           }
+
         mWriteIndex = mWriteIndex ? 0 : 1;
         }
       else
