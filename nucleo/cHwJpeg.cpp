@@ -269,189 +269,16 @@ void endDma() {
 //}}}
 
 //{{{
-void SetHuffDHTMem (JPEG_ACHuffTableTypeDef* HuffTableAC0,
-                    JPEG_DCHuffTableTypeDef* HuffTableDC0,
-                    JPEG_ACHuffTableTypeDef* HuffTableAC1,
-                    JPEG_DCHuffTableTypeDef* HuffTableDC1) {
+void BitsToSizeCodes (uint8_t* Bits, uint8_t* Huffsize, uint32_t* Huffcode, uint32_t* LastK) {
 
-  uint32_t value, index;
-  __IO uint32_t* address;
-
-  if (HuffTableDC0 != NULL) {
-    /* DC0 Huffman Table : BITS*/
-    /* DC0 BITS is a 16 Bytes table i.e 4x32bits words from DHTMEM base address to DHTMEM + 3*/
-    address = (JPEG->DHTMEM + 3);
-    index = 16;
-    while(index > 0) {
-      *address = (((uint32_t)HuffTableDC0->Bits[index-1] & 0xFF) << 24)|
-                 (((uint32_t)HuffTableDC0->Bits[index-2] & 0xFF) << 16)|
-                 (((uint32_t)HuffTableDC0->Bits[index-3] & 0xFF) << 8) |
-                 ((uint32_t)HuffTableDC0->Bits[index-4] & 0xFF);
-      address--;
-      index -=4;
-      }
-
-    /* DC0 Huffman Table : Val*/
-    /* DC0 VALS is a 12 Bytes table i.e 3x32bits words from DHTMEM base address +4 to DHTMEM + 6 */
-    address = (JPEG->DHTMEM + 6);
-    index = 12;
-    while(index > 0) {
-      *address = (((uint32_t)HuffTableDC0->HuffVal[index-1] & 0xFF) << 24)|
-                 (((uint32_t)HuffTableDC0->HuffVal[index-2] & 0xFF) << 16)|
-                 (((uint32_t)HuffTableDC0->HuffVal[index-3] & 0xFF) << 8) |
-                 ((uint32_t)HuffTableDC0->HuffVal[index-4] & 0xFF);
-      address--;
-      index -=4;
-      }
-    }
-
-  if (HuffTableAC0 != NULL) {
-    /* AC0 Huffman Table : BITS*/
-    /* AC0 BITS is a 16 Bytes table i.e 4x32bits words from DHTMEM base address + 7 to DHTMEM + 10*/
-    address = (JPEG->DHTMEM + 10);
-    index = 16;
-    while(index > 0) {
-      *address = (((uint32_t)HuffTableAC0->Bits[index-1] & 0xFF) << 24)|
-                 (((uint32_t)HuffTableAC0->Bits[index-2] & 0xFF) << 16)|
-                 (((uint32_t)HuffTableAC0->Bits[index-3] & 0xFF) << 8) |
-                 ((uint32_t)HuffTableAC0->Bits[index-4] & 0xFF);
-      address--;
-      index -=4;
-      }
-    /* AC0 Huffman Table : Val*/
-    /* AC0 VALS is a 162 Bytes table i.e 41x32bits words from DHTMEM base address + 11 to DHTMEM + 51 */
-    /* only Byte 0 and Byte 1 of the last word (@ DHTMEM + 51) belong to AC0 VALS table */
-    address = (JPEG->DHTMEM + 51);
-    value = *address & 0xFFFF0000U;
-    value = value | (((uint32_t)HuffTableAC0->HuffVal[161] & 0xFF) << 8) | ((uint32_t)HuffTableAC0->HuffVal[160] & 0xFF);
-    *address = value;
-
-    /*continue setting 160 AC0 huffman values */
-    address--; /* address = JPEG->DHTMEM + 50*/
-    index = 160;
-    while(index > 0) {
-      *address = (((uint32_t)HuffTableAC0->HuffVal[index-1] & 0xFF) << 24)|
-                 (((uint32_t)HuffTableAC0->HuffVal[index-2] & 0xFF) << 16)|
-                 (((uint32_t)HuffTableAC0->HuffVal[index-3] & 0xFF) << 8) |
-                 ((uint32_t)HuffTableAC0->HuffVal[index-4] & 0xFF);
-      address--;
-      index -=4;
-      }
-    }
-
-  if (HuffTableDC1 != NULL) {
-    /* DC1 Huffman Table : BITS*/
-    /* DC1 BITS is a 16 Bytes table i.e 4x32bits words from DHTMEM + 51 base address to DHTMEM + 55*/
-    /* only Byte 2 and Byte 3 of the first word (@ DHTMEM + 51) belong to DC1 Bits table */
-    address = (JPEG->DHTMEM + 51);
-    value = *address & 0x0000FFFFU;
-    value = value | (((uint32_t)HuffTableDC1->Bits[1] & 0xFF) << 24) | (((uint32_t)HuffTableDC1->Bits[0] & 0xFF) << 16);
-    *address = value;
-
-    /* only Byte 0 and Byte 1 of the last word (@ DHTMEM + 55) belong to DC1 Bits table */
-    address = (JPEG->DHTMEM + 55);
-    value = *address & 0xFFFF0000U;
-    value = value | (((uint32_t)HuffTableDC1->Bits[15] & 0xFF) << 8) | ((uint32_t)HuffTableDC1->Bits[14] & 0xFF);
-    *address = value;
-
-    /*continue setting 12 DC1 huffman Bits from DHTMEM + 54 down to DHTMEM + 52*/
-    address--;
-    index = 12;
-    while(index > 0) {
-      *address = (((uint32_t)HuffTableDC1->Bits[index+1] & 0xFF) << 24)|
-                 (((uint32_t)HuffTableDC1->Bits[index] & 0xFF) << 16)|
-                 (((uint32_t)HuffTableDC1->Bits[index-1] & 0xFF) << 8) |
-                 ((uint32_t)HuffTableDC1->Bits[index-2] & 0xFF);
-      address--;
-      index -=4;
-      }
-    /* DC1 Huffman Table : Val*/
-    /* DC1 VALS is a 12 Bytes table i.e 3x32bits words from DHTMEM base address +55 to DHTMEM + 58 */
-    /* only Byte 2 and Byte 3 of the first word (@ DHTMEM + 55) belong to DC1 Val table */
-    address = (JPEG->DHTMEM + 55);
-    value = *address & 0x0000FFFF;
-    value = value | (((uint32_t)HuffTableDC1->HuffVal[1] & 0xFF) << 24) | (((uint32_t)HuffTableDC1->HuffVal[0] & 0xFF) << 16);
-    *address = value;
-
-    /* only Byte 0 and Byte 1 of the last word (@ DHTMEM + 58) belong to DC1 Val table */
-    address = (JPEG->DHTMEM + 58);
-    value = *address & 0xFFFF0000U;
-    value = value | (((uint32_t)HuffTableDC1->HuffVal[11] & 0xFF) << 8) | ((uint32_t)HuffTableDC1->HuffVal[10] & 0xFF);
-    *address = value;
-
-    /*continue setting 8 DC1 huffman val from DHTMEM + 57 down to DHTMEM + 56*/
-    address--;
-    index = 8;
-    while(index > 0) {
-      *address = (((uint32_t)HuffTableDC1->HuffVal[index+1] & 0xFF) << 24)|
-                 (((uint32_t)HuffTableDC1->HuffVal[index] & 0xFF) << 16)|
-                 (((uint32_t)HuffTableDC1->HuffVal[index-1] & 0xFF) << 8) |
-                 ((uint32_t)HuffTableDC1->HuffVal[index-2] & 0xFF);
-      address--;
-      index -=4;
-    }
-  }
-
-  if (HuffTableAC1 != NULL) {
-    /* AC1 Huffman Table : BITS*/
-    /* AC1 BITS is a 16 Bytes table i.e 4x32bits words from DHTMEM base address + 58 to DHTMEM + 62*/
-    /* only Byte 2 and Byte 3 of the first word (@ DHTMEM + 58) belong to AC1 Bits table */
-    address = (JPEG->DHTMEM + 58);
-    value = *address & 0x0000FFFFU;
-    value = value | (((uint32_t)HuffTableAC1->Bits[1] & 0xFF) << 24) | (((uint32_t)HuffTableAC1->Bits[0] & 0xFF) << 16);
-    *address = value;
-
-    /* only Byte 0 and Byte 1 of the last word (@ DHTMEM + 62) belong to Bits Val table */
-    address = (JPEG->DHTMEM + 62);
-    value = *address & 0xFFFF0000U;
-    value = value | (((uint32_t)HuffTableAC1->Bits[15] & 0xFF) << 8) | ((uint32_t)HuffTableAC1->Bits[14] & 0xFF);
-    *address = value;
-
-    /*continue setting 12 AC1 huffman Bits from DHTMEM + 61 down to DHTMEM + 59*/
-    address--;
-    index = 12;
-    while(index > 0) {
-      *address = (((uint32_t)HuffTableAC1->Bits[index+1] & 0xFF) << 24)|
-                 (((uint32_t)HuffTableAC1->Bits[index] & 0xFF) << 16)|
-                 (((uint32_t)HuffTableAC1->Bits[index-1] & 0xFF) << 8) |
-                 ((uint32_t)HuffTableAC1->Bits[index-2] & 0xFF);
-      address--;
-      index -=4;
-      }
-
-    /* AC1 Huffman Table : Val*/
-    /* AC1 VALS is a 162 Bytes table i.e 41x32bits words from DHTMEM base address + 62 to DHTMEM + 102 */
-    /* only Byte 2 and Byte 3 of the first word (@ DHTMEM + 62) belong to AC1 VALS table */
-    address = (JPEG->DHTMEM + 62);
-    value = *address & 0x0000FFFF;
-    value = value | (((uint32_t)HuffTableAC1->HuffVal[1] & 0xFF) << 24) | (((uint32_t)HuffTableAC1->HuffVal[0] & 0xFF) << 16);
-    *address = value;
-
-    /*continue setting 160 AC1 huffman values from DHTMEM + 63 to DHTMEM+102 */
-    address = (JPEG->DHTMEM + 102);
-    index = 160;
-    while(index > 0) {
-      *address = (((uint32_t)HuffTableAC1->HuffVal[index+1] & 0xFF) << 24)|
-                 (((uint32_t)HuffTableAC1->HuffVal[index] & 0xFF) << 16)|
-                 (((uint32_t)HuffTableAC1->HuffVal[index-1] & 0xFF) << 8) |
-                 ((uint32_t)HuffTableAC1->HuffVal[index-2] & 0xFF);
-      address--;
-      index -=4;
-      }
-    }
-  }
-//}}}
-//{{{
-HAL_StatusTypeDef BitsToSizeCodes (uint8_t* Bits, uint8_t* Huffsize, uint32_t* Huffcode, uint32_t* LastK)
-{
   uint32_t i, p, l, code, si;
 
-  /* Figure C.1: Generation of table of Huffman code sizes */
+  // Figure C.1: Generation of table of Huffman code sizes */
   p = 0;
   for (l = 0; l < 16; l++) {
     i = (uint32_t)Bits[l];
     if ( (p + i) > 256)
-      return HAL_ERROR;
+      return;
     while (i != 0) {
       Huffsize[p++] = (uint8_t) l+1;
       i--;
@@ -460,7 +287,7 @@ HAL_StatusTypeDef BitsToSizeCodes (uint8_t* Bits, uint8_t* Huffsize, uint32_t* H
   Huffsize[p] = 0;
   *LastK = p;
 
-  /* Figure C.2: Generation of table of Huffman codes */
+  // Figure C.2: Generation of table of Huffman codes */
   code = 0;
   si = Huffsize[0];
   p = 0;
@@ -469,88 +296,41 @@ HAL_StatusTypeDef BitsToSizeCodes (uint8_t* Bits, uint8_t* Huffsize, uint32_t* H
       Huffcode[p++] = code;
       code++;
       }
-    /* code must fit in "size" bits (si), no code is allowed to be all ones*/
+    // code must fit in "size" bits (si), no code is allowed to be all ones*/
     if (((uint32_t) code) >= (((uint32_t) 1) << si))
-      return HAL_ERROR;
+      return;
     code <<= 1;
     si++;
     }
-
-  /* Return function status */
-  return HAL_OK;
   }
 //}}}
 //{{{
-HAL_StatusTypeDef ACHuffBitsValsToSizeCodes (JPEG_ACHuffTableTypeDef* AC_BitsValsTable,
-                                            JPEG_AC_HuffCodeTableTypeDef* AC_SizeCodesTable) {
-
-  HAL_StatusTypeDef error;
-  uint8_t huffsize[257];
-  uint32_t huffcode[257];
-  uint32_t lastK;
-  error = BitsToSizeCodes (AC_BitsValsTable->Bits, huffsize, huffcode, &lastK);
-  if (error != HAL_OK)
-    return  error;
-
-  /* Figure C.3: Ordering procedure for encoding procedure code tables */
-  uint32_t k = 0;
-  while (k < lastK) {
-    uint32_t l = AC_BitsValsTable->HuffVal[k];
-    if (l == 0)
-      l = 160; /*l = 0x00 EOB code*/
-    else if(l == 0xF0)/* l = 0xF0 ZRL code*/
-      l = 161;
-    else {
-      uint32_t msb = (l & 0xF0) >> 4;
-      uint32_t lsb = (l & 0x0F);
-      l = (msb * 10) + lsb - 1;
-      }
-    if (l >= JPEG_AC_HUFF_TABLE_SIZE)
-      return HAL_ERROR; /* Huffman Table overflow error*/
-    else {
-      AC_SizeCodesTable->HuffmanCode[l] = huffcode[k];
-      AC_SizeCodesTable->CodeLength[l] = huffsize[k] - 1;
-      k++;
-      }
-    }
-
-  return HAL_OK;
-  }
-//}}}
-//{{{
-HAL_StatusTypeDef DCHuffBitsValsToSizeCodes (JPEG_DCHuffTableTypeDef* DC_BitsValsTable,
-                                                    JPEG_DC_HuffCodeTableTypeDef* DC_SizeCodesTable) {
-
-  HAL_StatusTypeDef error;
+void DCHuffBitsValsToSizeCodes (JPEG_DCHuffTableTypeDef* DC_BitsValsTable,
+                                JPEG_DC_HuffCodeTableTypeDef* DC_SizeCodesTable) {
 
   uint32_t lastK;
   uint8_t huffsize[257];
   uint32_t huffcode[257];
-  error = BitsToSizeCodes (DC_BitsValsTable->Bits, huffsize, huffcode, &lastK);
-  if (error != HAL_OK)
-    return  error;
+  BitsToSizeCodes (DC_BitsValsTable->Bits, huffsize, huffcode, &lastK);
 
-  /* Figure C.3: ordering procedure for encoding procedure code tables */
+  // Figure C.3: ordering procedure for encoding procedure code tables */
   uint32_t k = 0;
 
   while (k < lastK) {
     uint32_t l = DC_BitsValsTable->HuffVal[k];
     if (l >= JPEG_DC_HUFF_TABLE_SIZE)
-      return HAL_ERROR; /* Huffman Table overflow error*/
+      return;
     else {
       DC_SizeCodesTable->HuffmanCode[l] = huffcode[k];
       DC_SizeCodesTable->CodeLength[l] = huffsize[k] - 1;
       k++;
       }
     }
-
-  return HAL_OK;
   }
 //}}}
 //{{{
-HAL_StatusTypeDef SetHuffDCMem (JPEG_DCHuffTableTypeDef *HuffTableDC, __IO uint32_t *DCTableAddress) {
+void SetHuffDCMem (JPEG_DCHuffTableTypeDef *HuffTableDC, __IO uint32_t *DCTableAddress) {
 
-  HAL_StatusTypeDef error = HAL_OK;
   JPEG_DC_HuffCodeTableTypeDef dcSizeCodesTable;
   uint32_t i, lsb, msb;
   __IO uint32_t *address, *addressDef;
@@ -560,12 +340,10 @@ HAL_StatusTypeDef SetHuffDCMem (JPEG_DCHuffTableTypeDef *HuffTableDC, __IO uint3
   else if (DCTableAddress == (JPEG->HUFFENC_DC1))
     address = (JPEG->HUFFENC_DC1 + (JPEG_DC_HUFF_TABLE_SIZE/2));
   else
-    return HAL_ERROR;
+    return;
 
   if (HuffTableDC != NULL) {
-    error = DCHuffBitsValsToSizeCodes (HuffTableDC, &dcSizeCodesTable);
-    if(error != HAL_OK)
-      return  error;
+    DCHuffBitsValsToSizeCodes (HuffTableDC, &dcSizeCodesTable);
     addressDef = address;
     *addressDef = 0x0FFF0FFF;
     addressDef++;
@@ -583,14 +361,43 @@ HAL_StatusTypeDef SetHuffDCMem (JPEG_DCHuffTableTypeDef *HuffTableDC, __IO uint3
       *address = lsb | (msb << 16);
       }
     }
-
-  return HAL_OK;
   }
 //}}}
 //{{{
-HAL_StatusTypeDef SetHuffACMem (JPEG_ACHuffTableTypeDef* HuffTableAC, __IO uint32_t* ACTableAddress) {
+void ACHuffBitsValsToSizeCodes (JPEG_ACHuffTableTypeDef* AC_BitsValsTable,
+                                JPEG_AC_HuffCodeTableTypeDef* AC_SizeCodesTable) {
 
-  HAL_StatusTypeDef error = HAL_OK;
+  uint8_t huffsize[257];
+  uint32_t huffcode[257];
+  uint32_t lastK;
+  BitsToSizeCodes (AC_BitsValsTable->Bits, huffsize, huffcode, &lastK);
+
+  // Figure C.3: Ordering procedure for encoding procedure code tables */
+  uint32_t k = 0;
+  while (k < lastK) {
+    uint32_t l = AC_BitsValsTable->HuffVal[k];
+    if (l == 0)
+      l = 160; //l = 0x00 EOB code*/
+    else if(l == 0xF0) // l = 0xF0 ZRL code*/
+      l = 161;
+    else {
+      uint32_t msb = (l & 0xF0) >> 4;
+      uint32_t lsb = (l & 0x0F);
+      l = (msb * 10) + lsb - 1;
+      }
+    if (l >= JPEG_AC_HUFF_TABLE_SIZE)
+      return; // Huffman Table overflow error*/
+    else {
+      AC_SizeCodesTable->HuffmanCode[l] = huffcode[k];
+      AC_SizeCodesTable->CodeLength[l] = huffsize[k] - 1;
+      k++;
+      }
+    }
+  }
+//}}}
+//{{{
+void SetHuffACMem (JPEG_ACHuffTableTypeDef* HuffTableAC, __IO uint32_t* ACTableAddress) {
+
   JPEG_AC_HuffCodeTableTypeDef acSizeCodesTable;
 
   __IO uint32_t* address;
@@ -599,12 +406,10 @@ HAL_StatusTypeDef SetHuffACMem (JPEG_ACHuffTableTypeDef* HuffTableAC, __IO uint3
   else if (ACTableAddress == (mHandle.Instance->HUFFENC_AC1))
     address = (JPEG->HUFFENC_AC1 + (JPEG_AC_HUFF_TABLE_SIZE / 2));
   else
-    return HAL_ERROR;
+    return;
 
   if (HuffTableAC != NULL) {
-    error = ACHuffBitsValsToSizeCodes (HuffTableAC, &acSizeCodesTable);
-    if (error != HAL_OK)
-      return  error;
+     ACHuffBitsValsToSizeCodes (HuffTableAC, &acSizeCodesTable);
 
     // Default values settings: 162:167 FFFh , 168:175 FD0h_FD7h
     // Locations 162:175 of each AC table contain information used internally by the core
@@ -634,45 +439,193 @@ HAL_StatusTypeDef SetHuffACMem (JPEG_ACHuffTableTypeDef* HuffTableAC, __IO uint3
       *address = lsb | (msb << 16);
       }
     }
-
-  return HAL_OK;
   }
 //}}}
 //{{{
-HAL_StatusTypeDef SetHuffEncMem (JPEG_ACHuffTableTypeDef *HuffTableAC0,
+void SetHuffDHTMem (JPEG_ACHuffTableTypeDef* HuffTableAC0,
+                    JPEG_DCHuffTableTypeDef* HuffTableDC0,
+                    JPEG_ACHuffTableTypeDef* HuffTableAC1,
+                    JPEG_DCHuffTableTypeDef* HuffTableDC1) {
+
+  uint32_t value, index;
+  __IO uint32_t* address;
+
+  if (HuffTableDC0 != NULL) {
+    // DC0 Huffman Table : BITS*/
+    // DC0 BITS is a 16 Bytes table i.e 4x32bits words from DHTMEM base address to DHTMEM + 3*/
+    address = (JPEG->DHTMEM + 3);
+    index = 16;
+    while(index > 0) {
+      *address = (((uint32_t)HuffTableDC0->Bits[index-1] & 0xFF) << 24)|
+                 (((uint32_t)HuffTableDC0->Bits[index-2] & 0xFF) << 16)|
+                 (((uint32_t)HuffTableDC0->Bits[index-3] & 0xFF) << 8) |
+                 ((uint32_t)HuffTableDC0->Bits[index-4] & 0xFF);
+      address--;
+      index -=4;
+      }
+
+    // DC0 Huffman Table : Val*/
+    // DC0 VALS is a 12 Bytes table i.e 3x32bits words from DHTMEM base address +4 to DHTMEM + 6 */
+    address = (JPEG->DHTMEM + 6);
+    index = 12;
+    while(index > 0) {
+      *address = (((uint32_t)HuffTableDC0->HuffVal[index-1] & 0xFF) << 24)|
+                 (((uint32_t)HuffTableDC0->HuffVal[index-2] & 0xFF) << 16)|
+                 (((uint32_t)HuffTableDC0->HuffVal[index-3] & 0xFF) << 8) |
+                 ((uint32_t)HuffTableDC0->HuffVal[index-4] & 0xFF);
+      address--;
+      index -=4;
+      }
+    }
+
+  if (HuffTableAC0 != NULL) {
+    // AC0 Huffman Table : BITS*/
+    // AC0 BITS is a 16 Bytes table i.e 4x32bits words from DHTMEM base address + 7 to DHTMEM + 10*/
+    address = (JPEG->DHTMEM + 10);
+    index = 16;
+    while(index > 0) {
+      *address = (((uint32_t)HuffTableAC0->Bits[index-1] & 0xFF) << 24)|
+                 (((uint32_t)HuffTableAC0->Bits[index-2] & 0xFF) << 16)|
+                 (((uint32_t)HuffTableAC0->Bits[index-3] & 0xFF) << 8) |
+                 ((uint32_t)HuffTableAC0->Bits[index-4] & 0xFF);
+      address--;
+      index -=4;
+      }
+    // AC0 Huffman Table : Val*/
+    // AC0 VALS is a 162 Bytes table i.e 41x32bits words from DHTMEM base address + 11 to DHTMEM + 51 */
+    // only Byte 0 and Byte 1 of the last word (@ DHTMEM + 51) belong to AC0 VALS table */
+    address = (JPEG->DHTMEM + 51);
+    value = *address & 0xFFFF0000U;
+    value = value | (((uint32_t)HuffTableAC0->HuffVal[161] & 0xFF) << 8) | ((uint32_t)HuffTableAC0->HuffVal[160] & 0xFF);
+    *address = value;
+
+    // continue setting 160 AC0 huffman values */
+    address--; // address = JPEG->DHTMEM + 50*/
+    index = 160;
+    while(index > 0) {
+      *address = (((uint32_t)HuffTableAC0->HuffVal[index-1] & 0xFF) << 24)|
+                 (((uint32_t)HuffTableAC0->HuffVal[index-2] & 0xFF) << 16)|
+                 (((uint32_t)HuffTableAC0->HuffVal[index-3] & 0xFF) << 8) |
+                 ((uint32_t)HuffTableAC0->HuffVal[index-4] & 0xFF);
+      address--;
+      index -=4;
+      }
+    }
+
+  if (HuffTableDC1 != NULL) {
+    // DC1 Huffman Table : BITS*/
+    // DC1 BITS is a 16 Bytes table i.e 4x32bits words from DHTMEM + 51 base address to DHTMEM + 55*/
+    // only Byte 2 and Byte 3 of the first word (@ DHTMEM + 51) belong to DC1 Bits table */
+    address = (JPEG->DHTMEM + 51);
+    value = *address & 0x0000FFFFU;
+    value = value | (((uint32_t)HuffTableDC1->Bits[1] & 0xFF) << 24) | (((uint32_t)HuffTableDC1->Bits[0] & 0xFF) << 16);
+    *address = value;
+
+    // only Byte 0 and Byte 1 of the last word (@ DHTMEM + 55) belong to DC1 Bits table */
+    address = (JPEG->DHTMEM + 55);
+    value = *address & 0xFFFF0000U;
+    value = value | (((uint32_t)HuffTableDC1->Bits[15] & 0xFF) << 8) | ((uint32_t)HuffTableDC1->Bits[14] & 0xFF);
+    *address = value;
+
+    // continue setting 12 DC1 huffman Bits from DHTMEM + 54 down to DHTMEM + 52*/
+    address--;
+    index = 12;
+    while(index > 0) {
+      *address = (((uint32_t)HuffTableDC1->Bits[index+1] & 0xFF) << 24)|
+                 (((uint32_t)HuffTableDC1->Bits[index] & 0xFF) << 16)|
+                 (((uint32_t)HuffTableDC1->Bits[index-1] & 0xFF) << 8) |
+                 ((uint32_t)HuffTableDC1->Bits[index-2] & 0xFF);
+      address--;
+      index -=4;
+      }
+    // DC1 Huffman Table : Val*/
+    // DC1 VALS is a 12 Bytes table i.e 3x32bits words from DHTMEM base address +55 to DHTMEM + 58 */
+    // only Byte 2 and Byte 3 of the first word (@ DHTMEM + 55) belong to DC1 Val table */
+    address = (JPEG->DHTMEM + 55);
+    value = *address & 0x0000FFFF;
+    value = value | (((uint32_t)HuffTableDC1->HuffVal[1] & 0xFF) << 24) | (((uint32_t)HuffTableDC1->HuffVal[0] & 0xFF) << 16);
+    *address = value;
+
+    // only Byte 0 and Byte 1 of the last word (@ DHTMEM + 58) belong to DC1 Val table */
+    address = (JPEG->DHTMEM + 58);
+    value = *address & 0xFFFF0000U;
+    value = value | (((uint32_t)HuffTableDC1->HuffVal[11] & 0xFF) << 8) | ((uint32_t)HuffTableDC1->HuffVal[10] & 0xFF);
+    *address = value;
+
+    // continue setting 8 DC1 huffman val from DHTMEM + 57 down to DHTMEM + 56*/
+    address--;
+    index = 8;
+    while(index > 0) {
+      *address = (((uint32_t)HuffTableDC1->HuffVal[index+1] & 0xFF) << 24)|
+                 (((uint32_t)HuffTableDC1->HuffVal[index] & 0xFF) << 16)|
+                 (((uint32_t)HuffTableDC1->HuffVal[index-1] & 0xFF) << 8) |
+                 ((uint32_t)HuffTableDC1->HuffVal[index-2] & 0xFF);
+      address--;
+      index -=4;
+      }
+    }
+
+  if (HuffTableAC1 != NULL) {
+    // AC1 Huffman Table : BITS*/
+    // AC1 BITS is a 16 Bytes table i.e 4x32bits words from DHTMEM base address + 58 to DHTMEM + 62*/
+    // only Byte 2 and Byte 3 of the first word (@ DHTMEM + 58) belong to AC1 Bits table */
+    address = (JPEG->DHTMEM + 58);
+    value = *address & 0x0000FFFFU;
+    value = value | (((uint32_t)HuffTableAC1->Bits[1] & 0xFF) << 24) | (((uint32_t)HuffTableAC1->Bits[0] & 0xFF) << 16);
+    *address = value;
+
+    // only Byte 0 and Byte 1 of the last word (@ DHTMEM + 62) belong to Bits Val table */
+    address = (JPEG->DHTMEM + 62);
+    value = *address & 0xFFFF0000U;
+    value = value | (((uint32_t)HuffTableAC1->Bits[15] & 0xFF) << 8) | ((uint32_t)HuffTableAC1->Bits[14] & 0xFF);
+    *address = value;
+
+    // continue setting 12 AC1 huffman Bits from DHTMEM + 61 down to DHTMEM + 59*/
+    address--;
+    index = 12;
+    while(index > 0) {
+      *address = (((uint32_t)HuffTableAC1->Bits[index+1] & 0xFF) << 24)|
+                 (((uint32_t)HuffTableAC1->Bits[index] & 0xFF) << 16)|
+                 (((uint32_t)HuffTableAC1->Bits[index-1] & 0xFF) << 8) |
+                 ((uint32_t)HuffTableAC1->Bits[index-2] & 0xFF);
+      address--;
+      index -=4;
+      }
+
+    // AC1 Huffman Table : Val*/
+    // AC1 VALS is a 162 Bytes table i.e 41x32bits words from DHTMEM base address + 62 to DHTMEM + 102 */
+    // only Byte 2 and Byte 3 of the first word (@ DHTMEM + 62) belong to AC1 VALS table */
+    address = (JPEG->DHTMEM + 62);
+    value = *address & 0x0000FFFF;
+    value = value | (((uint32_t)HuffTableAC1->HuffVal[1] & 0xFF) << 24) | (((uint32_t)HuffTableAC1->HuffVal[0] & 0xFF) << 16);
+    *address = value;
+
+    // continue setting 160 AC1 huffman values from DHTMEM + 63 to DHTMEM+102 */
+    address = (JPEG->DHTMEM + 102);
+    index = 160;
+    while(index > 0) {
+      *address = (((uint32_t)HuffTableAC1->HuffVal[index+1] & 0xFF) << 24)|
+                 (((uint32_t)HuffTableAC1->HuffVal[index] & 0xFF) << 16)|
+                 (((uint32_t)HuffTableAC1->HuffVal[index-1] & 0xFF) << 8) |
+                 ((uint32_t)HuffTableAC1->HuffVal[index-2] & 0xFF);
+      address--;
+      index -=4;
+      }
+    }
+  }
+//}}}
+//{{{
+void SetHuffEncMem (JPEG_ACHuffTableTypeDef *HuffTableAC0,
                                  JPEG_DCHuffTableTypeDef *HuffTableDC0,
                                  JPEG_ACHuffTableTypeDef *HuffTableAC1,
                                  JPEG_DCHuffTableTypeDef *HuffTableDC1) {
 
-  HAL_StatusTypeDef error = HAL_OK;
-
   SetHuffDHTMem (HuffTableAC0, HuffTableDC0, HuffTableAC1, HuffTableDC1);
 
-  if (HuffTableAC0 != NULL) {
-    error = SetHuffACMem (HuffTableAC0, (JPEG->HUFFENC_AC0));
-    if (error != HAL_OK)
-      return  error;
-    }
-
-  if (HuffTableAC1 != NULL) {
-    error = SetHuffACMem (HuffTableAC1, (JPEG->HUFFENC_AC1));
-    if (error != HAL_OK)
-      return  error;
-    }
-
-  if (HuffTableDC0 != NULL) {
-    error = SetHuffDCMem (HuffTableDC0, JPEG->HUFFENC_DC0);
-    if (error != HAL_OK)
-      return  error;
-    }
-
-  if (HuffTableDC1 != NULL) {
-    error = SetHuffDCMem (HuffTableDC1, JPEG->HUFFENC_DC1);
-    if (error != HAL_OK)
-      return  error;
-    }
-
-  return HAL_OK;
+  SetHuffACMem (HuffTableAC0, (JPEG->HUFFENC_AC0));
+  SetHuffACMem (HuffTableAC1, (JPEG->HUFFENC_AC1));
+  SetHuffDCMem (HuffTableDC0, JPEG->HUFFENC_DC0);
+  SetHuffDCMem (HuffTableDC1, JPEG->HUFFENC_DC1);
   }
 //}}}
 //{{{
@@ -941,13 +894,12 @@ extern "C" { void MDMA_IRQHandler() {
 //}}}
 
 //{{{
-void decodeDma (uint8_t* pDataIn, uint32_t InDataLength,
-                uint8_t* pDataOutMCU ,uint32_t OutDataLength) {
+void decodeDma (uint8_t* inBuff, uint32_t inLen, uint8_t* outBuff, uint32_t outLen) {
 
-  mHandle.pJpegInBuffPtr = pDataIn;
-  mHandle.InDataLength = InDataLength;
-  mHandle.pJpegOutBuffPtr = pDataOutMCU;
-  mHandle.OutDataLength = OutDataLength;
+  mHandle.pJpegInBuffPtr = inBuff;
+  mHandle.InDataLength = inLen;
+  mHandle.pJpegOutBuffPtr = outBuff;
+  mHandle.OutDataLength = outLen;
   mHandle.JpegInCount = 0;
   mHandle.JpegOutCount = 0;
   mHandle.Context = 0;
@@ -967,8 +919,8 @@ void decodeDma (uint8_t* pDataIn, uint32_t InDataLength,
   // start Encoding/Decoding
   JPEG->CONFR0 |=  JPEG_CONFR0_START;
 
-  // enable End Of Conversation, and End Of Header parsing interruptions
-  __HAL_JPEG_ENABLE_IT (&mHandle, JPEG_IT_EOC |JPEG_IT_HPD);
+  // enable End Of Conversation, End Of Header interrupts
+  __HAL_JPEG_ENABLE_IT (&mHandle, JPEG_IT_EOC | JPEG_IT_HPD);
 
   // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
   // else (MDMA In is triggred with JPEG In FIFO not full flag then MDMA In buffer size is 4 bytes
