@@ -1006,6 +1006,7 @@ void uiThread (void* arg) {
         }
       xSemaphoreGive (mTileVecSem);
 
+      //{{{  clock
       float hourAngle;
       float minuteAngle;
       float secondAngle;
@@ -1024,6 +1025,7 @@ void uiThread (void* arg) {
       lcd->line (COL_RED, centre, centre + cPoint (int16_t(secondRadius * sin (secondAngle)), int16_t(secondRadius * cos (secondAngle))));
 
       lcd->cLcd::text (COL_WHITE, 45, mRtc.getClockTimeDateString(), cRect (550,545, 1024,600));
+      //}}}
 
       lcd->drawInfo();
       lcd->present();

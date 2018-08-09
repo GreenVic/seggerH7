@@ -901,10 +901,10 @@ cFontChar* cLcd::loadChar (uint16_t fontHeight, char ch) {
     memcpy (fontChar->bitmap, FTglyphSlot->bitmap.buffer, FTglyphSlot->bitmap.pitch * FTglyphSlot->bitmap.rows);
 
     // force writeback to SRAM for future DMA2D
-    auto alignedAddr = (uint32_t)fontChar->bitmap & ~0x1F;
-    SCB_CleanDCache_by_Addr (
-      (uint32_t*)alignedAddr, 
-      FTglyphSlot->bitmap.pitch * FTglyphSlot->bitmap.rows + ((uint32_t)fontChar->bitmap - alignedAddr));
+    //auto alignedAddr = (uint32_t)fontChar->bitmap & ~0x1F;
+    //SCB_CleanDCache_by_Addr (
+    //  (uint32_t*)alignedAddr,
+    //  FTglyphSlot->bitmap.pitch * FTglyphSlot->bitmap.rows + ((uint32_t)fontChar->bitmap - alignedAddr));
     }
 
   return mFontCharMap.insert (cFontCharMap::value_type (fontHeight<<8 | ch, fontChar)).first->second;
