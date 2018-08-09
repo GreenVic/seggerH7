@@ -21,22 +21,9 @@ using namespace std;
 
 #define JPEG_INTERRUPT_MASK  ((uint32_t)0x0000007EU) /* JPEG Interrupt Mask*/
 
-#define JPEG_CONTEXT_ENCODE          ((uint32_t)0x00000001U) /* JPEG context : operation is encoding*/
-#define JPEG_CONTEXT_DECODE          ((uint32_t)0x00000002U) /* JPEG context : operation is decoding*/
-#define JPEG_CONTEXT_OPERATION_MASK  ((uint32_t)0x00000003U) /* JPEG context : operation Mask */
-
-#define JPEG_CONTEXT_POLLING        ((uint32_t)0x00000004U)  /* JPEG context : Transfer use Polling */
-#define JPEG_CONTEXT_IT             ((uint32_t)0x00000008U)  /* JPEG context : Transfer use Interrupt */
-#define JPEG_CONTEXT_DMA            ((uint32_t)0x0000000CU)  /* JPEG context : Transfer use DMA */
-#define JPEG_CONTEXT_METHOD_MASK    ((uint32_t)0x0000000CU)  /* JPEG context : Transfer Mask */
-
-#define JPEG_CONTEXT_CONF_ENCODING  ((uint32_t)0x00000100U)  /* JPEG context : encoding config done */
-
 #define JPEG_CONTEXT_PAUSE_INPUT    ((uint32_t)0x00001000U)  /* JPEG context : Pause Input */
 #define JPEG_CONTEXT_PAUSE_OUTPUT   ((uint32_t)0x00002000U)  /* JPEG context : Pause Output */
-
 #define JPEG_CONTEXT_CUSTOM_TABLES  ((uint32_t)0x00004000U)  /* JPEG context : Use custom quantization tables */
-
 #define JPEG_CONTEXT_ENDING_DMA     ((uint32_t)0x00008000U)  /* JPEG context : ending with DMA in progress */
 
 #define JPEG_PROCESS_ONGOING        ((uint32_t)0x00000000U)  /* Process is on going */
@@ -268,8 +255,8 @@ HAL_StatusTypeDef getInfo (JPEG_HandleTypeDef* hjpeg, JPEG_ConfTypeDef* pInfo) {
 void dmaPollResidualData (JPEG_HandleTypeDef* hjpeg) {
 
   uint32_t count = JPEG_FIFO_SIZE;
-  while ((__HAL_JPEG_GET_FLAG(hjpeg, JPEG_FLAG_OFNEF) != 0) &&
-         (count > 0) && ((hjpeg->Context &  JPEG_CONTEXT_PAUSE_OUTPUT) == 0)) {
+  while ((__HAL_JPEG_GET_FLAG (hjpeg, JPEG_FLAG_OFNEF) != 0) &&
+         (count > 0) && ((hjpeg->Context & JPEG_CONTEXT_PAUSE_OUTPUT) == 0)) {
     count--;
 
     uint32_t dataOut = hjpeg->Instance->DOR;
@@ -296,13 +283,8 @@ void dmaPollResidualData (JPEG_HandleTypeDef* hjpeg) {
       hjpeg->JpegOutCount = 0;
       }
 
-    uint32_t tmpContext = hjpeg->Context;
-    // Clear all context fileds execpt JPEG_CONTEXT_CONF_ENCODING and JPEG_CONTEXT_CUSTOM_TABLES
-    hjpeg->Context &= (JPEG_CONTEXT_CONF_ENCODING | JPEG_CONTEXT_CUSTOM_TABLES);
-
-    // Call End of Encoding/Decoding callback
-    if ((tmpContext & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_DECODE)
-      mDecodeDone = true;
+    // end of Encoding/Decoding callback
+    mDecodeDone = true;
     }
   }
 //}}}
@@ -318,7 +300,7 @@ uint32_t dmaEndProcess (JPEG_HandleTypeDef* hjpeg) {
     }
 
   // Check if remaining data in the output FIFO
-  if (__HAL_JPEG_GET_FLAG(hjpeg, JPEG_FLAG_OFNEF) == 0) {
+  if (__HAL_JPEG_GET_FLAG (hjpeg, JPEG_FLAG_OFNEF) == 0) {
     if (hjpeg->JpegOutCount > 0) {
       // Output Buffer is not empty
       dataReady (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
@@ -328,13 +310,8 @@ uint32_t dmaEndProcess (JPEG_HandleTypeDef* hjpeg) {
     // Stop Encoding/Decoding
     hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
 
-    uint32_t tmpContext = hjpeg->Context;
-    // Clear all context fileds execpt JPEG_CONTEXT_CONF_ENCODING and JPEG_CONTEXT_CUSTOM_TABLES*/
-    hjpeg->Context &= (JPEG_CONTEXT_CONF_ENCODING | JPEG_CONTEXT_CUSTOM_TABLES);
-
-    // Call End of Encoding/Decoding callback
-    if ((tmpContext & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_DECODE)
-      mDecodeDone = true;
+    // end of Encoding/Decoding callback
+    mDecodeDone = true;
     }
 
   else if ((hjpeg->Context & JPEG_CONTEXT_PAUSE_OUTPUT) == 0) {
@@ -349,8 +326,7 @@ uint32_t dmaEndProcess (JPEG_HandleTypeDef* hjpeg) {
 //{{{
 extern "C" { void JPEG_IRQHandler() {
 
-  if (((mHandle.Context & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_DECODE) &&
-      (__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_HPDF) != RESET)) {
+  if (__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_HPDF) != RESET) {
     // end of header processing
     getInfo (&mHandle, &mHandle.Conf);
 
@@ -913,8 +889,7 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
   // Disable The JPEG IT so the DMA Input Callback can not be interrupted by the JPEG EOC IT or JPEG HPD IT */
   __HAL_JPEG_DISABLE_IT(hjpeg,JPEG_INTERRUPT_MASK);
 
-  if (((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA) &&
-      ((hjpeg->Context & JPEG_CONTEXT_ENDING_DMA) == 0)) {
+  if ((hjpeg->Context & JPEG_CONTEXT_ENDING_DMA) == 0) {
     // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
     //  else (MDMA In is triggred with JPEG In FIFO not full flag) then MDMA In buffer size is 4 bytes
     uint32_t inXfrSize = hjpeg->hdmain->Init.BufferTransferLength;
@@ -933,15 +908,7 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
         configInputBuffer (hjpeg, mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
       else {
         // pause
-        uint32_t mask = 0;
-        if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA)
-          hjpeg->Context |= JPEG_CONTEXT_PAUSE_INPUT;
-        else if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_IT) {
-          hjpeg->Context |= JPEG_CONTEXT_PAUSE_INPUT;
-          mask |= (JPEG_IT_IFT | JPEG_IT_IFNF);
-          __HAL_JPEG_DISABLE_IT(hjpeg,mask);
-          }
-
+        hjpeg->Context |= JPEG_CONTEXT_PAUSE_INPUT;
         mInPaused = true;
         }
       }
@@ -975,8 +942,7 @@ void MDMAOutCpltCallback (MDMA_HandleTypeDef* hmdma) {
   // Disable The JPEG IT so the DMA Output Callback not interrupted by the JPEG EOC IT or JPEG HPD IT
   __HAL_JPEG_DISABLE_IT(hjpeg, JPEG_INTERRUPT_MASK);
 
-  if (((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA) &&
-      ((hjpeg->Context & JPEG_CONTEXT_ENDING_DMA) == 0)) {
+  if ((hjpeg->Context & JPEG_CONTEXT_ENDING_DMA) == 0) {
     if (__HAL_JPEG_GET_FLAG(hjpeg, JPEG_FLAG_EOCF) == 0) {
       hjpeg->JpegOutCount = hjpeg->OutDataLength - (hmdma->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
 
@@ -1017,13 +983,12 @@ void MDMAOutAbortCallback (MDMA_HandleTypeDef* hmdma) {
 //}}}
 
 //{{{
-void decode_DMA (JPEG_HandleTypeDef* hjpeg,
+void decodeDma (JPEG_HandleTypeDef* hjpeg,
                  uint8_t* pDataIn, uint32_t InDataLength,
                  uint8_t* pDataOutMCU ,uint32_t OutDataLength) {
 
   // Set the Context to Decode with DMA
-  hjpeg->Context &= ~(JPEG_CONTEXT_OPERATION_MASK | JPEG_CONTEXT_METHOD_MASK);
-  hjpeg->Context |= JPEG_CONTEXT_DECODE | JPEG_CONTEXT_DMA;
+  hjpeg->Context = 0;
 
   hjpeg->pJpegInBuffPtr = pDataIn;
   hjpeg->InDataLength = InDataLength;
@@ -1038,12 +1003,8 @@ void decode_DMA (JPEG_HandleTypeDef* hjpeg,
   // Reset pause
   hjpeg->Context &= (~(JPEG_CONTEXT_PAUSE_INPUT | JPEG_CONTEXT_PAUSE_OUTPUT));
 
-  if ((hjpeg->Context & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_DECODE)
-    // set JPEG Codec to Decoding mode
-    hjpeg->Instance->CONFR1 |= JPEG_CONFR1_DE;
-  else if ((hjpeg->Context & JPEG_CONTEXT_OPERATION_MASK) == JPEG_CONTEXT_ENCODE)
-    // Set JPEG Codec to Encoding mode
-    hjpeg->Instance->CONFR1 &= ~JPEG_CONFR1_DE;
+  // set JPEG Codec to Decoding mode
+  hjpeg->Instance->CONFR1 |= JPEG_CONFR1_DE;
 
   // Stop JPEG processing
   hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
@@ -1058,12 +1019,8 @@ void decode_DMA (JPEG_HandleTypeDef* hjpeg,
   // Start Encoding/Decoding
   hjpeg->Instance->CONFR0 |=  JPEG_CONFR0_START;
 
-  if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_IT)
-    // Enable IN/OUT, end of Conversation, and end of header parsing interruptions
-    __HAL_JPEG_ENABLE_IT (hjpeg, JPEG_IT_IFT | JPEG_IT_IFNF | JPEG_IT_OFT | JPEG_IT_OFNE | JPEG_IT_EOC |JPEG_IT_HPD);
-  else if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA)
-    // Enable End Of Conversation, and End Of Header parsing interruptions
-    __HAL_JPEG_ENABLE_IT (hjpeg, JPEG_IT_EOC |JPEG_IT_HPD);
+  // Enable End Of Conversation, and End Of Header parsing interruptions
+  __HAL_JPEG_ENABLE_IT (hjpeg, JPEG_IT_EOC |JPEG_IT_HPD);
 
   // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
   // else (MDMA In is triggred with JPEG In FIFO not full flag then MDMA In buffer size is 4 bytes
@@ -1100,27 +1057,18 @@ void resume (JPEG_HandleTypeDef* hjpeg) {
   uint32_t mask = 0;
   uint32_t xfrSize = 0;
 
-  if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA) {
-    hjpeg->Context &= (~JPEG_CONTEXT_PAUSE_INPUT);
+  hjpeg->Context &= (~JPEG_CONTEXT_PAUSE_INPUT);
 
-    // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
-   // else (MDMA In is triggred with JPEG In FIFO not full flag) then MDMA In buffer size is 4 bytes
-    xfrSize = hjpeg->hdmain->Init.BufferTransferLength;
+  // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
+  // else (MDMA In is triggred with JPEG In FIFO not full flag) then MDMA In buffer size is 4 bytes
+  xfrSize = hjpeg->hdmain->Init.BufferTransferLength;
 
-    // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)*/
-    hjpeg->InDataLength = hjpeg->InDataLength - (hjpeg->InDataLength % xfrSize);
+  // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)*/
+  hjpeg->InDataLength = hjpeg->InDataLength - (hjpeg->InDataLength % xfrSize);
 
-    if(hjpeg->InDataLength > 0)
-      /* Start DMA FIFO In transfer */
-      HAL_MDMA_Start_IT(hjpeg->hdmain, (uint32_t)hjpeg->pJpegInBuffPtr, (uint32_t)&hjpeg->Instance->DIR, hjpeg->InDataLength, 1);
-    }
-
-  else if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_IT) {
-    hjpeg->Context &= (~JPEG_CONTEXT_PAUSE_INPUT);
-    mask |= (JPEG_IT_IFT | JPEG_IT_IFNF);
-    __HAL_JPEG_ENABLE_IT (hjpeg,mask);
-    }
-
+  if (hjpeg->InDataLength > 0)
+    /* Start DMA FIFO In transfer */
+    HAL_MDMA_Start_IT(hjpeg->hdmain, (uint32_t)hjpeg->pJpegInBuffPtr, (uint32_t)&hjpeg->Instance->DIR, hjpeg->InDataLength, 1);
   }
 //}}}
 
@@ -1150,7 +1098,7 @@ cTile* cHwJpeg::decode (const string& fileName) {
     mWriteIndex = 0;
     mInPaused = 0;
     mDecodeDone = false;
-    decode_DMA (&mHandle, mBufs[0].mBuf, mBufs[0].mSize, mYuvBuf, kYuvChunkSize);
+    decodeDma (&mHandle, mBufs[0].mBuf, mBufs[0].mSize, mYuvBuf, kYuvChunkSize);
 
     while (!mDecodeDone) {
       if (!mBufs[mWriteIndex].mFull) {
