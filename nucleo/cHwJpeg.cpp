@@ -11,8 +11,8 @@
 
 using namespace std;
 //}}}
+
 //{{{  defines
-#define JPEG_TIMEOUT_VALUE  ((uint32_t)1000U)     /* 1s */
 #define JPEG_AC_HUFF_TABLE_SIZE  ((uint32_t)162U) /* Huffman AC table size : 162 codes*/
 #define JPEG_DC_HUFF_TABLE_SIZE  ((uint32_t)12U)  /* Huffman AC table size : 12 codes*/
 
@@ -29,46 +29,35 @@ using namespace std;
 #define JPEG_PROCESS_DONE           ((uint32_t)0x00000001U)  /* Process is done (ends) */
 //}}}
 //{{{  struct
-//{{{  struct JPEG_AC_HuffCodeTableTypeDef
 typedef struct {
-  uint8_t CodeLength[JPEG_AC_HUFF_TABLE_SIZE];      /*!< Code length  */
-  uint32_t HuffmanCode[JPEG_AC_HUFF_TABLE_SIZE];    /*!< HuffmanCode */
+  uint8_t CodeLength[JPEG_AC_HUFF_TABLE_SIZE];
+  uint32_t HuffmanCode[JPEG_AC_HUFF_TABLE_SIZE];
   } JPEG_AC_HuffCodeTableTypeDef;
-//}}}
-//{{{  struct JPEG_DC_HuffCodeTableTypeDef
-typedef struct {
-  uint8_t CodeLength[JPEG_DC_HUFF_TABLE_SIZE];        /*!< Code length  */
-  uint32_t HuffmanCode[JPEG_DC_HUFF_TABLE_SIZE];    /*!< HuffmanCode */
-  } JPEG_DC_HuffCodeTableTypeDef;
-//}}}
-//{{{  struct JPEG_DCHuffTableTypeDef
-typedef struct {
-  /* These two fields directly represent the contents of a JPEG DHT marker */
-  uint8_t Bits[16];     /*!< bits[k] = # of symbols with codes of length k bits, this parameter corresponds to BITS list in the Annex C */
-  uint8_t HuffVal[12];  /*!< The symbols, in order of incremented code length, this parameter corresponds to HUFFVAL list in the Annex C */
-  }JPEG_DCHuffTableTypeDef;
-//}}}
-//{{{  struct JPEG_ACHuffTableTypeDef
-/*
- JPEG Huffman Table Structure definition :
- This implementation of Huffman table structure is compliant with ISO/IEC 10918-1 standard , Annex C Huffman Table specification
- */
-typedef struct {
-  /* These two fields directly represent the contents of a JPEG DHT marker */
-  uint8_t Bits[16];        /*!< bits[k] = # of symbols with codes of length k bits, this parameter corresponds to BITS list in the Annex C */
-  uint8_t HuffVal[162];    /*!< The symbols, in order of incremented code length, this parameter corresponds to HUFFVAL list in the Annex C */
-  } JPEG_ACHuffTableTypeDef;
-//}}}
 
-//{{{  struct tBufs
+typedef struct {
+  uint8_t CodeLength[JPEG_DC_HUFF_TABLE_SIZE];
+  uint32_t HuffmanCode[JPEG_DC_HUFF_TABLE_SIZE];
+  } JPEG_DC_HuffCodeTableTypeDef;
+
+typedef struct {        // These two fields directly represent the contents of a JPEG DHT marker */
+  uint8_t Bits[16];     // bits[k] = # of symbols with codes of length k bits, this parameter corresponds to BITS list in the Annex C */
+  uint8_t HuffVal[12];  // The symbols, in order of incremented code length, this parameter corresponds to HUFFVAL list in the Annex C */
+  }JPEG_DCHuffTableTypeDef;
+
+typedef struct {        // These two fields directly represent the contents of a JPEG DHT marker */
+  uint8_t Bits[16];     // bits[k] = # of symbols with codes of length k bits, this parameter corresponds to BITS list in the Annex C */
+  uint8_t HuffVal[162]; // The symbols, in order of incremented code length, this parameter corresponds to HUFFVAL list in the Annex C */
+  } JPEG_ACHuffTableTypeDef;
+
 typedef struct {
   bool mFull;
   uint8_t* mBuf;
   uint32_t mSize;
   } tBufs;
 //}}}
-//}}}
 //{{{  const
+const uint32_t kYuvChunkSize = 0x10000;
+
 //{{{
 const JPEG_DCHuffTableTypeDef DCLUM_HuffTable = {
   { 0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0 },   /*Bits*/
@@ -81,6 +70,7 @@ const JPEG_DCHuffTableTypeDef DCCHROM_HuffTable = {
   { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xa, 0xb }          /*HUFFVAL */
   };
 //}}}
+
 //{{{
 const JPEG_ACHuffTableTypeDef ACLUM_HuffTable = {
   { 0, 2, 1, 3, 3, 2, 4, 3, 5, 5, 4, 4, 0, 0, 1, 0x7d },  /*Bits*/
@@ -133,6 +123,7 @@ const JPEG_ACHuffTableTypeDef ACCHROM_HuffTable = {
       0xf9, 0xfa }
   };
 //}}}
+
 //{{{
 const uint8_t LUM_QuantTable[JPEG_QUANT_TABLE_SIZE] = {
   16,  11,  10,  16,  24,  40,  51,  61,
@@ -157,6 +148,7 @@ const uint8_t CHROM_QuantTable[JPEG_QUANT_TABLE_SIZE] = {
   99,  99,  99,  99,  99,  99,  99,  99
   };
 //}}}
+
 //{{{
 const uint8_t ZIGZAG_ORDER[JPEG_QUANT_TABLE_SIZE] = {
    0,   1,   8,  16,   9,   2,   3,  10,
@@ -169,11 +161,8 @@ const uint8_t ZIGZAG_ORDER[JPEG_QUANT_TABLE_SIZE] = {
   53,  60,  61,  54,  47,  55,  62,  63
   };
 //}}}
-
-const uint32_t kYuvChunkSize = 0x10000;
 //}}}
-
-// vars
+//{{{  vars
 JPEG_HandleTypeDef mHandle;
 MDMA_HandleTypeDef hmdmaIn;
 MDMA_HandleTypeDef hmdmaOut;
@@ -188,6 +177,7 @@ __IO uint32_t mReadIndex = 0;
 __IO uint32_t mWriteIndex = 0;
 __IO bool mInPaused = false;
 __IO bool mDecodeDone = false;
+//}}}
 
 //{{{
 void configInputBuffer (uint8_t* buff, uint32_t len) {
@@ -912,19 +902,18 @@ extern "C" { void JPEG_IRQHandler() {
     else if ((JPEG->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF)
       mInfo.ColorSpace = JPEG_CMYK_COLORSPACE;
 
-    if ((mInfo.ColorSpace == JPEG_YCBCR_COLORSPACE) ||
-        (mInfo.ColorSpace == JPEG_CMYK_COLORSPACE)) {
+    if ((mInfo.ColorSpace == JPEG_YCBCR_COLORSPACE) || (mInfo.ColorSpace == JPEG_CMYK_COLORSPACE)) {
       uint32_t yblockNb  = (JPEG->CONFR4 & JPEG_CONFR4_NB) >> 4;
       uint32_t cBblockNb = (JPEG->CONFR5 & JPEG_CONFR5_NB) >> 4;
       uint32_t cRblockNb = (JPEG->CONFR6 & JPEG_CONFR6_NB) >> 4;
 
       if ((yblockNb == 1) && (cBblockNb == 0) && (cRblockNb == 0))
-        mInfo.ChromaSubsampling = JPEG_422_SUBSAMPLING; /*16x8 block*/
+        mInfo.ChromaSubsampling = JPEG_422_SUBSAMPLING; // 16x8 block
       else if ((yblockNb == 0) && (cBblockNb == 0) && (cRblockNb == 0))
         mInfo.ChromaSubsampling = JPEG_444_SUBSAMPLING;
       else if ((yblockNb == 3) && (cBblockNb == 0) && (cRblockNb == 0))
         mInfo.ChromaSubsampling = JPEG_420_SUBSAMPLING;
-      else /*Default is 4:4:4*/
+      else // Default is 4:4:4
         mInfo.ChromaSubsampling = JPEG_444_SUBSAMPLING;
       }
     else
