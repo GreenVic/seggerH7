@@ -182,8 +182,8 @@ MDMA_HandleTypeDef hmdmaOut;
 JPEG_ConfTypeDef mInfo;
 uint8_t* mYuvBuf = nullptr;
 
-uint8_t mBuf0 [4096];
-uint8_t mBuf1 [4096];
+uint8_t mBuf0[4096];
+uint8_t mBuf1[4096];
 tBufs mBufs[2] = { { false, mBuf0, 0 }, { false, mBuf1, 0 } };
 __IO uint32_t mReadIndex = 0;
 __IO uint32_t mWriteIndex = 0;
@@ -214,43 +214,6 @@ void dataReady (JPEG_HandleTypeDef* jpegHandlePtr, uint8_t* data, uint32_t len) 
   }
 //}}}
 
-//{{{
-HAL_StatusTypeDef getInfo (JPEG_HandleTypeDef* hjpeg, JPEG_ConfTypeDef* pInfo) {
-
-  pInfo->ImageHeight = (hjpeg->Instance->CONFR1 & 0xFFFF0000U) >> 16;
-  pInfo->ImageWidth  = (hjpeg->Instance->CONFR3 & 0xFFFF0000U) >> 16;
-
-  // Read the conf parameters
-  if ((hjpeg->Instance->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF_1)
-    pInfo->ColorSpace = JPEG_YCBCR_COLORSPACE;
-  else if ((hjpeg->Instance->CONFR1 & JPEG_CONFR1_NF) == 0)
-    pInfo->ColorSpace = JPEG_GRAYSCALE_COLORSPACE;
-  else if ((hjpeg->Instance->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF)
-    pInfo->ColorSpace = JPEG_CMYK_COLORSPACE;
-
-  if ((pInfo->ColorSpace == JPEG_YCBCR_COLORSPACE) ||
-      (pInfo->ColorSpace == JPEG_CMYK_COLORSPACE)) {
-    uint32_t yblockNb  = (hjpeg->Instance->CONFR4 & JPEG_CONFR4_NB) >> 4;
-    uint32_t cBblockNb = (hjpeg->Instance->CONFR5 & JPEG_CONFR5_NB) >> 4;
-    uint32_t cRblockNb = (hjpeg->Instance->CONFR6 & JPEG_CONFR6_NB) >> 4;
-
-    if ((yblockNb == 1) && (cBblockNb == 0) && (cRblockNb == 0))
-      pInfo->ChromaSubsampling = JPEG_422_SUBSAMPLING; /*16x8 block*/
-    else if ((yblockNb == 0) && (cBblockNb == 0) && (cRblockNb == 0))
-      pInfo->ChromaSubsampling = JPEG_444_SUBSAMPLING;
-    else if ((yblockNb == 3) && (cBblockNb == 0) && (cRblockNb == 0))
-      pInfo->ChromaSubsampling = JPEG_420_SUBSAMPLING;
-    else /*Default is 4:4:4*/
-      pInfo->ChromaSubsampling = JPEG_444_SUBSAMPLING;
-    }
-  else
-    pInfo->ChromaSubsampling = JPEG_444_SUBSAMPLING;
-
-  pInfo->ImageQuality = 0;
-
-  return HAL_OK;
-  }
-//}}}
 //{{{
 void dmaPollResidualData (JPEG_HandleTypeDef* hjpeg) {
 
@@ -327,13 +290,40 @@ uint32_t dmaEndProcess (JPEG_HandleTypeDef* hjpeg) {
 extern "C" { void JPEG_IRQHandler() {
 
   if (__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_HPDF) != RESET) {
-    // end of header processing
-    getInfo (&mHandle, &mHandle.Conf);
+    // end of header, get info
+    mInfo.ImageHeight = (JPEG->CONFR1 & 0xFFFF0000U) >> 16;
+    mInfo.ImageWidth  = (JPEG->CONFR3 & 0xFFFF0000U) >> 16;
+
+    // Read the conf parameters
+    if ((JPEG->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF_1)
+      mInfo.ColorSpace = JPEG_YCBCR_COLORSPACE;
+    else if ((JPEG->CONFR1 & JPEG_CONFR1_NF) == 0)
+      mInfo.ColorSpace = JPEG_GRAYSCALE_COLORSPACE;
+    else if ((JPEG->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF)
+      mInfo.ColorSpace = JPEG_CMYK_COLORSPACE;
+
+    if ((mInfo.ColorSpace == JPEG_YCBCR_COLORSPACE) ||
+        (mInfo.ColorSpace == JPEG_CMYK_COLORSPACE)) {
+      uint32_t yblockNb  = (JPEG->CONFR4 & JPEG_CONFR4_NB) >> 4;
+      uint32_t cBblockNb = (JPEG->CONFR5 & JPEG_CONFR5_NB) >> 4;
+      uint32_t cRblockNb = (JPEG->CONFR6 & JPEG_CONFR6_NB) >> 4;
+
+      if ((yblockNb == 1) && (cBblockNb == 0) && (cRblockNb == 0))
+        mInfo.ChromaSubsampling = JPEG_422_SUBSAMPLING; /*16x8 block*/
+      else if ((yblockNb == 0) && (cBblockNb == 0) && (cRblockNb == 0))
+        mInfo.ChromaSubsampling = JPEG_444_SUBSAMPLING;
+      else if ((yblockNb == 3) && (cBblockNb == 0) && (cRblockNb == 0))
+        mInfo.ChromaSubsampling = JPEG_420_SUBSAMPLING;
+      else /*Default is 4:4:4*/
+        mInfo.ChromaSubsampling = JPEG_444_SUBSAMPLING;
+      }
+    else
+      mInfo.ChromaSubsampling = JPEG_444_SUBSAMPLING;
 
     // reset the ImageQuality, is only available at the end of the decoding operation
     mHandle.Conf.ImageQuality = 0;
+    mInfo.ImageQuality = 0;
     // !!!info ready !!!!
-    //HAL_JPEG_InfoReadyCallback (&mHandle, &mHandle.Conf);
 
     __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_IT_HPD);
     // clear header processing done flag
@@ -1117,7 +1107,6 @@ cTile* cHwJpeg::decode (const string& fileName) {
 
     f_close (&file);
 
-    getInfo (&mHandle, &mInfo);
     auto rgb565pic = (uint16_t*)sdRamAlloc (mInfo.ImageWidth * mInfo.ImageHeight * 2);
     cLcd::jpegYuvTo565 (mYuvBuf, rgb565pic, mInfo.ImageWidth, mInfo.ImageHeight, mInfo.ChromaSubsampling);
     return new cTile ((uint8_t*)rgb565pic, 2, mInfo.ImageWidth, 0, 0, mInfo.ImageWidth,  mInfo.ImageHeight);
