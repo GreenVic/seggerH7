@@ -17,6 +17,7 @@ const string kHello = "*stm32h7 testbed " + string(__TIME__) + " " + string(__DA
 #define SDRAM_DEVICE_ADDR 0xD0000000
 #define SDRAM_DEVICE_SIZE 0x01000000
 //}}}
+const bool kHwDecode = true;
 
 uint8_t* mSdRamAlloc = (uint8_t*)SDRAM_DEVICE_ADDR;
 //{{{
@@ -980,7 +981,7 @@ cTile* swJpegDecode (const string& fileName, int scale) {
 //{{{
 void uiThread (void* arg) {
 
-  lcd->display (100);
+  lcd->display (80);
 
   int tick = 0;
   int count = 0;
@@ -1073,8 +1074,7 @@ void appThread (void* arg) {
 
     startTime = HAL_GetTick();
     for (auto fileName : mFileVec) {
-      auto tile = swJpegDecode (fileName, 1);
-      //auto tile = mJpeg.decode (fileName);
+      auto tile = kHwDecode ? mJpeg.decode (fileName) : swJpegDecode (fileName, 1);
       if (tile) {
         printf ("loadJpegHw image %dx%d\n", mJpeg.getWidth(), mJpeg.getHeight());
         lcd->info (COL_YELLOW, "loadJpeg " + fileName +
