@@ -904,32 +904,6 @@ void init (JPEG_HandleTypeDef* hjpeg) {
   }
 //}}}
 
-//{{{
-void pause (JPEG_HandleTypeDef* hjpeg, uint32_t XferSelection) {
-
-  uint32_t mask = 0;
-
-  if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA) {
-    if ((XferSelection & JPEG_PAUSE_RESUME_INPUT) == JPEG_PAUSE_RESUME_INPUT)
-      hjpeg->Context |= JPEG_CONTEXT_PAUSE_INPUT;
-    if ((XferSelection & JPEG_PAUSE_RESUME_OUTPUT) == JPEG_PAUSE_RESUME_OUTPUT)
-      hjpeg->Context |= JPEG_CONTEXT_PAUSE_OUTPUT;
-    }
-
-  else if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_IT) {
-    if ((XferSelection & JPEG_PAUSE_RESUME_INPUT) == JPEG_PAUSE_RESUME_INPUT) {
-      hjpeg->Context |= JPEG_CONTEXT_PAUSE_INPUT;
-      mask |= (JPEG_IT_IFT | JPEG_IT_IFNF);
-      }
-    if ((XferSelection & JPEG_PAUSE_RESUME_OUTPUT) == JPEG_PAUSE_RESUME_OUTPUT) {
-      hjpeg->Context |= JPEG_CONTEXT_PAUSE_OUTPUT;
-      mask |=  (JPEG_IT_OFT | JPEG_IT_OFNE | JPEG_IT_EOC);
-      }
-    __HAL_JPEG_DISABLE_IT(hjpeg,mask);
-    }
-  }
-//}}}
-
 // callbacks
 //{{{
 void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
@@ -946,12 +920,10 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
     uint32_t inXfrSize = hjpeg->hdmain->Init.BufferTransferLength;
     hjpeg->JpegInCount = hjpeg->InDataLength - (hmdma->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
 
-    //printf ("getData %d\n", hjpeg->JpegInCount);
     if (hjpeg->JpegInCount != mBufs[mReadIndex].mSize)
       configInputBuffer (hjpeg,
                          mBufs[mReadIndex].mBuf+hjpeg->JpegInCount,
                          mBufs[mReadIndex].mSize-hjpeg->JpegInCount);
-
     else {
       mBufs [mReadIndex].mFull = false;
       mBufs [mReadIndex].mSize = 0;
@@ -960,7 +932,16 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
       if (mBufs [mReadIndex].mFull)
         configInputBuffer (hjpeg, mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
       else {
-        pause (hjpeg, JPEG_PAUSE_RESUME_INPUT);
+        // pause
+        uint32_t mask = 0;
+        if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA)
+          hjpeg->Context |= JPEG_CONTEXT_PAUSE_INPUT;
+        else if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_IT) {
+          hjpeg->Context |= JPEG_CONTEXT_PAUSE_INPUT;
+          mask |= (JPEG_IT_IFT | JPEG_IT_IFNF);
+          __HAL_JPEG_DISABLE_IT(hjpeg,mask);
+          }
+
         mInPaused = true;
         }
       }
@@ -978,10 +959,10 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
       }
 
     if (((hjpeg->Context &  JPEG_CONTEXT_PAUSE_INPUT) == 0) && (hjpeg->InDataLength > 0))
-      // Start MDMA FIFO In transfer */
+      // Start MDMA FIFO In transfer
       HAL_MDMA_Start_IT (hjpeg->hdmain, (uint32_t)hjpeg->pJpegInBuffPtr, (uint32_t)&hjpeg->Instance->DIR, hjpeg->InDataLength, 1);
 
-    // JPEG Conversion still on going : Enable the JPEG IT */
+    // JPEG Conversion still on going : Enable the JPEG IT
     __HAL_JPEG_ENABLE_IT (hjpeg,JPEG_IT_EOC |JPEG_IT_HPD);
     }
   }
@@ -1114,55 +1095,29 @@ void decode_DMA (JPEG_HandleTypeDef* hjpeg,
   }
 //}}}
 //{{{
-void resume (JPEG_HandleTypeDef* hjpeg, uint32_t XferSelection) {
+void resume (JPEG_HandleTypeDef* hjpeg) {
 
   uint32_t mask = 0;
   uint32_t xfrSize = 0;
 
   if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_DMA) {
-    if ((XferSelection & JPEG_PAUSE_RESUME_INPUT) == JPEG_PAUSE_RESUME_INPUT) {
-      hjpeg->Context &= (~JPEG_CONTEXT_PAUSE_INPUT);
+    hjpeg->Context &= (~JPEG_CONTEXT_PAUSE_INPUT);
 
-      // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
-      // else (MDMA In is triggred with JPEG In FIFO not full flag) then MDMA In buffer size is 4 bytes
-      xfrSize = hjpeg->hdmain->Init.BufferTransferLength;
+    // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
+   // else (MDMA In is triggred with JPEG In FIFO not full flag) then MDMA In buffer size is 4 bytes
+    xfrSize = hjpeg->hdmain->Init.BufferTransferLength;
 
-      // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)*/
-      hjpeg->InDataLength = hjpeg->InDataLength - (hjpeg->InDataLength % xfrSize);
+    // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)*/
+    hjpeg->InDataLength = hjpeg->InDataLength - (hjpeg->InDataLength % xfrSize);
 
-      if(hjpeg->InDataLength > 0)
-        /* Start DMA FIFO In transfer */
-        HAL_MDMA_Start_IT(hjpeg->hdmain, (uint32_t)hjpeg->pJpegInBuffPtr, (uint32_t)&hjpeg->Instance->DIR, hjpeg->InDataLength, 1);
-      }
-
-    if ((XferSelection & JPEG_PAUSE_RESUME_OUTPUT) == JPEG_PAUSE_RESUME_OUTPUT) {
-      hjpeg->Context &= (~JPEG_CONTEXT_PAUSE_OUTPUT);
-
-      if ((hjpeg->Context & JPEG_CONTEXT_ENDING_DMA) != 0)
-        dmaPollResidualData (hjpeg);
-      else {
-        // if the MDMA Out is triggred with JPEG Out FIFO Threshold flag then MDMA out buffer size is 32 bytes
-        // else (MDMA Out is triggred with JPEG Out FIFO not empty flag) then MDMA buffer size is 4 bytes
-        xfrSize = hjpeg->hdmaout->Init.BufferTransferLength;
-
-        // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)*/
-        hjpeg->OutDataLength = hjpeg->OutDataLength - (hjpeg->OutDataLength % xfrSize);
-
-        // Start DMA FIFO Out transfer
-        HAL_MDMA_Start_IT (hjpeg->hdmaout, (uint32_t)&hjpeg->Instance->DOR, (uint32_t)hjpeg->pJpegOutBuffPtr, hjpeg->OutDataLength, 1);
-        }
-      }
+    if(hjpeg->InDataLength > 0)
+      /* Start DMA FIFO In transfer */
+      HAL_MDMA_Start_IT(hjpeg->hdmain, (uint32_t)hjpeg->pJpegInBuffPtr, (uint32_t)&hjpeg->Instance->DIR, hjpeg->InDataLength, 1);
     }
 
   else if ((hjpeg->Context & JPEG_CONTEXT_METHOD_MASK) == JPEG_CONTEXT_IT) {
-    if ((XferSelection & JPEG_PAUSE_RESUME_INPUT) == JPEG_PAUSE_RESUME_INPUT) {
-      hjpeg->Context &= (~JPEG_CONTEXT_PAUSE_INPUT);
-      mask |= (JPEG_IT_IFT | JPEG_IT_IFNF);
-      }
-    if ((XferSelection & JPEG_PAUSE_RESUME_OUTPUT) == JPEG_PAUSE_RESUME_OUTPUT) {
-      hjpeg->Context &= (~JPEG_CONTEXT_PAUSE_OUTPUT);
-      mask |=  (JPEG_IT_OFT | JPEG_IT_OFNE | JPEG_IT_EOC);
-      }
+    hjpeg->Context &= (~JPEG_CONTEXT_PAUSE_INPUT);
+    mask |= (JPEG_IT_IFT | JPEG_IT_IFNF);
     __HAL_JPEG_ENABLE_IT (hjpeg,mask);
     }
 
@@ -1204,7 +1159,7 @@ cTile* cHwJpeg::decode (const string& fileName) {
         if (mInPaused && (mWriteIndex == mReadIndex)) {
           mInPaused = false;
           configInputBuffer (&mHandle, mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
-          resume (&mHandle, JPEG_PAUSE_RESUME_INPUT);
+          resume (&mHandle);
           }
         mWriteIndex = mWriteIndex ? 0 : 1;
         }
