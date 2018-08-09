@@ -233,7 +233,6 @@ void endDma (JPEG_HandleTypeDef* hjpeg) {
 
     // stop decoding
     hjpeg->Instance->CONFR0 &=  ~JPEG_CONFR0_START;
-    mDecodeDone = true;
     }
 
   else {
@@ -263,8 +262,9 @@ void endDma (JPEG_HandleTypeDef* hjpeg) {
       outputData (hjpeg, hjpeg->pJpegOutBuffPtr, hjpeg->JpegOutCount);
       hjpeg->JpegOutCount = 0;
       }
-    mDecodeDone = true;
     }
+
+  mDecodeDone = true;
   }
 //}}}
 
@@ -272,8 +272,7 @@ void endDma (JPEG_HandleTypeDef* hjpeg) {
 extern "C" { void JPEG_IRQHandler() {
 
   if (__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_HPDF) != RESET) {
-    //{{{
-    // end of header, get info
+    //{{{  end of header, get info
     mInfo.ImageHeight = (JPEG->CONFR1 & 0xFFFF0000U) >> 16;
     mInfo.ImageWidth  = (JPEG->CONFR3 & 0xFFFF0000U) >> 16;
 
@@ -1049,14 +1048,6 @@ void resume (JPEG_HandleTypeDef* hjpeg) {
 
 // interface
 //{{{
-cHwJpeg::cHwJpeg() {
-
-  mHandle.Instance = JPEG;
-  init (&mHandle);
-  }
-//}}}
-
-//{{{
 cTile* cHwJpeg::decode (const string& fileName) {
 
   FIL file;
@@ -1066,8 +1057,11 @@ cTile* cHwJpeg::decode (const string& fileName) {
     if (f_read (&file, mBufs[1].mBuf, 4096, &mBufs[1].mSize) == FR_OK)
       mBufs[1].mFull = true;
 
-    if (!mYuvBuf)
+    if (!mYuvBuf) {
+      mHandle.Instance = JPEG;
+      init (&mHandle);
       mYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
+      }
 
     mReadIndex = 0;
     mWriteIndex = 0;
@@ -1089,7 +1083,6 @@ cTile* cHwJpeg::decode (const string& fileName) {
       else
         vTaskDelay (1);
       }
-
     f_close (&file);
 
     auto rgb565pic = (uint16_t*)sdRamAlloc (mInfo.ImageWidth * mInfo.ImageHeight * 2);

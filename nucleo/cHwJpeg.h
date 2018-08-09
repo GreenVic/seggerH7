@@ -6,7 +6,5 @@
 class cTile;
 class cHwJpeg {
 public:
-  cHwJpeg();
-
   cTile* decode (const std::string& fileName);
   };
