@@ -7,8 +7,10 @@
 static uint8_t* mSdRamAlloc = (uint8_t*)SDRAM_DEVICE_ADDR;
 
 uint8_t* sdRamAlloc (uint32_t bytes) {
+	vTaskSuspendAll();
 	uint8_t* alloc = mSdRamAlloc;
 	mSdRamAlloc += bytes;
+	xTaskResumeAll();
 	return alloc;
 	}
 
