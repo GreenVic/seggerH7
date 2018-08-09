@@ -24,56 +24,11 @@ vector<string> mFileVec;
 vector<cTile*> mTileVec;
 cHwJpeg mJpeg;
 
-extern "C" { void JPEG_IRQHandler() { mJpeg.jpegIrq(); }  }
-extern "C" { void MDMA_IRQHandler() { mJpeg.mdmaIrq(); }  }
 extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
 void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
   if (GPIO_Pin == USER_BUTTON_PIN)
     lcd->toggle();
-  }
-//}}}
-
-//{{{
-void HAL_JPEG_GetDataCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint32_t len) {
-
-  //printf ("getData %d\n", len);
-  mJpeg.getData (len);
-  }
-//}}}
-//{{{
-void HAL_JPEG_DataReadyCallback (JPEG_HandleTypeDef* jpegHandlePtr, uint8_t* data, uint32_t len) {
-
-  //printf ("dataReady %x %d\n", data, len);
-  //lcd->info (COL_GREEN, "HAL_JPEG_DataReadyCallback " + hex(uint32_t(data)) + ":" + hex(len));
-  //lcd->changed();
-  mJpeg.dataReady (data, len);
-  }
-//}}}
-//{{{
-void HAL_JPEG_DecodeCpltCallback (JPEG_HandleTypeDef* jpegHandlePtr) {
-
-  //printf ("decodeCplt\n");
-  mJpeg.decodeDone();
-  }
-//}}}
-//{{{
-void HAL_JPEG_InfoReadyCallback (JPEG_HandleTypeDef* jpegHandlePtr, JPEG_ConfTypeDef* info) {
-
-  //printf ("infoReady %d %dx%d\n", info->ChromaSubsampling, info->ImageWidth, info->ImageHeight);
-
-  //lcd->info (COL_YELLOW, "infoReady " + dec (info->ChromaSubsampling, 1, '0') +  ":" +
-  //                                      dec (info->ImageWidth) + "x" + dec (info->ImageHeight));
-  //lcd->changed();
-  }
-//}}}
-//{{{
-void HAL_JPEG_ErrorCallback (JPEG_HandleTypeDef* jpegHandlePtr) {
-
-  //printf ("jpegError\n");
-
-  lcd->info (COL_RED, "jpegError");
-  lcd->changed();
   }
 //}}}
 
