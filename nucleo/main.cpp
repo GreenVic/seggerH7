@@ -2,177 +2,20 @@
 //{{{  includes
 #include "cmsis_os.h"
 #include "stm32h7xx_nucleo_144.h"
+#include "heap.h"
 
 #include "cLcd.h"
 #include "sd.h"
+#include "cHwJpeg.h"
 
 #include "../fatFs/ff.h"
 #include "jpeglib.h"
 
 using namespace std;
 //}}}
-//{{{  const
+const bool kHwDecode = true;
 const string kHello = "*stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
 
-#define SDRAM_DEVICE_ADDR 0xD0000000
-#define SDRAM_DEVICE_SIZE 0x01000000
-//}}}
-const bool kHwDecode = true;
-
-uint8_t* mSdRamAlloc = (uint8_t*)SDRAM_DEVICE_ADDR;
-//{{{
-uint8_t* sdRamAlloc (uint32_t bytes) {
-  auto alloc = mSdRamAlloc;
-  mSdRamAlloc += bytes;
-  return alloc;
-  }
-//}}}
-
-//{{{
-class cHwJpeg {
-public:
-  //{{{
-  cHwJpeg() {
-    mHandle.Instance = JPEG;
-    HAL_JPEG_Init (&mHandle);
-    }
-  //}}}
-
-  //{{{
-  uint32_t getWidth() {
-    return mInfo.ImageWidth;
-    }
-  //}}}
-  //{{{
-  uint32_t getHeight() {
-    return mInfo.ImageHeight;
-    }
-  //}}}
-  //{{{
-  uint32_t getChroma() {
-    return mInfo.ChromaSubsampling;
-    }
-  //}}}
-  //{{{
-  uint8_t* getYuvBuf() {
-    return mYuvBuf;
-    }
-  //}}}
-
-  //{{{
-  cTile* decode (const string& fileName) {
-
-    FIL file;
-    if (f_open (&file, fileName.c_str(), FA_READ) == FR_OK) {
-      if (f_read (&file, mBufs[0].mBuf, 4096, &mBufs[0].mSize) == FR_OK)
-        mBufs[0].mFull = true;
-      if (f_read (&file, mBufs[1].mBuf, 4096, &mBufs[1].mSize) == FR_OK)
-        mBufs[1].mFull = true;
-
-      if (!mYuvBuf)
-        mYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
-
-      mReadIndex = 0;
-      mWriteIndex = 0;
-      mInPaused = 0;
-      mDecodeDone = false;
-      HAL_JPEG_Decode_DMA (&mHandle, mBufs[0].mBuf, mBufs[0].mSize, mYuvBuf, kYuvChunkSize);
-
-      while (!mDecodeDone) {
-        if (!mBufs[mWriteIndex].mFull) {
-          if (f_read (&file, mBufs[mWriteIndex].mBuf, 4096, &mBufs[mWriteIndex].mSize) == FR_OK)
-            mBufs[mWriteIndex].mFull = true;
-          if (mInPaused && (mWriteIndex == mReadIndex)) {
-            mInPaused = false;
-            HAL_JPEG_ConfigInputBuffer (&mHandle, mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
-            HAL_JPEG_Resume (&mHandle, JPEG_PAUSE_RESUME_INPUT);
-            }
-          mWriteIndex = mWriteIndex ? 0 : 1;
-          }
-        else
-          vTaskDelay (1);
-        }
-
-      f_close (&file);
-
-      HAL_JPEG_GetInfo (&mHandle, &mInfo);
-      auto rgb565pic = (uint16_t*)sdRamAlloc (getWidth() * getHeight() * 2);
-      cLcd::jpegYuvTo565 (getYuvBuf(), rgb565pic, getWidth(), getHeight(), getChroma());
-      return new cTile ((uint8_t*)rgb565pic, 2, getWidth(), 0, 0, getWidth(), getHeight());
-      }
-
-    return nullptr;
-    }
-  //}}}
-
-  // callbacks
-  //{{{
-  void getData (uint32_t len) {
-
-    if (len != mBufs[mReadIndex].mSize)
-      HAL_JPEG_ConfigInputBuffer (&mHandle, mBufs[mReadIndex].mBuf+len, mBufs[mReadIndex].mSize-len);
-
-    else {
-      mBufs [mReadIndex].mFull = false;
-      mBufs [mReadIndex].mSize = 0;
-
-      mReadIndex = mReadIndex ? 0 : 1;
-      if (mBufs [mReadIndex].mFull)
-        HAL_JPEG_ConfigInputBuffer (&mHandle, mBufs[mReadIndex].mBuf, mBufs[mReadIndex].mSize);
-      else {
-        HAL_JPEG_Pause (&mHandle, JPEG_PAUSE_RESUME_INPUT);
-        mInPaused = true;
-        }
-      }
-    }
-  //}}}
-  //{{{
-  void dataReady (uint8_t* data, uint32_t len) {
-    HAL_JPEG_ConfigOutputBuffer (&mHandle, data+len, kYuvChunkSize);
-    }
-  //}}}
-  //{{{
-  void decodeDone() {
-    mDecodeDone = true;
-    }
-  //}}}
-  //{{{
-  void jpegIrq() {
-    HAL_JPEG_IRQHandler (&mHandle);
-    }
-  //}}}
-  //{{{
-  void mdmaIrq() {
-    HAL_MDMA_IRQHandler (mHandle.hdmain);
-    HAL_MDMA_IRQHandler (mHandle.hdmaout);
-    }
-  //}}}
-
-private:
-  const uint32_t kYuvChunkSize = 0x10000;
-
-  JPEG_HandleTypeDef mHandle;
-  uint8_t* mYuvBuf = nullptr;
-  JPEG_ConfTypeDef mInfo;
-
-  //{{{  struct tBufs
-  typedef struct {
-    bool mFull;
-    uint8_t* mBuf;
-    uint32_t mSize;
-    } tBufs;
-  //}}}
-  uint8_t mBuf0 [4096];
-  uint8_t mBuf1 [4096];
-  tBufs mBufs[2] = { { false, mBuf0, 0 }, { false, mBuf1, 0 } };
-
-  __IO uint32_t mReadIndex = 0;
-  __IO uint32_t mWriteIndex = 0;
-
-  __IO bool mInPaused = false;
-  __IO bool mDecodeDone = false;
-  };
-//}}}
 //{{{
 class cRtc {
 public:
@@ -490,11 +333,12 @@ private:
 //}}}
 
 cLcd* lcd = nullptr;
+cRtc mRtc;
+
+SemaphoreHandle_t mTileVecSem;
 vector<string> mFileVec;
 vector<cTile*> mTileVec;
 cHwJpeg mJpeg;
-cRtc mRtc;
-SemaphoreHandle_t mTileVecSem;
 
 extern "C" { void JPEG_IRQHandler() { mJpeg.jpegIrq(); }  }
 extern "C" { void MDMA_IRQHandler() { mJpeg.mdmaIrq(); }  }

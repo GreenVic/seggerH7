@@ -6,6 +6,8 @@
 "Output/nucleo Release/Obj/cLcd.o"
 "Output/nucleo Release/Obj/utils.o"
 "Output/nucleo Release/Obj/sd.o"
+"Output/nucleo Release/Obj/cHwJpeg.o"
+"Output/nucleo Release/Obj/cRtc.o"
 "Output/nucleo Release/Obj/SEGGER_RTT.o"
 "Output/nucleo Release/Obj/SEGGER_RTT_Syscalls_SES.o"
 "Output/nucleo Release/Obj/Cortex_M_Startup.o"
