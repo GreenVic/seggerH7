@@ -495,10 +495,9 @@ void appThread (void* arg) {
     for (auto fileName : mFileVec) {
       auto tile = mJpeg.decode (fileName);
       if (tile) {
-        printf ("loadJpegHw image %dx%d\n", mJpeg.getWidth(), mJpeg.getHeight());
+        printf ("loadJpegHw image %dx%d\n", tile->mWidth, tile->mHeight);
         lcd->info (COL_YELLOW, "loadJpeg " + fileName +
-                               dec (mJpeg.getChroma(), 1, '0') +  ":" +
-                               dec (mJpeg.getWidth()) + "x" + dec (mJpeg.getHeight()));
+                               dec (tile->mWidth) + "x" + dec (tile->mHeight));
         lcd->changed();
 
         xSemaphoreTake (mTileVecSem, 1000);
