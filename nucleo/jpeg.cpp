@@ -732,10 +732,10 @@ void MDMAOutCpltCallback (MDMA_HandleTypeDef* hmdma) {
     if (__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_EOCF) == 0) {
       mHandle.JpegOutCount = mHandle.OutDataLength - (hmdma->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
 
-      // Output Buffer full
+      // outputBuffer full
       outputData (mHandle.pJpegOutBuffPtr, mHandle.JpegOutCount);
 
-      // Start MDMA FIFO Out transfer
+      // restart MDMA FIFO Out transfer
       HAL_MDMA_Start_IT (&mHandle.hmdmaOut, (uint32_t)&JPEG->DOR, (uint32_t)mHandle.pJpegOutBuffPtr, mHandle.OutDataLength, 1);
       }
 
