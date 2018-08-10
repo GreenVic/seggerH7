@@ -419,11 +419,9 @@ void appThread (void* arg) {
     startTime = HAL_GetTick();
     for (auto fileName : mFileVec) {
       auto tile = hwJpegDecode (fileName);
-      //auto tile = swJpegDecode (fileName, 1);
       if (tile) {
-        printf ("%s %dx%d\n", fileName.c_str(), tile->mWidth, tile->mHeight);
-        lcd->info (COL_YELLOW, "loadJpeg " + fileName +
-                               dec (tile->mWidth) + "x" + dec (tile->mHeight));
+        printf ("hwJpegDecode %s %dx%d\n", fileName.c_str(), tile->mWidth, tile->mHeight);
+        lcd->info (COL_YELLOW, "loadJpeg " + fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
         lcd->changed();
 
         xSemaphoreTake (mTileVecSem, 1000);
@@ -432,15 +430,14 @@ void appThread (void* arg) {
         taskYIELD();
         }
       else {
-        lcd->info ("load error " + fileName);
+        lcd->info ("hwJpegDecode load error " + fileName);
         lcd->changed();
         }
+
       tile = swJpegDecode (fileName, 1);
-      //auto tile = swJpegDecode (fileName, 1);
       if (tile) {
-        printf ("%s %dx%d\n", fileName.c_str(), tile->mWidth, tile->mHeight);
-        lcd->info (COL_YELLOW, "loadJpeg " + fileName +
-                               dec (tile->mWidth) + "x" + dec (tile->mHeight));
+        printf ("swJpegDecode %s %dx%d\n", fileName.c_str(), tile->mWidth, tile->mHeight);
+        lcd->info (COL_YELLOW, "loadJpeg " + fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
         lcd->changed();
 
         xSemaphoreTake (mTileVecSem, 1000);
@@ -449,7 +446,7 @@ void appThread (void* arg) {
         taskYIELD();
         }
       else {
-        lcd->info ("load error " + fileName);
+        lcd->info ("swJpegDecode load error " + fileName);
         lcd->changed();
         }
       }

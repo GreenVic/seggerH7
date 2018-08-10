@@ -103,7 +103,7 @@ typedef struct {
   uint32_t             mWidth = 0;
   uint32_t             mHeight = 0;
   uint8_t              mColorSpace = 0;
-  uint8_t              mChromaSubsampling = 0;  // 0-> 4:4:4  1-> 4:2:2 2-> 4:1:1 3-> 4:2:0
+  uint8_t              mChromaSampling = 0;  // 0-> 4:4:4  1-> 4:2:2 2-> 4:1:1 3-> 4:2:0
 
   __IO uint32_t        Context = 0;
   __IO uint32_t        mReadIndex = 0;
@@ -199,6 +199,7 @@ tHandle mHandle;
 
 tBufs mInBuf[2] = { { false, nullptr, 0 }, { false, nullptr, 0 } };
 uint8_t* mOutYuvBuf = nullptr;
+uint32_t mOutLen = 0;
 
 //{{{
 void outputData (uint8_t* data, uint32_t len) {
@@ -206,8 +207,9 @@ void outputData (uint8_t* data, uint32_t len) {
   //printf ("outputData %x %d\n", data, len);
   //lcd->info (COL_GREEN, "outputData " + hex(uint32_t(data)) + ":" + hex(len));
   //lcd->changed();
-  mHandle.OutBuffPtr = data+len;
+  mHandle.OutBuffPtr = data + len;
   mHandle.OutLen = kYuvChunkSize;
+  mOutLen += len;
   }
 //}}}
 //{{{
@@ -872,16 +874,16 @@ extern "C" { void JPEG_IRQHandler() {
       uint32_t cRblockNb = (JPEG->CONFR6 & JPEG_CONFR6_NB) >> 4;
 
       if ((yblockNb == 1) && (cBblockNb == 0) && (cRblockNb == 0))
-        mHandle.mChromaSubsampling = JPEG_422_SUBSAMPLING; // 16x8 block
+        mHandle.mChromaSampling = JPEG_422_SUBSAMPLING; // 16x8 block
       else if ((yblockNb == 0) && (cBblockNb == 0) && (cRblockNb == 0))
-        mHandle.mChromaSubsampling = JPEG_444_SUBSAMPLING;
+        mHandle.mChromaSampling = JPEG_444_SUBSAMPLING;
       else if ((yblockNb == 3) && (cBblockNb == 0) && (cRblockNb == 0))
-        mHandle.mChromaSubsampling = JPEG_420_SUBSAMPLING;
+        mHandle.mChromaSampling = JPEG_420_SUBSAMPLING;
       else
-        mHandle.mChromaSubsampling = JPEG_444_SUBSAMPLING;
+        mHandle.mChromaSampling = JPEG_444_SUBSAMPLING;
       }
     else
-      mHandle.mChromaSubsampling = JPEG_444_SUBSAMPLING;
+      mHandle.mChromaSampling = JPEG_444_SUBSAMPLING;
 
     __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_IT_HPD);
 
@@ -935,6 +937,7 @@ extern "C" { void MDMA_IRQHandler() {
 //{{{
 cTile* hwJpegDecode (const string& fileName) {
 
+  mOutLen = 0;
   if (!mOutYuvBuf) {
     mOutYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
     mHandle.Instance = JPEG;
@@ -984,8 +987,9 @@ cTile* hwJpegDecode (const string& fileName) {
       }
     f_close (&file);
 
+    printf ("mOutLen %d %d %d %d\n", mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling, mOutLen);
     auto rgb565pic = (uint16_t*)sdRamAlloc (mHandle.mWidth * mHandle.mHeight * 2);
-    cLcd::jpegYuvTo565 (mOutYuvBuf, rgb565pic, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSubsampling);
+    cLcd::jpegYuvTo565 (mOutYuvBuf, rgb565pic, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
     return new cTile ((uint8_t*)rgb565pic, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
     }
 
