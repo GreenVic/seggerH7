@@ -31,6 +31,7 @@ SemaphoreHandle_t cLcd::mDma2dSem;
 SemaphoreHandle_t cLcd::mFrameSem;
 //}}}
 DMA2D_HandleTypeDef DMA2D_Handle;
+SemaphoreHandle_t mLockSem;
 
 //{{{
 extern "C" {void LTDC_IRQHandler() {
@@ -119,6 +120,8 @@ cLcd::cLcd (uint16_t* buffer0, uint16_t* buffer1)  {
   stampRegs[9] = 0;
   stampRegs[10] = DMA2D_OUTPUT_RGB565;
   stampRegs[11] = 0;
+
+  mLockSem = xSemaphoreCreateMutex();
   }
 //}}}
 //{{{
@@ -189,11 +192,14 @@ void cLcd::rect (uint16_t colour, const cRect& r) {
   rectRegs[2] = uint32_t (mBuffer[mDrawBuffer] + r.top * getWidth() + r.left);
   rectRegs[3] = getWidth() - r.getWidth();
   rectRegs[4] = (r.getWidth() << 16) | r.getHeight();
+
+  xSemaphoreTake (mLockSem, 1000);
   ready();
   memcpy ((void*)(&DMA2D->OPFCCR), rectRegs, 5*4);
 
   DMA2D->CR = DMA2D_R2M | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
+  xSemaphoreGive (mLockSem);
   }
 //}}}
 //{{{
@@ -280,10 +286,12 @@ void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r) {
   stampRegs[13] = stampRegs[3];
   stampRegs[14] = (r.getWidth() << 16) | r.getHeight();
 
+  xSemaphoreTake (mLockSem, 1000);
   ready();
   memcpy ((void*)(&DMA2D->FGMAR), stampRegs, 15*4);
   DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
+  xSemaphoreGive (mLockSem);
   }
 //}}}
 //{{{
@@ -323,6 +331,7 @@ void cLcd::copy (cTile* srcTile, cPoint p) {
   uint16_t width = p.x + srcTile->mWidth > getWidth() ? getWidth() - p.x : srcTile->mWidth;
   uint16_t height = p.y + srcTile->mHeight > getHeight() ? getHeight() - p.y : srcTile->mHeight;
 
+  xSemaphoreTake (mLockSem, 1000);
   ready();
   DMA2D->FGPFCCR = srcTile->mFormat;
   DMA2D->FGMAR = (uint32_t)srcTile->mPiccy;
@@ -333,6 +342,7 @@ void cLcd::copy (cTile* srcTile, cPoint p) {
   DMA2D->NLR = (width << 16) | height;
   DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
+  xSemaphoreGive (mLockSem);
   }
 //}}}
 //{{{
@@ -341,6 +351,7 @@ void cLcd::copy90 (cTile* srcTile, cPoint p) {
   uint32_t src = (uint32_t)srcTile->mPiccy;
   uint32_t dst = (uint32_t)mBuffer[mDrawBuffer];
 
+  xSemaphoreTake (mLockSem, 1000);
   ready();
   DMA2D->FGPFCCR = srcTile->mFormat;
   DMA2D->FGOR = 0;
@@ -360,6 +371,7 @@ void cLcd::copy90 (cTile* srcTile, cPoint p) {
     mDma2dWait = eWaitDone;
     ready();
     }
+  xSemaphoreGive (mLockSem);
   }
 //}}}
 //{{{
@@ -596,6 +608,7 @@ void cLcd::rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize) {
 //{{{
 void cLcd::jpegYuvTo565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling) {
 
+  xSemaphoreTake (mLockSem, 1000);
   ready();
 
   uint32_t cssMode = DMA2D_CSS_420;
@@ -647,6 +660,8 @@ void cLcd::jpegYuvTo565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t y
   // copy the new decoded frame to the LCD Frame buffer
   HAL_DMA2D_Start (&DMA2D_Handle, (uint32_t)src, (uint32_t)dst, xsize, ysize);
   HAL_DMA2D_PollForTransfer (&DMA2D_Handle, 25);
+
+  xSemaphoreGive (mLockSem);
   }
 //}}}
 

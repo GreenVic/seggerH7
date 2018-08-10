@@ -4,25 +4,23 @@
 #include "stm32h7xx_nucleo_144.h"
 #include "heap.h"
 
+#include "cRtc.h"
 #include "cLcd.h"
 #include "sd.h"
-#include "cRtc.h"
-#include "cHwJpeg.h"
+#include "jpeg.h"
 
 #include "../fatFs/ff.h"
-#include "jpeglib.h"
 
 using namespace std;
 //}}}
 const string kHello = "*stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
 
-cLcd* lcd = nullptr;
+// vars
 cRtc mRtc;
-
-SemaphoreHandle_t mTileVecSem;
+cLcd* lcd = nullptr;
 vector<string> mFileVec;
 vector<cTile*> mTileVec;
-cHwJpeg mJpeg;
+SemaphoreHandle_t mTileVecSem;
 
 extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
@@ -323,79 +321,6 @@ void findFiles (const string& dirPath, const string& ext) {
     }
   }
 //}}}
-//{{{
-cTile* swJpegDecode (const string& fileName, int scale) {
-
-  FILINFO filInfo;
-  if (f_stat (fileName.c_str(), &filInfo)) {
-    lcd->info (COL_RED, fileName + " not found");
-    return nullptr;
-    }
-  lcd->info (COL_YELLOW, "loadFile " + fileName + " bytes:" + dec ((int)(filInfo.fsize)) + " " +
-             dec (filInfo.ftime >> 11) + ":" + dec ((filInfo.ftime >> 5) & 63) + " " +
-             dec (filInfo.fdate & 31) + ":" + dec ((filInfo.fdate >> 5) & 15) + ":" + dec ((filInfo.fdate >> 9) + 1980));
-  lcd->changed();
-
-  FIL gFile;
-  if (f_open (&gFile, fileName.c_str(), FA_READ)) {
-    lcd->info (COL_RED, fileName + " not opened");
-    lcd->changed();
-    return nullptr;
-    }
-
-  auto buf = (uint8_t*)malloc (filInfo.fsize);
-  if (!buf)  {
-    lcd->info (COL_RED, "loadJpegSw buf fail");
-    lcd->changed();
-    return nullptr;
-    }
-
-  auto startTime = HAL_GetTick();
-  UINT bytesRead = 0;
-  f_read (&gFile, buf, (UINT)filInfo.fsize, &bytesRead);
-  f_close (&gFile);
-  auto loadTook = HAL_GetTick() - startTime;
-
-  if (bytesRead > 0) {
-    struct jpeg_error_mgr jerr;
-    struct jpeg_decompress_struct mCinfo;
-    mCinfo.err = jpeg_std_error (&jerr);
-    jpeg_create_decompress (&mCinfo);
-
-    jpeg_mem_src (&mCinfo, buf, bytesRead);
-    jpeg_read_header (&mCinfo, TRUE);
-
-    mCinfo.dct_method = JDCT_FLOAT;
-    mCinfo.out_color_space = JCS_RGB;
-    mCinfo.scale_num = 1;
-    mCinfo.scale_denom = scale;
-    jpeg_start_decompress (&mCinfo);
-
-    auto rgb565pic = (uint16_t*)sdRamAlloc (mCinfo.output_width * mCinfo.output_height*2);
-    auto tile = new cTile ((uint8_t*)rgb565pic, 2, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
-
-    auto rgbLine = (uint8_t*)malloc (mCinfo.output_width * 3);
-    while (mCinfo.output_scanline < mCinfo.output_height) {
-      jpeg_read_scanlines (&mCinfo, &rgbLine, 1);
-      lcd->rgb888to565 (rgbLine, rgb565pic + ((mCinfo.output_scanline-1) * mCinfo.output_width), mCinfo.output_width);
-      }
-    free (rgbLine);
-
-    jpeg_finish_decompress (&mCinfo);
-    auto allTook = HAL_GetTick() - startTime;
-
-    free (buf);
-    jpeg_destroy_decompress (&mCinfo);
-    return tile;
-    }
-  else {
-    free (buf);
-    lcd->info (COL_RED, "loadFile read failed");
-    lcd->changed();
-    return nullptr;
-    }
-  }
-//}}}
 
 //{{{
 void uiThread (void* arg) {
@@ -460,17 +385,17 @@ void uiThread (void* arg) {
 //{{{
 void appThread (void* arg) {
 
-  FATFS SDFatFs;
-  char SDPath[4];
+  FATFS fatFs;
+  char sdPath[4];
 
-  if (FATFS_LinkDriver (&SD_Driver, SDPath) != 0) {
+  if (FATFS_LinkDriver (&SD_Driver, sdPath) != 0) {
     //{{{  no driver error
     printf ("sdCard - no driver\n");
     lcd->info (COL_RED, "sdCard - no driver");
     lcd->changed();
     }
     //}}}
-  else if (f_mount (&SDFatFs, (TCHAR const*)SDPath, 1) != FR_OK) {
+  else if (f_mount (&fatFs, (TCHAR const*)sdPath, 1) != FR_OK) {
     //{{{  no sdCard error
     printf ("sdCard - not mounted\n");
     lcd->info (COL_RED, "sdCard - not mounted");
@@ -493,9 +418,9 @@ void appThread (void* arg) {
 
     startTime = HAL_GetTick();
     for (auto fileName : mFileVec) {
-      auto tile = mJpeg.decode (fileName);
+      auto tile = swJpegDecode (fileName, 1);
       if (tile) {
-        printf ("loadJpegHw image %dx%d\n", tile->mWidth, tile->mHeight);
+        printf ("%s %dx%d\n", fileName.c_str(), tile->mWidth, tile->mHeight);
         lcd->info (COL_YELLOW, "loadJpeg " + fileName +
                                dec (tile->mWidth) + "x" + dec (tile->mHeight));
         lcd->changed();

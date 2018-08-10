@@ -1,6 +1,6 @@
-// cHwJpeg.cpp
+// jpeg.cpp
 //{{{  includes
-#include "cHwJpeg.h"
+#include "jpeg.h"
 
 #include "cmsis_os.h"
 #include "stm32h7xx_nucleo_144.h"
@@ -8,6 +8,8 @@
 
 #include "cLcd.h"
 #include "../fatFs/ff.h"
+
+#include "jpeglib.h"
 
 using namespace std;
 //}}}
@@ -937,7 +939,7 @@ extern "C" { void MDMA_IRQHandler() {
 
 // interface
 //{{{
-cTile* cHwJpeg::decode (const string& fileName) {
+cTile* hwJpegDecode (const string& fileName) {
 
   if (!mYuvBuf) {
     mYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
@@ -990,5 +992,77 @@ cTile* cHwJpeg::decode (const string& fileName) {
     }
 
   return nullptr;
+  }
+//}}}
+
+//{{{
+cTile* swJpegDecode (const string& fileName, int scale) {
+
+  FILINFO filInfo;
+  if (f_stat (fileName.c_str(), &filInfo)) {
+    printf ("swJpegDecode fstat fail\n");
+    return nullptr;
+    }
+
+  //lcd->info (COL_YELLOW, "loadFile " + fileName + " bytes:" + dec ((int)(filInfo.fsize)) + " " +
+  //           dec (filInfo.ftime >> 11) + ":" + dec ((filInfo.ftime >> 5) & 63) + " " +
+  //           dec (filInfo.fdate & 31) + ":" + dec ((filInfo.fdate >> 5) & 15) + ":" + dec ((filInfo.fdate >> 9) + 1980));
+  //lcd->changed();
+
+  FIL gFile;
+  if (f_open (&gFile, fileName.c_str(), FA_READ)) {
+    printf ("swJpegDecode open fail\n");
+    return nullptr;
+    }
+
+  auto buf = (uint8_t*)pvPortMalloc (filInfo.fsize);
+  if (!buf)  {
+    printf ("swJpegDecode alloc fail\n");
+    return nullptr;
+    }
+
+  auto startTime = HAL_GetTick();
+  UINT bytesRead = 0;
+  f_read (&gFile, buf, (UINT)filInfo.fsize, &bytesRead);
+  f_close (&gFile);
+  auto loadTook = HAL_GetTick() - startTime;
+
+  if (bytesRead > 0) {
+    struct jpeg_error_mgr jerr;
+    struct jpeg_decompress_struct mCinfo;
+    mCinfo.err = jpeg_std_error (&jerr);
+    jpeg_create_decompress (&mCinfo);
+
+    jpeg_mem_src (&mCinfo, buf, bytesRead);
+    jpeg_read_header (&mCinfo, TRUE);
+
+    mCinfo.dct_method = JDCT_FLOAT;
+    mCinfo.out_color_space = JCS_RGB;
+    mCinfo.scale_num = 1;
+    mCinfo.scale_denom = scale;
+    jpeg_start_decompress (&mCinfo);
+
+    auto rgb565pic = (uint16_t*)sdRamAlloc (mCinfo.output_width * mCinfo.output_height*2);
+    auto tile = new cTile ((uint8_t*)rgb565pic, 2, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
+
+    auto rgbLine = (uint8_t*)malloc (mCinfo.output_width * 3);
+    while (mCinfo.output_scanline < mCinfo.output_height) {
+      jpeg_read_scanlines (&mCinfo, &rgbLine, 1);
+      cLcd::rgb888to565 (rgbLine, rgb565pic + ((mCinfo.output_scanline-1) * mCinfo.output_width), mCinfo.output_width);
+      }
+    free (rgbLine);
+
+    jpeg_finish_decompress (&mCinfo);
+    auto allTook = HAL_GetTick() - startTime;
+
+    free (buf);
+    jpeg_destroy_decompress (&mCinfo);
+    return tile;
+    }
+  else {
+    free (buf);
+    printf ("swJpegDecode read fail\n");
+    return nullptr;
+    }
   }
 //}}}

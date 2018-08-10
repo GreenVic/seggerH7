@@ -70,8 +70,6 @@
   ft_alloc( FT_Memory  memory,
             long       size )
   {
-    FT_UNUSED( memory );
-
     return pvPortMalloc( size );
   }
 
@@ -102,15 +100,11 @@
               long       new_size,
               void*      block )
   {
-    FT_UNUSED( memory );
-    FT_UNUSED( cur_size );
-
     void* p = pvPortMalloc (new_size);
     if (p) {
       if (block != NULL) {
         memcpy (p, block, cur_size);
-        //vPortFree (block);
-        free (block);
+        vPortFree (block);
         }
       }
 
@@ -135,8 +129,7 @@
   ft_free( FT_Memory  memory,
            void*      block )
   {
-    FT_UNUSED( memory );
-    vPortFree( block );
+    vPortFree (block);
   }
 
 
