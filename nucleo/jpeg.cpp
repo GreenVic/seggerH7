@@ -56,6 +56,31 @@ typedef struct {
   uint8_t* mBuf;
   uint32_t mSize;
   } tBufs;
+
+typedef struct {
+  uint32_t mWidth;
+  uint32_t mHeight;
+  uint8_t  mColorSpace;
+  uint8_t  mChromaSubsampling;  // 0-> 4:4:4  1-> 4:2:2 2-> 4:1:1 3-> 4:2:0
+  } tInfo;
+
+typedef struct {
+  JPEG_TypeDef*        Instance;
+  uint8_t*             pJpegInBuffPtr;
+  uint8_t*             pJpegOutBuffPtr;
+  __IO uint32_t        JpegInCount;
+  __IO uint32_t        JpegOutCount;
+  uint32_t             InDataLength;
+  uint32_t             OutDataLength;
+  MDMA_HandleTypeDef*  hdmain;
+  MDMA_HandleTypeDef*  hdmaout;
+  uint8_t              CustomQuanTable;
+  uint8_t*             QuantTable0;
+  uint8_t*             QuantTable1;
+  uint8_t*             QuantTable2;
+  uint8_t*             QuantTable3;
+  __IO uint32_t Context;
+  } tHandle;
 //}}}
 //{{{  const
 const uint32_t kYuvChunkSize = 0x10000;
@@ -165,11 +190,11 @@ const uint8_t ZIGZAG_ORDER[JPEG_QUANT_TABLE_SIZE] = {
 //}}}
 //}}}
 //{{{  vars
-JPEG_HandleTypeDef mHandle;
+tHandle mHandle;
 MDMA_HandleTypeDef hmdmaIn;
 MDMA_HandleTypeDef hmdmaOut;
 
-JPEG_ConfTypeDef mInfo;
+tInfo mInfo;
 uint8_t* mYuvBuf = nullptr;
 
 uint8_t mBuf0[4096];
@@ -866,37 +891,34 @@ extern "C" { void JPEG_IRQHandler() {
 
   if (__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_HPDF) != RESET) {
     //{{{  end of header, get info
-    mInfo.ImageHeight = (JPEG->CONFR1 & 0xFFFF0000U) >> 16;
-    mInfo.ImageWidth  = (JPEG->CONFR3 & 0xFFFF0000U) >> 16;
+    mInfo.mHeight = (JPEG->CONFR1 & 0xFFFF0000U) >> 16;
+    mInfo.mWidth  = (JPEG->CONFR3 & 0xFFFF0000U) >> 16;
 
     // Read the conf parameters
     if ((JPEG->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF_1)
-      mInfo.ColorSpace = JPEG_YCBCR_COLORSPACE;
+      mInfo.mColorSpace = JPEG_YCBCR_COLORSPACE;
     else if ((JPEG->CONFR1 & JPEG_CONFR1_NF) == 0)
-      mInfo.ColorSpace = JPEG_GRAYSCALE_COLORSPACE;
+      mInfo.mColorSpace = JPEG_GRAYSCALE_COLORSPACE;
     else if ((JPEG->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF)
-      mInfo.ColorSpace = JPEG_CMYK_COLORSPACE;
+      mInfo.mColorSpace = JPEG_CMYK_COLORSPACE;
 
-    if ((mInfo.ColorSpace == JPEG_YCBCR_COLORSPACE) || (mInfo.ColorSpace == JPEG_CMYK_COLORSPACE)) {
+    if ((mInfo.mColorSpace == JPEG_YCBCR_COLORSPACE) || (mInfo.mColorSpace == JPEG_CMYK_COLORSPACE)) {
       uint32_t yblockNb  = (JPEG->CONFR4 & JPEG_CONFR4_NB) >> 4;
       uint32_t cBblockNb = (JPEG->CONFR5 & JPEG_CONFR5_NB) >> 4;
       uint32_t cRblockNb = (JPEG->CONFR6 & JPEG_CONFR6_NB) >> 4;
 
       if ((yblockNb == 1) && (cBblockNb == 0) && (cRblockNb == 0))
-        mInfo.ChromaSubsampling = JPEG_422_SUBSAMPLING; // 16x8 block
+        mInfo.mChromaSubsampling = JPEG_422_SUBSAMPLING; // 16x8 block
       else if ((yblockNb == 0) && (cBblockNb == 0) && (cRblockNb == 0))
-        mInfo.ChromaSubsampling = JPEG_444_SUBSAMPLING;
+        mInfo.mChromaSubsampling = JPEG_444_SUBSAMPLING;
       else if ((yblockNb == 3) && (cBblockNb == 0) && (cRblockNb == 0))
-        mInfo.ChromaSubsampling = JPEG_420_SUBSAMPLING;
+        mInfo.mChromaSubsampling = JPEG_420_SUBSAMPLING;
       else // Default is 4:4:4
-        mInfo.ChromaSubsampling = JPEG_444_SUBSAMPLING;
+        mInfo.mChromaSubsampling = JPEG_444_SUBSAMPLING;
       }
     else
-      mInfo.ChromaSubsampling = JPEG_444_SUBSAMPLING;
+      mInfo.mChromaSubsampling = JPEG_444_SUBSAMPLING;
 
-    // reset the ImageQuality, is only available at the end of the decoding operation
-    mHandle.Conf.ImageQuality = 0;
-    mInfo.ImageQuality = 0;
     // !!!info ready !!!!
 
     __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_IT_HPD);
@@ -986,9 +1008,9 @@ cTile* hwJpegDecode (const string& fileName) {
       }
     f_close (&file);
 
-    auto rgb565pic = (uint16_t*)sdRamAlloc (mInfo.ImageWidth * mInfo.ImageHeight * 2);
-    cLcd::jpegYuvTo565 (mYuvBuf, rgb565pic, mInfo.ImageWidth, mInfo.ImageHeight, mInfo.ChromaSubsampling);
-    return new cTile ((uint8_t*)rgb565pic, 2, mInfo.ImageWidth, 0, 0, mInfo.ImageWidth,  mInfo.ImageHeight);
+    auto rgb565pic = (uint16_t*)sdRamAlloc (mInfo.mWidth * mInfo.mHeight * 2);
+    cLcd::jpegYuvTo565 (mYuvBuf, rgb565pic, mInfo.mWidth, mInfo.mHeight, mInfo.mChromaSubsampling);
+    return new cTile ((uint8_t*)rgb565pic, 2, mInfo.mWidth, 0, 0, mInfo.mWidth,  mInfo.mHeight);
     }
 
   return nullptr;

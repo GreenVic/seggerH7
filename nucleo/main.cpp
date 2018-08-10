@@ -418,7 +418,8 @@ void appThread (void* arg) {
 
     startTime = HAL_GetTick();
     for (auto fileName : mFileVec) {
-      auto tile = swJpegDecode (fileName, 1);
+      auto tile = hwJpegDecode (fileName);
+      //auto tile = swJpegDecode (fileName, 1);
       if (tile) {
         printf ("%s %dx%d\n", fileName.c_str(), tile->mWidth, tile->mHeight);
         lcd->info (COL_YELLOW, "loadJpeg " + fileName +
