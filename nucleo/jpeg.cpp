@@ -206,32 +206,28 @@ void configInputBuffer (uint8_t* buff, uint32_t len) {
   }
 //}}}
 //{{{
-void configOutputBuffer (uint8_t* buff, uint32_t len) {
-
-  mHandle.pJpegOutBuffPtr = buff;
-  mHandle.OutDataLength = len;
-  }
-//}}}
-//{{{
 void outputData (uint8_t* data, uint32_t len) {
 
   //printf ("outputData %x %d\n", data, len);
   //lcd->info (COL_GREEN, "outputData " + hex(uint32_t(data)) + ":" + hex(len));
   //lcd->changed();
-  configOutputBuffer (data+len, kYuvChunkSize);
+  mHandle.pJpegOutBuffPtr = data+len;
+  mHandle.OutDataLength = kYuvChunkSize;
   }
 //}}}
 
 //{{{
 void dmaDecode (uint8_t* inBuff, uint32_t inLen, uint8_t* outBuff, uint32_t outLen) {
 
+  mHandle.Context = 0;
+
   mHandle.pJpegInBuffPtr = inBuff;
   mHandle.InDataLength = inLen;
+  mHandle.JpegInCount = 0;
+
   mHandle.pJpegOutBuffPtr = outBuff;
   mHandle.OutDataLength = outLen;
-  mHandle.JpegInCount = 0;
   mHandle.JpegOutCount = 0;
-  mHandle.Context = 0;
 
   // set JPEG Codec to decode
   JPEG->CONFR1 |= JPEG_CONFR1_DE;
@@ -253,21 +249,9 @@ void dmaDecode (uint8_t* inBuff, uint32_t inLen, uint8_t* outBuff, uint32_t outL
 
   // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
   // else (MDMA In is triggred with JPEG In FIFO not full flag then MDMA In buffer size is 4 bytes
+  // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)
   uint32_t inXfrSize = mHandle.hmdmaIn.Init.BufferTransferLength;
-
-  // if the MDMA Out is triggred with JPEG Out FIFO Threshold flag then MDMA out buffer size is 32 bytes
-  // else (MDMA Out is triggred with JPEG Out FIFO not empty flag then MDMA buffer size is 4 bytes
-  uint32_t outXfrSize = mHandle.hmdmaOut.Init.BufferTransferLength;
-
-  // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)
   mHandle.InDataLength = mHandle.InDataLength - (mHandle.InDataLength % inXfrSize);
-
-  // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)
-  mHandle.OutDataLength = mHandle.OutDataLength - (mHandle.OutDataLength % outXfrSize);
-
-  // start MDMA FIFO Out transfer
-  HAL_MDMA_Start_IT (&mHandle.hmdmaOut, (uint32_t)&JPEG->DOR,
-                     (uint32_t)mHandle.pJpegOutBuffPtr, mHandle.OutDataLength, 1);
 
   // start DMA FIFO In transfer
   HAL_MDMA_Start_IT (&mHandle.hmdmaIn, (uint32_t)mHandle.pJpegInBuffPtr,
@@ -392,7 +376,7 @@ void DCHuffBitsValsToSizeCodes (JPEG_DCHuffTableTypeDef* DC_BitsValsTable,
   }
 //}}}
 //{{{
-void SetHuffDCMem (JPEG_DCHuffTableTypeDef *HuffTableDC, __IO uint32_t *DCTableAddress) {
+void SetHuffDCMem (JPEG_DCHuffTableTypeDef* HuffTableDC, __IO uint32_t *DCTableAddress) {
 
   JPEG_DC_HuffCodeTableTypeDef dcSizeCodesTable;
   uint32_t i, lsb, msb;
@@ -678,7 +662,7 @@ void SetHuffDHTMem (JPEG_ACHuffTableTypeDef* HuffTableAC0,
   }
 //}}}
 //{{{
-void SetHuffEncMem (JPEG_ACHuffTableTypeDef *HuffTableAC0,
+void SetHuffEncMem (JPEG_ACHuffTableTypeDef* HuffTableAC0,
                                  JPEG_DCHuffTableTypeDef *HuffTableDC0,
                                  JPEG_ACHuffTableTypeDef *HuffTableAC1,
                                  JPEG_DCHuffTableTypeDef *HuffTableDC1) {
@@ -887,7 +871,7 @@ extern "C" { void JPEG_IRQHandler() {
     mHandle.mHeight = (JPEG->CONFR1 & 0xFFFF0000U) >> 16;
     mHandle.mWidth  = (JPEG->CONFR3 & 0xFFFF0000U) >> 16;
 
-    // Read the conf parameters
+    // read header values from conf regs
     if ((JPEG->CONFR1 & JPEG_CONFR1_NF) == JPEG_CONFR1_NF_1)
       mHandle.mColorSpace = JPEG_YCBCR_COLORSPACE;
     else if ((JPEG->CONFR1 & JPEG_CONFR1_NF) == 0)
@@ -906,18 +890,26 @@ extern "C" { void JPEG_IRQHandler() {
         mHandle.mChromaSubsampling = JPEG_444_SUBSAMPLING;
       else if ((yblockNb == 3) && (cBblockNb == 0) && (cRblockNb == 0))
         mHandle.mChromaSubsampling = JPEG_420_SUBSAMPLING;
-      else // Default is 4:4:4
+      else 
         mHandle.mChromaSubsampling = JPEG_444_SUBSAMPLING;
       }
     else
       mHandle.mChromaSubsampling = JPEG_444_SUBSAMPLING;
 
-    // !!!info ready !!!!
-
     __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_IT_HPD);
 
     // clear header processing done flag
     __HAL_JPEG_CLEAR_FLAG (&mHandle, JPEG_FLAG_HPDF);
+
+    // if the MDMA Out is triggred with JPEG Out FIFO Threshold flag then MDMA out buffer size is 32 bytes
+    // else (MDMA Out is triggred with JPEG Out FIFO not empty flag then MDMA buffer size is 4 bytes
+    // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)
+    uint32_t outXfrSize = mHandle.hmdmaOut.Init.BufferTransferLength;
+    mHandle.OutDataLength = mHandle.OutDataLength - (mHandle.OutDataLength % outXfrSize);
+
+    // start MDMA FIFO Out transfer
+    HAL_MDMA_Start_IT (&mHandle.hmdmaOut, (uint32_t)&JPEG->DOR,
+                       (uint32_t)mHandle.pJpegOutBuffPtr, mHandle.OutDataLength, 1);
     }
     //}}}
   if (__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_EOCF) != RESET) {
