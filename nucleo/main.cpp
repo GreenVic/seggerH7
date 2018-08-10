@@ -14,6 +14,7 @@
 using namespace std;
 //}}}
 const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
+const bool kRamTest = false;
 
 // vars
 cRtc mRtc;
@@ -348,7 +349,7 @@ void uiThread (void* arg) {
       count = 0;
       lcd->start();
       lcd->clear (COL_BLACK);
-
+      //{{{  draw tiles
       int item = 0;
       int rows = sqrt ((float)mTileVec.size()) + 1;
       //printf ("uiThread %d %d %d\n", tick, mTileVec.size(), rows);
@@ -363,8 +364,8 @@ void uiThread (void* arg) {
         item++;
         }
       xSemaphoreGive (mTileVecSem);
-
-      //{{{  clock
+      //}}}
+      //{{{  draw clock
       float hourAngle;
       float minuteAngle;
       float secondAngle;
@@ -373,8 +374,8 @@ void uiThread (void* arg) {
 
       int radius = 60;
       cPoint centre = cPoint (950, 490);
-      lcd->ellipse (COL_WHITE, centre, cPoint(radius, radius));
-      lcd->ellipse (COL_BLACK, centre, cPoint(radius-2, radius-2));
+      lcd->ellipseOutline (COL_WHITE, centre, cPoint(radius, radius));
+
       float hourRadius = radius * 0.7f;
       lcd->line (COL_WHITE, centre, centre + cPoint (int16_t(hourRadius * sin (hourAngle)), int16_t(hourRadius * cos (hourAngle))));
       float minuteRadius = radius * 0.8f;
@@ -384,7 +385,6 @@ void uiThread (void* arg) {
 
       lcd->cLcd::text (COL_WHITE, 45, mRtc.getClockTimeDateString(), cRect (550,545, 1024,600));
       //}}}
-
       lcd->drawInfo();
       lcd->present();
       }
@@ -474,11 +474,13 @@ void appThread (void* arg) {
     }
 
   uint32_t offset = 0;
-  while (true)
+  while (kRamTest)
     for (int j = 8; j <= 0xF; j++) {
       offset += HAL_GetTick();
       sdRamTest (uint16_t(offset++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
       }
+  while (true)
+    vTaskDelay (1000);
   }
 //}}}
 
