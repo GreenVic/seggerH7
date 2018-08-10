@@ -3,6 +3,7 @@
 #include "cLcd.h"
 #include "../freetype/FreeSansBold.h"
 #include "cpuUsage.h"
+#include "math.h"
 //}}}
 //{{{  screen resolution defines
 #ifdef NEXXY_SCREEN
@@ -229,15 +230,6 @@ void cLcd::rectClipped (uint16_t colour, cRect r) {
     return;
 
   rect (colour, r);
-  }
-//}}}
-//{{{
-void cLcd::rectOutline (uint16_t colour, const cRect& r, uint8_t thickness) {
-
-  rectClipped (colour, cRect (r.left, r.top, r.right, r.top+thickness));
-  rectClipped (colour, cRect (r.right-thickness, r.top, r.right, r.bottom));
-  rectClipped (colour, cRect (r.left, r.bottom-thickness, r.right, r.bottom));
-  rectClipped (colour, cRect (r.left, r.top, r.left+thickness, r.bottom));
   }
 //}}}
 //{{{
@@ -472,6 +464,50 @@ void cLcd::ellipse (uint16_t colour, cPoint centre, cPoint radius) {
     } while (y1 <= 0);
   }
 //}}}
+
+//{{{
+void cLcd::line (uint16_t colour, cPoint p1, cPoint p2) {
+
+  int16_t deltax = abs(p2.x - p1.x); // The difference between the x's
+  int16_t deltay = abs(p2.y - p1.y); // The difference between the y's
+
+  cPoint p = p1;
+  cPoint inc1 ((p2.x >= p1.x) ? 1 : -1, (p2.y >= p1.y) ? 1 : -1);
+  cPoint inc2 = inc1;
+
+  int16_t numAdd = (deltax >= deltay) ? deltay : deltax;
+  int16_t den = (deltax >= deltay) ? deltax : deltay;
+  if (deltax >= deltay) { // There is at least one x-value for every y-value
+    inc1.x = 0;            // Don't change the x when numerator >= denominator
+    inc2.y = 0;            // Don't change the y for every iteration
+    }
+  else {                  // There is at least one y-value for every x-value
+    inc2.x = 0;            // Don't change the x for every iteration
+    inc1.y = 0;            // Don't change the y when numerator >= denominator
+    }
+
+  int16_t num = den / 2;
+  int16_t numPix = den;
+  for (int16_t pix = 0; pix <= numPix; pix++) {
+    pixel (colour, p);
+    num += numAdd;     // Increase the numerator by the top of the fraction
+    if (num >= den) {   // Check if numerator >= denominator
+      num -= den;       // Calculate the new numerator value
+      p += inc1;
+      }
+    p += inc2;
+    }
+  }
+//}}}
+//{{{
+void cLcd::rectOutline (uint16_t colour, const cRect& r, uint8_t thickness) {
+
+  rectClipped (colour, cRect (r.left, r.top, r.right, r.top+thickness));
+  rectClipped (colour, cRect (r.right-thickness, r.top, r.right, r.bottom));
+  rectClipped (colour, cRect (r.left, r.bottom-thickness, r.right, r.bottom));
+  rectClipped (colour, cRect (r.left, r.top, r.left+thickness, r.bottom));
+  }
+//}}}
 //{{{
 void cLcd::ellipseOutline (uint16_t colour, cPoint centre, cPoint radius) {
 
@@ -499,71 +535,7 @@ void cLcd::ellipseOutline (uint16_t colour, cPoint centre, cPoint radius) {
     } while (y <= 0);
   }
 //}}}
-//{{{
-void cLcd::line (uint16_t colour, cPoint p1, cPoint p2) {
 
-  int16_t deltax = (p2.x - p1.x) > 0 ? (p2.x - p1.x) : -(p2.x - p1.x);        /* The difference between the x's */
-  int16_t deltay = (p2.y - p1.y) > 0 ? (p2.y - p1.y) : -(p2.y - p1.y);        /* The difference between the y's */
-  int16_t x = p1.x;                       /* Start x off at the first pixel */
-  int16_t y = p1.y;                       /* Start y off at the first pixel */
-
-  int16_t xinc1;
-  int16_t xinc2;
-  if (p2.x >= p1.x) {            /* The x-values are increasing */
-    xinc1 = 1;
-    xinc2 = 1;
-    }
-  else {                         /* The x-values are decreasing */
-    xinc1 = -1;
-    xinc2 = -1;
-    }
-
-  int yinc1;
-  int yinc2;
-  if (p2.y >= p1.y) {            /* The y-values are increasing */
-    yinc1 = 1;
-    yinc2 = 1;
-    }
-  else {                         /* The y-values are decreasing */
-    yinc1 = -1;
-    yinc2 = -1;
-    }
-
-  int den = 0;
-  int num = 0;
-  int num_add = 0;
-  int num_pixels = 0;
-  if (deltax >= deltay) {        /* There is at least one x-value for every y-value */
-    xinc1 = 0;                   /* Don't change the x when numerator >= denominator */
-    yinc2 = 0;                   /* Don't change the y for every iteration */
-    den = deltax;
-    num = deltax / 2;
-    num_add = deltay;
-    num_pixels = deltax;         /* There are more x-values than y-values */
-    }
-  else {                         /* There is at least one y-value for every x-value */
-    xinc2 = 0;                   /* Don't change the x for every iteration */
-    yinc1 = 0;                   /* Don't change the y when numerator >= denominator */
-    den = deltay;
-    num = deltay / 2;
-    num_add = deltax;
-    num_pixels = deltay;          /* There are more y-values than x-values */
-    }
-
-  ready();
-  for (int curpixel = 0; curpixel <= num_pixels; curpixel++) {
-    pixel (colour, cPoint(x, y));  
-    num += num_add;                /* Increase the numerator by the top of the fraction */
-    if (num >= den) {              /* Check if numerator >= denominator */
-      num -= den;                  /* Calculate the new numerator value */
-      x += xinc1;                  /* Change the x as appropriate */
-      y += yinc1;                  /* Change the y as appropriate */
-      }
-    x += xinc2;                    /* Change the x as appropriate */
-    y += yinc2;                    /* Change the y as appropriate */
-    }
-  }
-//}}}
 //{{{
 int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string str, cRect r) {
 
