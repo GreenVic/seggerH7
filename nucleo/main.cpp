@@ -232,6 +232,7 @@ void mpuConfig() {
 
   // Configure MPU for sdram
   MPU_Region_InitTypeDef mpuRegion;
+
   mpuRegion.Enable = MPU_REGION_ENABLE;
   mpuRegion.BaseAddress = 0xD0000000;
   mpuRegion.Size = MPU_REGION_SIZE_16MB;
@@ -240,6 +241,18 @@ void mpuConfig() {
   mpuRegion.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
   mpuRegion.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
   mpuRegion.Number = MPU_REGION_NUMBER0;
+  mpuRegion.TypeExtField = MPU_TEX_LEVEL0;
+  mpuRegion.SubRegionDisable = 0x00;
+  mpuRegion.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+  HAL_MPU_ConfigRegion (&mpuRegion);
+
+  mpuRegion.BaseAddress = 0x24000000;
+  mpuRegion.Size = MPU_REGION_SIZE_512KB;
+  mpuRegion.AccessPermission = MPU_REGION_FULL_ACCESS;
+  mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
+  mpuRegion.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  mpuRegion.Number = MPU_REGION_NUMBER1;
   mpuRegion.TypeExtField = MPU_TEX_LEVEL0;
   mpuRegion.SubRegionDisable = 0x00;
   mpuRegion.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
@@ -418,9 +431,11 @@ void appThread (void* arg) {
 
     startTime = HAL_GetTick();
     for (auto fileName : mFileVec) {
+      auto startTime = HAL_GetTick();
       auto tile = hwJpegDecode (fileName);
       if (tile) {
-        printf ("hwJpegDecode %s %dx%d\n", fileName.c_str(), tile->mWidth, tile->mHeight);
+        printf ("hwJpegDecode %s %dx%d took %d\n",
+                fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
         lcd->info (COL_YELLOW, "loadJpeg " + fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
         lcd->changed();
 
@@ -434,20 +449,24 @@ void appThread (void* arg) {
         lcd->changed();
         }
 
-      tile = swJpegDecode (fileName, 1);
-      if (tile) {
-        printf ("swJpegDecode %s %dx%d\n", fileName.c_str(), tile->mWidth, tile->mHeight);
-        lcd->info (COL_YELLOW, "loadJpeg " + fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
-        lcd->changed();
+      for (int i = 1; i <= 4; i++) {
+        auto startTime = HAL_GetTick();
+        tile = swJpegDecode (fileName, i);
+        if (tile) {
+          printf ("swJpegDecode %s %dx%d took %d\n",
+                  fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
+          lcd->info (COL_YELLOW, "loadJpeg " + fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
+          lcd->changed();
 
-        xSemaphoreTake (mTileVecSem, 1000);
-        mTileVec.push_back (tile);
-        xSemaphoreGive (mTileVecSem);
-        taskYIELD();
-        }
-      else {
-        lcd->info ("swJpegDecode load error " + fileName);
-        lcd->changed();
+          xSemaphoreTake (mTileVecSem, 1000);
+          mTileVec.push_back (tile);
+          xSemaphoreGive (mTileVecSem);
+          taskYIELD();
+          }
+        else {
+          lcd->info ("swJpegDecode load error " + fileName);
+          lcd->changed();
+          }
         }
       }
     lcd->info (COL_WHITE, "loadFiles took " + dec(HAL_GetTick() - startTime));
@@ -470,8 +489,7 @@ int main() {
   clockConfig();
   sdRamConfig();
 
-  //HAL_SetFMCMemorySwappingConfig (FMC_SWAPBMAP_SDRAM_SRAM);
-  mpuConfig();
+  //mpuConfig();
   SCB_EnableICache();
   //SCB_EnableDCache();
 

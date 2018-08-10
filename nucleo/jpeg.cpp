@@ -1023,11 +1023,9 @@ cTile* swJpegDecode (const string& fileName, int scale) {
     return nullptr;
     }
 
-  auto startTime = HAL_GetTick();
   UINT bytesRead = 0;
   f_read (&gFile, buf, (UINT)filInfo.fsize, &bytesRead);
   f_close (&gFile);
-  auto loadTook = HAL_GetTick() - startTime;
 
   if (bytesRead > 0) {
     struct jpeg_error_mgr jerr;
@@ -1055,7 +1053,6 @@ cTile* swJpegDecode (const string& fileName, int scale) {
     free (rgbLine);
 
     jpeg_finish_decompress (&mCinfo);
-    auto allTook = HAL_GetTick() - startTime;
 
     free (buf);
     jpeg_destroy_decompress (&mCinfo);
