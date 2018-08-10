@@ -486,6 +486,7 @@ void cLcd::line (uint16_t colour, cPoint p1, cPoint p2) {
     inc1.y = 0;            // Don't change the y when numerator >= denominator
     }
 
+  ready();
   int16_t num = den / 2;
   int16_t numPix = den;
   for (int16_t pix = 0; pix <= numPix; pix++) {
