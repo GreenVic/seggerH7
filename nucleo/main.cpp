@@ -13,7 +13,7 @@
 
 using namespace std;
 //}}}
-const string kHello = "*stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
+const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
 
 // vars
 cRtc mRtc;
@@ -332,7 +332,7 @@ void uiThread (void* arg) {
   while (true) {
     if (lcd->changed() || (count == 500)) {
       tick++;
-      count = 100;
+      count = 0;
       lcd->start();
       lcd->clear (COL_BLACK);
 
