@@ -4,6 +4,8 @@
 #include "../freetype/FreeSansBold.h"
 #include "cpuUsage.h"
 #include "math.h"
+
+#include "heap.h"
 //}}}
 //{{{  screen resolution defines
 #ifdef NEXXY_SCREEN
@@ -18,8 +20,6 @@
   #define VERT_SYNC          12  // min   12  typ  25   max  38
 #endif
 //}}}
-
-extern uint8_t* sdRamAlloc (uint32_t bytes);
 
 //{{{  static var inits
 cLcd* cLcd::mLcd = nullptr;
@@ -630,7 +630,6 @@ void cLcd::drawInfo() {
   // draw footer
   auto y = getHeight() - titleHeight-4;
   text (COL_WHITE, titleHeight,
-  //      dec (xPortGetFreeHeapSize()) + ":" + dec (xPortGetMinimumEverFreeHeapSize()) +
         dec(mNumPresents) + ":" + dec (mDrawTime) + ":" + dec (mWaitTime) + "ms " +
         dec (osGetCPUUsage()) + "% " + dec (mBrightness),
         cRect(0, y, getWidth(), titleHeight+gap));
@@ -858,7 +857,7 @@ cFontChar* cLcd::loadChar (uint16_t fontHeight, char ch) {
   fontChar->bitmap = nullptr;
 
   if (FTglyphSlot->bitmap.buffer) {
-    fontChar->bitmap = (uint8_t*)pvPortMalloc (FTglyphSlot->bitmap.pitch * FTglyphSlot->bitmap.rows);
+    fontChar->bitmap = (uint8_t*)sram123Alloc (FTglyphSlot->bitmap.pitch * FTglyphSlot->bitmap.rows);
     memcpy (fontChar->bitmap, FTglyphSlot->bitmap.buffer, FTglyphSlot->bitmap.pitch * FTglyphSlot->bitmap.rows);
     //auto alignedAddr = (uint32_t)fontChar->bitmap & ~0x1F;
     //SCB_CleanDCache_by_Addr ((uint32_t*)alignedAddr,

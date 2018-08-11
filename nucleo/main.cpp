@@ -13,16 +13,9 @@
 
 using namespace std;
 //}}}
-//{{{  sram addresses
-// 0x20000000 0x00020000  sram DTCM 128k
-// 0x24000000 0x00080000  sram axi  512k
-// 0x30000000 0x00020000  sram1  128k
-// 0x30020000 0x00020000  sram2  128k
-// 0x30040000 0x00020000  sram3  128k
-// 0x30080000 0x00010000  sram4  64k
-//}}}
 
 #define SRAM_CACHE_MPU
+#define SRAM123_CACHE_MPU
 #define SDRAM_CACHE_MPU
 
 #define APP
@@ -31,7 +24,6 @@ using namespace std;
 //#define RAM_TEST
 
 const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
-const bool kRamTest = false;
 
 // vars
 FATFS fatFs;
@@ -143,11 +135,15 @@ void uiThread (void* arg) {
 
       xSemaphoreTake (mTileVecSem, 1000);
       for (auto tile : mTileVec) {
-        cPoint p ((item % rows) * (1024/rows), (item /rows) * (600/rows));
-        if (p.x + tile->mWidth <= lcd->getWidth() && p.y + tile->mHeight <= lcd->getHeight())
+        int16_t col = item % rows;
+        int16_t row = item / rows;
+        cPoint p (col * lcd->getWidth() / rows, row * lcd->getHeight() / rows);
+        cPoint p1 ((col+1) * lcd->getWidth() / rows, (row+1) * lcd->getHeight() / rows);
+
+        if ((p.x + tile->mWidth <= p1.x) && (p.y + tile->mHeight <= p1.y))
           lcd->copy (tile, p);
         else
-          lcd->size (tile, cRect (p, cPoint(((item % rows)+1) * (1024/rows), ((item /rows)+1) * (600/rows))));
+          lcd->size (tile, cRect (p, p1));
         item++;
         }
       xSemaphoreGive (mTileVecSem);
@@ -511,6 +507,16 @@ void mpuConfig() {
     mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
     mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
     mpuRegion.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+    HAL_MPU_ConfigRegion (&mpuRegion);
+  #endif
+
+  #ifdef SRAM123_CACHE_MPU
+    mpuRegion.Number = MPU_REGION_NUMBER2;
+    mpuRegion.BaseAddress = 0x30000000;
+    mpuRegion.Size = MPU_REGION_SIZE_512KB;
+    mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+    mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
+    mpuRegion.IsShareable = MPU_ACCESS_SHAREABLE;
     HAL_MPU_ConfigRegion (&mpuRegion);
   #endif
 
