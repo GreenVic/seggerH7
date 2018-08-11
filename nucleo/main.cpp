@@ -19,8 +19,8 @@ using namespace std;
 #define SDRAM_CACHE_MPU
 
 #define APP
-#define HW_JPEG
-//#define SW_JPEG
+//#define HW_JPEG
+#define SW_JPEG
 //#define RAM_TEST
 
 const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);

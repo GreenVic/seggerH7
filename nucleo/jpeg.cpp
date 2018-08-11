@@ -1033,6 +1033,7 @@ cTile* swJpegDecode (const string& fileName, int scale) {
   f_read (&gFile, buf, (UINT)filInfo.fsize, &bytesRead);
   f_close (&gFile);
 
+  cTile* tile = nullptr;
   if (bytesRead > 0) {
     struct jpeg_error_mgr jerr;
     struct jpeg_decompress_struct mCinfo;
@@ -1049,25 +1050,25 @@ cTile* swJpegDecode (const string& fileName, int scale) {
     jpeg_start_decompress (&mCinfo);
 
     auto rgb565pic = (uint16_t*)sdRamAlloc (mCinfo.output_width * mCinfo.output_height*2);
-    auto tile = new cTile ((uint8_t*)rgb565pic, 2, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
-
-    auto rgbLine = (uint8_t*)malloc (mCinfo.output_width * 3);
-    while (mCinfo.output_scanline < mCinfo.output_height) {
-      jpeg_read_scanlines (&mCinfo, &rgbLine, 1);
-      cLcd::rgb888to565 (rgbLine, rgb565pic + ((mCinfo.output_scanline-1) * mCinfo.output_width), mCinfo.output_width);
+    if (rgb565pic) {
+      tile = new cTile ((uint8_t*)rgb565pic, 2, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
+      auto rgbLine = (uint8_t*)malloc (mCinfo.output_width * 3);
+      while (mCinfo.output_scanline < mCinfo.output_height) {
+        jpeg_read_scanlines (&mCinfo, &rgbLine, 1);
+        cLcd::rgb888to565 (rgbLine, rgb565pic + ((mCinfo.output_scanline-1) * mCinfo.output_width), mCinfo.output_width);
+        }
+      free (rgbLine);
       }
-    free (rgbLine);
-
+    else
+      printf ("swJpegDecode alloc fail\n");
     jpeg_finish_decompress (&mCinfo);
-
-    free (buf);
     jpeg_destroy_decompress (&mCinfo);
-    return tile;
     }
   else {
-    free (buf);
     printf ("swJpegDecode read fail\n");
-    return nullptr;
     }
+
+  free (buf);
+  return tile;
   }
 //}}}
