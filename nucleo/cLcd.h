@@ -49,7 +49,6 @@
 #endif
 //}}}
 
-class cFontChar;
 //{{{
 class cTile {
 public:
@@ -77,6 +76,17 @@ public:
   uint16_t mWidth;
   uint16_t mHeight;
   uint16_t mFormat;
+  };
+//}}}
+//{{{
+class cFontChar {
+public:
+  uint8_t* bitmap;
+  int16_t left;
+  int16_t top;
+  int16_t pitch;
+  int16_t rows;
+  int16_t advance;
   };
 //}}}
 

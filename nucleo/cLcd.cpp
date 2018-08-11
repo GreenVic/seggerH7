@@ -93,18 +93,6 @@ extern "C" {void DMA2D_IRQHandler() {
 //}}}
 
 //{{{
-class cFontChar {
-public:
-  uint8_t* bitmap;
-  int16_t left;
-  int16_t top;
-  int16_t pitch;
-  int16_t rows;
-  int16_t advance;
-  };
-//}}}
-
-//{{{
 cLcd::cLcd (uint16_t* buffer0, uint16_t* buffer1)  {
 
   mBuffer[0] = buffer0;
