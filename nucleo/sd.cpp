@@ -6,8 +6,8 @@
 #include "cmsis_os.h"
 //}}}
 
-// defines
 //#define LCD_DEBUG
+#define PRINTF_DEBUG
 
 #define QUEUE_SIZE      10
 #define READ_CPLT_MSG   1
@@ -119,6 +119,10 @@ DSTATUS SD_status (BYTE lun) {
 //{{{
 DRESULT SD_read (BYTE lun, BYTE* buff, DWORD sector, UINT count) {
 
+  #ifdef PRINTF_DEBUG
+    printf ("sdRead %x %d %d\n", uint32_t(buff), sector, count);
+  #endif
+
   #ifdef LCD_DEBUG
     cLcd::mLcd->info (COL_YELLOW, "sdRead " + hex(uint32_t(buff)) + " " + dec(sector) + " " + dec(count));
     cLcd::mLcd->changed();
@@ -131,8 +135,8 @@ DRESULT SD_read (BYTE lun, BYTE* buff, DWORD sector, UINT count) {
         uint32_t timer = osKernelSysTick();
         while (timer < osKernelSysTick() + SD_TIMEOUT) {
           if (HAL_SD_GetCardState (&gSdHandle) == HAL_SD_CARD_TRANSFER) {
-            //auto alignedAddr = (uint32_t)buff & ~0x1F;
-            //SCB_InvalidateDCache_by_Addr ((uint32_t*)alignedAddr, count * BLOCKSIZE + ((uint32_t)buff - alignedAddr));
+            //uint32_t alignedAddr = (uint32_t)(buff) & ~0x1F;
+            //SCB_InvalidateDCache_by_Addr ((uint32_t*)alignedAddr, (count * BLOCKSIZE) + 32);
             return RES_OK;
             }
           osDelay (1);

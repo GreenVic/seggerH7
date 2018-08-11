@@ -987,7 +987,9 @@ cTile* hwJpegDecode (const string& fileName) {
       }
     f_close (&file);
 
-    printf ("mOutLen %d %d %d %d\n", mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling, mOutLen);
+    printf ("hwJpegDecode %dx%d:%d - %dbytes\n",
+            mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling, mOutLen);
+
     auto rgb565pic = (uint16_t*)sdRamAlloc (mHandle.mWidth * mHandle.mHeight * 2);
     cLcd::jpegYuvTo565 (mOutYuvBuf, rgb565pic, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
     return new cTile ((uint8_t*)rgb565pic, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);

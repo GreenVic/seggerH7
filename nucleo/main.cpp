@@ -1,4 +1,4 @@
-// main.cpp
+//// main.cpp
 //{{{  includes
 #include "cmsis_os.h"
 #include "stm32h7xx_nucleo_144.h"
@@ -13,13 +13,29 @@
 
 using namespace std;
 //}}}
+//{{{  sram addresses
+// 0x20000000 0x00020000  sram DTCM 128k
+// 0x24000000 0x00080000  sram axi  512k
+// 0x30000000 0x00020000  sram1  128k
+// 0x30020000 0x00020000  sram2  128k
+// 0x30040000 0x00020000  sram3  128k
+// 0x30080000 0x00010000  sram4  64k
+//}}}
+
+#define SRAM_CACHE_MPU
+#define SDRAM_CACHE_MPU
+#define HW_JPEG
+#define SW_JPEG
+#define APP
+
 const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
 const bool kRamTest = false;
 
 // vars
+FATFS fatFs;
 cRtc mRtc;
-cLcd* lcd = nullptr;
 
+cLcd* lcd = nullptr;
 vector<string> mFileVec;
 vector<cTile*> mTileVec;
 SemaphoreHandle_t mTileVecSem;
@@ -29,6 +45,235 @@ extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON
 void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
   if (GPIO_Pin == USER_BUTTON_PIN)
     lcd->toggle();
+  }
+//}}}
+
+//{{{
+void sdRamTest (uint16_t offset, uint16_t* addr, uint32_t len) {
+
+  uint16_t data = offset;
+  auto writeAddress = addr;
+  for (uint32_t j = 0; j < len/2; j++)
+    *writeAddress++ = data++;
+
+  uint32_t readOk = 0;
+  uint32_t readErr = 0;
+  uint32_t bitErr[16] = {0};
+  auto readAddress = addr;
+  for (uint32_t j = 0; j < len / 2; j++) {
+    uint16_t readWord1 = *readAddress++;
+    if ((readWord1 & 0xFFFF) == ((j+offset) & 0xFFFF))
+      readOk++;
+    else {
+      readErr++;
+      uint32_t bit = 1;
+      for (int i = 0; i < 16; i++) {
+        if ((readWord1 & bit) != ((j+offset) & bit))
+          bitErr[i] += 1;
+        bit *= 2;
+        }
+      }
+    }
+
+  if (readErr != 0) {
+    //lcd->info (COL_YELLOW, "sdRam ok " + hex((uint32_t)addr));
+    string str = "errors ";
+    for (int i = 15; i >= 0; i--)
+      if (bitErr[i])
+        str += " " + dec (bitErr[i], 2,' ');
+      else
+        str += " __";
+    float rate = (readErr * 1000.f) / 0x00100000;
+    str += "  " + dec(readErr) + " " + dec (int(rate)/10,1) + "." + dec(int(rate) % 10,1) + "%";
+    lcd->info (COL_CYAN, str);
+    lcd->changed();
+    }
+
+  vTaskDelay (200);
+  }
+//}}}
+
+//{{{
+void findFiles (const string& dirPath, const string& ext) {
+
+  DIR dir;
+  if (f_opendir (&dir, dirPath.c_str()) == FR_OK) {
+    while (true) {
+      FILINFO filinfo;
+      if ((f_readdir (&dir, &filinfo) != FR_OK) || !filinfo.fname[0])
+        break;
+      if (filinfo.fname[0] == '.')
+        continue;
+
+      auto filePath = dirPath + "/" + filinfo.fname;
+      if (filinfo.fattrib & AM_DIR) {
+        printf ("- findFiles dir %s\n", filePath.c_str());
+        lcd->info (" - findFiles dir" + filePath);
+        lcd->change();
+        findFiles (filePath, ext);
+        }
+      else if (filePath.find (ext) == filePath.size() - 4) {
+        mFileVec.push_back (filePath);
+        printf ("- findFiles file %s\n", filePath.c_str());
+        lcd->info ("- findFiles file " + filePath);
+        lcd->change();
+        }
+      }
+    f_closedir (&dir);
+    }
+  }
+//}}}
+
+//{{{
+void uiThread (void* arg) {
+
+  lcd->display (80);
+
+  int count = 0;
+  while (true) {
+    if (lcd->changed() || (count == 500)) {
+      count = 0;
+      lcd->start();
+      lcd->clear (COL_BLACK);
+      //{{{  draw tiles
+      int item = 0;
+      int rows = sqrt ((float)mTileVec.size()) + 1;
+
+      xSemaphoreTake (mTileVecSem, 1000);
+      for (auto tile : mTileVec) {
+        cPoint p ((item % rows) * (1024/rows), (item /rows) * (600/rows));
+        if (p.x + tile->mWidth <= lcd->getWidth() && p.y + tile->mHeight <= lcd->getHeight())
+          lcd->copy (tile, p);
+        else
+          lcd->size (tile, cRect (p, cPoint(((item % rows)+1) * (1024/rows), ((item /rows)+1) * (600/rows))));
+        item++;
+        }
+      xSemaphoreGive (mTileVecSem);
+      //}}}
+      //{{{  draw clock
+      float hourAngle;
+      float minuteAngle;
+      float secondAngle;
+      float subSecondAngle;
+      mRtc.getClockAngles (hourAngle, minuteAngle, secondAngle, subSecondAngle);
+
+      int radius = 60;
+      cPoint centre = cPoint (950, 490);
+      lcd->ellipseOutline (COL_WHITE, centre, cPoint(radius, radius));
+
+      float hourRadius = radius * 0.7f;
+      lcd->line (COL_WHITE, centre, centre + cPoint (int16_t(hourRadius * sin (hourAngle)), int16_t(hourRadius * cos (hourAngle))));
+      float minuteRadius = radius * 0.8f;
+      lcd->line (COL_WHITE, centre, centre + cPoint (int16_t(minuteRadius * sin (minuteAngle)), int16_t(minuteRadius * cos (minuteAngle))));
+      float secondRadius = radius * 0.9f;
+      lcd->line (COL_RED, centre, centre + cPoint (int16_t(secondRadius * sin (secondAngle)), int16_t(secondRadius * cos (secondAngle))));
+
+      lcd->cLcd::text (COL_WHITE, 45, mRtc.getClockTimeDateString(), cRect (550,545, 1024,600));
+      //}}}
+      lcd->drawInfo();
+      lcd->present();
+      }
+    else {
+      count++;
+      vTaskDelay (1);
+      }
+    }
+  }
+//}}}
+//{{{
+void appThread (void* arg) {
+
+  char sdPath[4];
+  if (FATFS_LinkDriver (&SD_Driver, sdPath) != 0) {
+    //{{{  no driver error
+    printf ("sdCard - no driver\n");
+    lcd->info (COL_RED, "sdCard - no driver");
+    lcd->changed();
+    }
+    //}}}
+  else if (f_mount (&fatFs, (TCHAR const*)sdPath, 1) != FR_OK) {
+    //{{{  no sdCard error
+    printf ("sdCard - not mounted\n");
+    lcd->info (COL_RED, "sdCard - not mounted");
+    lcd->changed();
+    }
+    //}}}
+  else {
+    char label[20] = { 0 };
+    DWORD volumeSerialNumber = 0;
+    f_getlabel ("", label, &volumeSerialNumber);
+    printf ("sdCard mounted label %s\n", label);
+    lcd->info ("sdCard mounted label:" + string (label));
+    lcd->changed();
+
+    auto startTime = HAL_GetTick();
+    findFiles ("", ".jpg");
+    printf ("findFiles took %d %d\n", HAL_GetTick() - startTime, mFileVec.size());
+    lcd->info (COL_WHITE, "findFiles took" + dec(HAL_GetTick() - startTime) + " " + dec(mFileVec.size()));
+    lcd->changed();
+
+    #ifdef HW_JPEG
+    //{{{  hwJpegDecode
+    for (auto fileName : mFileVec) {
+      auto startTime = HAL_GetTick();
+      auto tile = hwJpegDecode (fileName);
+      if (tile) {
+        printf ("hwJpegDecode %s %dx%d took %d\n",
+                fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
+        lcd->info (COL_YELLOW, "loadJpeg " + fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
+        lcd->changed();
+
+        xSemaphoreTake (mTileVecSem, 1000);
+        mTileVec.push_back (tile);
+        xSemaphoreGive (mTileVecSem);
+        taskYIELD();
+        }
+      else {
+        lcd->info ("hwJpegDecode load error " + fileName);
+        lcd->changed();
+        }
+      }
+    //}}}
+    #endif
+
+    #ifdef SW_JPEG
+    //{{{  swJpegDecode
+    for (auto fileName : mFileVec) {
+      for (int i = 1; i <= 4; i++) {
+        auto startTime = HAL_GetTick();
+        auto tile = swJpegDecode (fileName, i);
+        if (tile) {
+          printf ("swJpegDecode %s %dx%d took %d\n",
+                  fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
+          lcd->info (COL_YELLOW, "loadJpeg " + fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
+          lcd->changed();
+
+          xSemaphoreTake (mTileVecSem, 1000);
+          mTileVec.push_back (tile);
+          xSemaphoreGive (mTileVecSem);
+          taskYIELD();
+          }
+        else {
+          lcd->info ("swJpegDecode load error " + fileName);
+          lcd->changed();
+          }
+        }
+      }
+    //}}}
+    #endif
+
+    lcd->info (COL_WHITE, "loadFiles done");
+    lcd->changed();
+    }
+
+  uint32_t offset = 0;
+  while (kRamTest)
+    for (int j = 8; j <= 0xF; j++) {
+      offset += HAL_GetTick();
+      sdRamTest (uint16_t(offset++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
+      }
+  while (true)
+    vTaskDelay (1000);
   }
 //}}}
 
@@ -232,253 +477,37 @@ void mpuConfig() {
   // Disable the MPU
   HAL_MPU_Disable();
 
-  // Configure MPU for sdram
   MPU_Region_InitTypeDef mpuRegion;
-
   mpuRegion.Enable = MPU_REGION_ENABLE;
-  mpuRegion.BaseAddress = 0xD0000000;
-  mpuRegion.Size = MPU_REGION_SIZE_16MB;
   mpuRegion.AccessPermission = MPU_REGION_FULL_ACCESS;
-  mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-  mpuRegion.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-  mpuRegion.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-  mpuRegion.Number = MPU_REGION_NUMBER0;
   mpuRegion.TypeExtField = MPU_TEX_LEVEL0;
   mpuRegion.SubRegionDisable = 0x00;
   mpuRegion.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
-  HAL_MPU_ConfigRegion (&mpuRegion);
 
-  mpuRegion.BaseAddress = 0x24000000;
-  mpuRegion.Size = MPU_REGION_SIZE_512KB;
-  mpuRegion.AccessPermission = MPU_REGION_FULL_ACCESS;
-  mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-  mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
-  mpuRegion.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-  mpuRegion.Number = MPU_REGION_NUMBER1;
-  mpuRegion.TypeExtField = MPU_TEX_LEVEL0;
-  mpuRegion.SubRegionDisable = 0x00;
-  mpuRegion.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
-  HAL_MPU_ConfigRegion (&mpuRegion);
+  #ifdef SRAM_CACHE_MPU
+    //  sram
+    mpuRegion.Number = MPU_REGION_NUMBER0;
+    mpuRegion.BaseAddress = 0x24000000;
+    mpuRegion.Size = MPU_REGION_SIZE_512KB;
+    mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+    mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
+    mpuRegion.IsShareable = MPU_ACCESS_SHAREABLE;
+    HAL_MPU_ConfigRegion (&mpuRegion);
+  #endif
+
+  #ifdef SDRAM_CACHE_MPU
+    // sdram
+    mpuRegion.Number = MPU_REGION_NUMBER1;
+    mpuRegion.BaseAddress = 0xD0000000;
+    mpuRegion.Size = MPU_REGION_SIZE_16MB;
+    mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+    mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
+    mpuRegion.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+    HAL_MPU_ConfigRegion (&mpuRegion);
+  #endif
 
   // Enable the MPU
   HAL_MPU_Enable (MPU_PRIVILEGED_DEFAULT);
-  }
-//}}}
-
-//{{{
-void sdRamTest (uint16_t offset, uint16_t* addr, uint32_t len) {
-
-  uint16_t data = offset;
-  auto writeAddress = addr;
-  for (uint32_t j = 0; j < len/2; j++)
-    *writeAddress++ = data++;
-
-  uint32_t readOk = 0;
-  uint32_t readErr = 0;
-  uint32_t bitErr[16] = {0};
-  auto readAddress = addr;
-  for (uint32_t j = 0; j < len / 2; j++) {
-    uint16_t readWord1 = *readAddress++;
-    if ((readWord1 & 0xFFFF) == ((j+offset) & 0xFFFF))
-      readOk++;
-    else {
-      readErr++;
-      uint32_t bit = 1;
-      for (int i = 0; i < 16; i++) {
-        if ((readWord1 & bit) != ((j+offset) & bit))
-          bitErr[i] += 1;
-        bit *= 2;
-        }
-      }
-    }
-
-  if (readErr != 0) {
-    //lcd->info (COL_YELLOW, "sdRam ok " + hex((uint32_t)addr));
-    string str = "errors ";
-    for (int i = 15; i >= 0; i--)
-      if (bitErr[i])
-        str += " " + dec (bitErr[i], 2,' ');
-      else
-        str += " __";
-    float rate = (readErr * 1000.f) / 0x00100000;
-    str += "  " + dec(readErr) + " " + dec (int(rate)/10,1) + "." + dec(int(rate) % 10,1) + "%";
-    lcd->info (COL_CYAN, str);
-    lcd->changed();
-    }
-
-  vTaskDelay (200);
-  }
-//}}}
-
-//{{{
-void findFiles (const string& dirPath, const string& ext) {
-
-  DIR dir;
-  if (f_opendir (&dir, dirPath.c_str()) == FR_OK) {
-    while (true) {
-      FILINFO filinfo;
-      if ((f_readdir (&dir, &filinfo) != FR_OK) || !filinfo.fname[0])
-        break;
-      if (filinfo.fname[0] == '.')
-        continue;
-
-      auto filePath = dirPath + "/" + filinfo.fname;
-      if (filinfo.fattrib & AM_DIR) {
-        printf ("- findFiles dir %s\n", filePath.c_str());
-        lcd->info (" - findFiles dir" + filePath);
-        lcd->change();
-        findFiles (filePath, ext);
-        }
-      else if (filePath.find (ext) == filePath.size() - 4)
-        mFileVec.push_back (filePath);
-      }
-    f_closedir (&dir);
-    }
-  }
-//}}}
-
-//{{{
-void uiThread (void* arg) {
-
-  lcd->display (80);
-
-  int count = 0;
-  while (true) {
-    if (lcd->changed() || (count == 500)) {
-      count = 0;
-      lcd->start();
-      lcd->clear (COL_BLACK);
-      //{{{  draw tiles
-      int item = 0;
-      int rows = sqrt ((float)mTileVec.size()) + 1;
-
-      xSemaphoreTake (mTileVecSem, 1000);
-      for (auto tile : mTileVec) {
-        cPoint p ((item % rows) * (1024/rows), (item /rows) * (600/rows));
-        if (p.x + tile->mWidth <= lcd->getWidth() && p.y + tile->mHeight <= lcd->getHeight())
-          lcd->copy (tile, p);
-        else
-          lcd->size (tile, cRect (p, cPoint(((item % rows)+1) * (1024/rows), ((item /rows)+1) * (600/rows))));
-        item++;
-        }
-      xSemaphoreGive (mTileVecSem);
-      //}}}
-      //{{{  draw clock
-      float hourAngle;
-      float minuteAngle;
-      float secondAngle;
-      float subSecondAngle;
-      mRtc.getClockAngles (hourAngle, minuteAngle, secondAngle, subSecondAngle);
-
-      int radius = 60;
-      cPoint centre = cPoint (950, 490);
-      lcd->ellipseOutline (COL_WHITE, centre, cPoint(radius, radius));
-
-      float hourRadius = radius * 0.7f;
-      lcd->line (COL_WHITE, centre, centre + cPoint (int16_t(hourRadius * sin (hourAngle)), int16_t(hourRadius * cos (hourAngle))));
-      float minuteRadius = radius * 0.8f;
-      lcd->line (COL_WHITE, centre, centre + cPoint (int16_t(minuteRadius * sin (minuteAngle)), int16_t(minuteRadius * cos (minuteAngle))));
-      float secondRadius = radius * 0.9f;
-      lcd->line (COL_RED, centre, centre + cPoint (int16_t(secondRadius * sin (secondAngle)), int16_t(secondRadius * cos (secondAngle))));
-
-      lcd->cLcd::text (COL_WHITE, 45, mRtc.getClockTimeDateString(), cRect (550,545, 1024,600));
-      //}}}
-      lcd->drawInfo();
-      lcd->present();
-      }
-    else {
-      count++;
-      vTaskDelay (1);
-      }
-    }
-  }
-//}}}
-//{{{
-void appThread (void* arg) {
-
-  FATFS fatFs;
-  char sdPath[4];
-
-  if (FATFS_LinkDriver (&SD_Driver, sdPath) != 0) {
-    //{{{  no driver error
-    printf ("sdCard - no driver\n");
-    lcd->info (COL_RED, "sdCard - no driver");
-    lcd->changed();
-    }
-    //}}}
-  else if (f_mount (&fatFs, (TCHAR const*)sdPath, 1) != FR_OK) {
-    //{{{  no sdCard error
-    printf ("sdCard - not mounted\n");
-    lcd->info (COL_RED, "sdCard - not mounted");
-    lcd->changed();
-    }
-    //}}}
-  else {
-    char label[20] = {0};
-    DWORD volumeSerialNumber = 0;
-    f_getlabel ("", label, &volumeSerialNumber);
-    printf ("sdCard mounted label %s\n", label);
-    lcd->info ("sdCard mounted label:" + string (label));
-    lcd->changed();
-
-    auto startTime = HAL_GetTick();
-    findFiles ("", ".jpg");
-    printf ("findFiles took %d %d\n", HAL_GetTick() - startTime, mFileVec.size());
-    lcd->info (COL_WHITE, "findFiles took" + dec(HAL_GetTick() - startTime) + " " + dec(mFileVec.size()));
-    lcd->changed();
-
-    startTime = HAL_GetTick();
-    for (auto fileName : mFileVec) {
-      auto startTime = HAL_GetTick();
-      auto tile = hwJpegDecode (fileName);
-      if (tile) {
-        printf ("hwJpegDecode %s %dx%d took %d\n",
-                fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
-        lcd->info (COL_YELLOW, "loadJpeg " + fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
-        lcd->changed();
-
-        xSemaphoreTake (mTileVecSem, 1000);
-        mTileVec.push_back (tile);
-        xSemaphoreGive (mTileVecSem);
-        taskYIELD();
-        }
-      else {
-        lcd->info ("hwJpegDecode load error " + fileName);
-        lcd->changed();
-        }
-
-      for (int i = 1; i <= 4; i++) {
-        auto startTime = HAL_GetTick();
-        tile = swJpegDecode (fileName, i);
-        if (tile) {
-          printf ("swJpegDecode %s %dx%d took %d\n",
-                  fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
-          lcd->info (COL_YELLOW, "loadJpeg " + fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
-          lcd->changed();
-
-          xSemaphoreTake (mTileVecSem, 1000);
-          mTileVec.push_back (tile);
-          xSemaphoreGive (mTileVecSem);
-          taskYIELD();
-          }
-        else {
-          lcd->info ("swJpegDecode load error " + fileName);
-          lcd->changed();
-          }
-        }
-      }
-    lcd->info (COL_WHITE, "loadFiles took " + dec(HAL_GetTick() - startTime));
-    lcd->changed();
-    }
-
-  uint32_t offset = 0;
-  while (kRamTest)
-    for (int j = 8; j <= 0xF; j++) {
-      offset += HAL_GetTick();
-      sdRamTest (uint16_t(offset++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
-      }
-  while (true)
-    vTaskDelay (1000);
   }
 //}}}
 
@@ -489,9 +518,9 @@ int main() {
   clockConfig();
   sdRamConfig();
 
-  //mpuConfig();
   SCB_EnableICache();
-  //SCB_EnableDCache();
+  SCB_EnableDCache();
+  mpuConfig();
 
   BSP_LED_Init (LED_GREEN);
   BSP_LED_Init (LED_BLUE);
@@ -500,6 +529,7 @@ int main() {
 
   mRtc.init();
   mTileVecSem = xSemaphoreCreateMutex();
+  printf ("%s\n", kHello.c_str());
 
   lcd = new cLcd ((uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2),
                   (uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2));
@@ -508,8 +538,10 @@ int main() {
   TaskHandle_t uiHandle;
   xTaskCreate ((TaskFunction_t)uiThread, "ui", 1024, 0, 4, &uiHandle);
 
-  TaskHandle_t appHandle;
-  xTaskCreate ((TaskFunction_t)appThread, "app", 8192, 0, 4, &appHandle);
+  #ifdef APP
+    TaskHandle_t appHandle;
+    xTaskCreate ((TaskFunction_t)appThread, "app", 8192, 0, 4, &appHandle);
+  #endif
 
   vTaskStartScheduler();
 
