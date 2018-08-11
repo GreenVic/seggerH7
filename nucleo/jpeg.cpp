@@ -710,7 +710,7 @@ void dmaInCpltCallback (MDMA_HandleTypeDef* hmdma) {
         mHandle.InLen = ((mHandle.InLen / 4) + 1) * 4;
       }
 
-    // if notpaused and some data, start MDMA FIFO In transfer
+    // if not paused and some data, start MDMA FIFO In transfer
     if (((mHandle.Context & JPEG_CONTEXT_PAUSE_INPUT) == 0) && (mHandle.InLen > 0))
       HAL_MDMA_Start_IT (&mHandle.hmdmaIn, (uint32_t)mHandle.InBuffPtr, (uint32_t)&JPEG->DIR, mHandle.InLen, 1);
 
@@ -939,7 +939,7 @@ cTile* hwJpegDecode (const string& fileName) {
 
   mOutLen = 0;
   if (!mOutYuvBuf) {
-    mOutYuvBuf = (uint8_t*)sdRamAlloc (400*272*3);
+    mOutYuvBuf = (uint8_t*)sdRamAlloc (650*650*3);
     mHandle.Instance = JPEG;
     init();
 
@@ -991,8 +991,12 @@ cTile* hwJpegDecode (const string& fileName) {
             mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling, mOutLen);
 
     auto rgb565pic = (uint16_t*)sdRamAlloc (mHandle.mWidth * mHandle.mHeight * 2);
-    cLcd::jpegYuvTo565 (mOutYuvBuf, rgb565pic, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
-    return new cTile ((uint8_t*)rgb565pic, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
+    if (rgb565pic) {
+      cLcd::jpegYuvTo565 (mOutYuvBuf, rgb565pic, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
+      return new cTile ((uint8_t*)rgb565pic, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
+      }
+    else
+      return nullptr;
     }
 
   return nullptr;

@@ -24,9 +24,11 @@ using namespace std;
 
 #define SRAM_CACHE_MPU
 #define SDRAM_CACHE_MPU
-#define HW_JPEG
-#define SW_JPEG
+
 #define APP
+#define HW_JPEG
+//#define SW_JPEG
+//#define RAM_TEST
 
 const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
 const bool kRamTest = false;
@@ -212,6 +214,34 @@ void appThread (void* arg) {
     lcd->info (COL_WHITE, "findFiles took" + dec(HAL_GetTick() - startTime) + " " + dec(mFileVec.size()));
     lcd->changed();
 
+    #ifdef SW_JPEG
+    //{{{  swJpegDecode
+    for (auto fileName : mFileVec) {
+      for (int i = 2; i <= 4; i++) {
+        auto startTime = HAL_GetTick();
+        auto tile = swJpegDecode (fileName, i);
+        if (tile) {
+          printf ("swJpegDecode %s %dx%d took %d\n",
+                  fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
+          lcd->info (COL_YELLOW, "loadJpeg " + fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
+          lcd->changed();
+
+          xSemaphoreTake (mTileVecSem, 1000);
+          mTileVec.push_back (tile);
+          xSemaphoreGive (mTileVecSem);
+          taskYIELD();
+          }
+        else {
+          printf ("swJpegDecode tile error\n");
+          lcd->info ("swJpegDecode load error " + fileName);
+          lcd->changed();
+          goto exit;
+          }
+        }
+      }
+    //}}}
+    #endif
+
     #ifdef HW_JPEG
     //{{{  hwJpegDecode
     for (auto fileName : mFileVec) {
@@ -229,49 +259,29 @@ void appThread (void* arg) {
         taskYIELD();
         }
       else {
+        printf ("hwJpegDecode tile error\n");
         lcd->info ("hwJpegDecode load error " + fileName);
         lcd->changed();
+        goto exit;
         }
       }
     //}}}
     #endif
 
-    #ifdef SW_JPEG
-    //{{{  swJpegDecode
-    for (auto fileName : mFileVec) {
-      for (int i = 1; i <= 4; i++) {
-        auto startTime = HAL_GetTick();
-        auto tile = swJpegDecode (fileName, i);
-        if (tile) {
-          printf ("swJpegDecode %s %dx%d took %d\n",
-                  fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
-          lcd->info (COL_YELLOW, "loadJpeg " + fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
-          lcd->changed();
-
-          xSemaphoreTake (mTileVecSem, 1000);
-          mTileVec.push_back (tile);
-          xSemaphoreGive (mTileVecSem);
-          taskYIELD();
-          }
-        else {
-          lcd->info ("swJpegDecode load error " + fileName);
-          lcd->changed();
-          }
-        }
-      }
-    //}}}
-    #endif
-
+  exit:
     lcd->info (COL_WHITE, "loadFiles done");
     lcd->changed();
     }
 
-  uint32_t offset = 0;
-  while (kRamTest)
-    for (int j = 8; j <= 0xF; j++) {
-      offset += HAL_GetTick();
-      sdRamTest (uint16_t(offset++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
-      }
+  #ifdef RAM_TEST
+    uint32_t offset = 0;
+    while (true)
+      for (int j = 8; j <= 0xF; j++) {
+        offset += HAL_GetTick();
+        sdRamTest (uint16_t(offset++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
+        }
+  #endif
+
   while (true)
     vTaskDelay (1000);
   }
@@ -485,7 +495,6 @@ void mpuConfig() {
   mpuRegion.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
 
   #ifdef SRAM_CACHE_MPU
-    //  sram
     mpuRegion.Number = MPU_REGION_NUMBER0;
     mpuRegion.BaseAddress = 0x24000000;
     mpuRegion.Size = MPU_REGION_SIZE_512KB;
@@ -496,7 +505,6 @@ void mpuConfig() {
   #endif
 
   #ifdef SDRAM_CACHE_MPU
-    // sdram
     mpuRegion.Number = MPU_REGION_NUMBER1;
     mpuRegion.BaseAddress = 0xD0000000;
     mpuRegion.Size = MPU_REGION_SIZE_16MB;

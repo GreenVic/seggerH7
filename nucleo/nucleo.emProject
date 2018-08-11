@@ -73,6 +73,10 @@
       <file file_name="sd.h" />
       <file file_name="heap.h" />
       <file file_name="jpeg.h" />
+      <file file_name="../system/system_stm32h7xx.h" />
+      <file file_name="../system/stm32h743xx.h" />
+      <file file_name="../system/stm32h7xx.h" />
+      <file file_name="../CMSIS/core_cm7.h" />
     </folder>
     <folder Name="drivers">
       <folder Name="inc">
