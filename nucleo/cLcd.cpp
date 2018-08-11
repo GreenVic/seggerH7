@@ -150,20 +150,6 @@ void cLcd::init (const std::string& title) {
 //}}}
 
 //{{{
-bool cLcd::changed() {
-  bool wasChanged = mChanged;
-  mChanged = false;
-  return wasChanged;
-  }
-//}}}
-//{{{
-void cLcd::toggle() {
-  mShowInfo = !mShowInfo;
-  change();
-  }
-//}}}
-
-//{{{
 void cLcd::info (uint16_t colour, const std::string str) {
 
   uint16_t line = mCurLine++ % kMaxLines;
@@ -177,6 +163,7 @@ void cLcd::info (uint16_t colour, const std::string str) {
 
 //{{{
 void cLcd::clear (uint16_t colour) {
+
   cRect r (getSize());
   rect (colour, r);
   }
@@ -232,6 +219,46 @@ void cLcd::rectClipped (uint16_t colour, cRect r) {
   rect (colour, r);
   }
 //}}}
+//{{{
+void cLcd::rectOutline (uint16_t colour, const cRect& r, uint8_t thickness) {
+
+  rectClipped (colour, cRect (r.left, r.top, r.right, r.top+thickness));
+  rectClipped (colour, cRect (r.right-thickness, r.top, r.right, r.bottom));
+  rectClipped (colour, cRect (r.left, r.bottom-thickness, r.right, r.bottom));
+  rectClipped (colour, cRect (r.left, r.top, r.left+thickness, r.bottom));
+  }
+//}}}
+//{{{
+void cLcd::ellipse (uint16_t colour, cPoint centre, cPoint radius) {
+
+  if (!radius.x)
+    return;
+  if (!radius.y)
+    return;
+
+  int x1 = 0;
+  int y1 = -radius.x;
+  int err = 2 - 2*radius.x;
+  float k = (float)radius.y / radius.x;
+
+  do {
+    rectClipped (colour, cRect (centre.x-(uint16_t)(x1 / k), centre.y + y1,
+                                centre.x-(uint16_t)(x1 / k) + 2*(uint16_t)(x1 / k) + 1, centre.y  + y1 + 1));
+    rectClipped (colour, cRect (centre.x-(uint16_t)(x1 / k), centre.y  - y1,
+                                centre.x-(uint16_t)(x1 / k) + 2*(uint16_t)(x1 / k) + 1, centre.y  - y1 + 1));
+
+    int e2 = err;
+    if (e2 <= x1) {
+      err += ++x1 * 2 + 1;
+      if (-y1 == centre.x && e2 <= y1)
+        e2 = 0;
+      }
+    if (e2 > y1)
+      err += ++y1*2 + 1;
+    } while (y1 <= 0);
+  }
+//}}}
+
 //{{{
 void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r) {
 //__IO uint32_t FGMAR;    Foreground Memory Address Register,       Address offset: 0x0C
@@ -317,6 +344,32 @@ void cLcd::stampClipped (uint16_t colour, uint8_t* src, cRect r) {
   stamp (colour, src, r);
   }
 //}}}
+//{{{
+int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string str, cRect r) {
+
+  for (auto ch : str) {
+    if ((ch >= 0x20) && (ch <= 0x7F)) {
+      auto fontCharIt = mFontCharMap.find ((fontHeight << 8) | ch);
+      cFontChar* fontChar = fontCharIt != mFontCharMap.end() ? fontCharIt->second : nullptr;
+      if (!fontChar)
+        fontChar = loadChar (fontHeight, ch);
+      if (fontChar) {
+        if (r.left + fontChar->left + fontChar->pitch >= r.right)
+          break;
+        else if (fontChar->bitmap)
+          stampClipped (colour, fontChar->bitmap,
+                         cRect (r.left + fontChar->left, r.top + fontHeight - fontChar->top,
+                                r.left + fontChar->left + fontChar->pitch,
+                                r.top + fontHeight - fontChar->top + fontChar->rows));
+        r.left += fontChar->advance;
+        }
+      }
+    }
+
+  return r.left;
+  }
+//}}}
+
 //{{{
 void cLcd::copy (cTile* srcTile, cPoint p) {
 
@@ -429,42 +482,12 @@ void cLcd::sizeBi (cTile* srcTile, const cRect& r) {
     }
   }
 //}}}
+
 //{{{
 void cLcd::pixel (uint16_t colour, cPoint p) {
   *(mBuffer[mDrawBuffer] + p.y * getWidth() + p.x) = colour;
   }
 //}}}
-//{{{
-void cLcd::ellipse (uint16_t colour, cPoint centre, cPoint radius) {
-
-  if (!radius.x)
-    return;
-  if (!radius.y)
-    return;
-
-  int x1 = 0;
-  int y1 = -radius.x;
-  int err = 2 - 2*radius.x;
-  float k = (float)radius.y / radius.x;
-
-  do {
-    rectClipped (colour, cRect (centre.x-(uint16_t)(x1 / k), centre.y + y1,
-                                centre.x-(uint16_t)(x1 / k) + 2*(uint16_t)(x1 / k) + 1, centre.y  + y1 + 1));
-    rectClipped (colour, cRect (centre.x-(uint16_t)(x1 / k), centre.y  - y1,
-                                centre.x-(uint16_t)(x1 / k) + 2*(uint16_t)(x1 / k) + 1, centre.y  - y1 + 1));
-
-    int e2 = err;
-    if (e2 <= x1) {
-      err += ++x1 * 2 + 1;
-      if (-y1 == centre.x && e2 <= y1)
-        e2 = 0;
-      }
-    if (e2 > y1)
-      err += ++y1*2 + 1;
-    } while (y1 <= 0);
-  }
-//}}}
-
 //{{{
 void cLcd::line (uint16_t colour, cPoint p1, cPoint p2) {
 
@@ -501,15 +524,6 @@ void cLcd::line (uint16_t colour, cPoint p1, cPoint p2) {
   }
 //}}}
 //{{{
-void cLcd::rectOutline (uint16_t colour, const cRect& r, uint8_t thickness) {
-
-  rectClipped (colour, cRect (r.left, r.top, r.right, r.top+thickness));
-  rectClipped (colour, cRect (r.right-thickness, r.top, r.right, r.bottom));
-  rectClipped (colour, cRect (r.left, r.bottom-thickness, r.right, r.bottom));
-  rectClipped (colour, cRect (r.left, r.top, r.left+thickness, r.bottom));
-  }
-//}}}
-//{{{
 void cLcd::ellipseOutline (uint16_t colour, cPoint centre, cPoint radius) {
 
   int x = 0;
@@ -534,32 +548,6 @@ void cLcd::ellipseOutline (uint16_t colour, cPoint centre, cPoint radius) {
     if (e2 > y)
       err += ++y *2 + 1;
     } while (y <= 0);
-  }
-//}}}
-
-//{{{
-int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string str, cRect r) {
-
-  for (auto ch : str) {
-    if ((ch >= 0x20) && (ch <= 0x7F)) {
-      auto fontCharIt = mFontCharMap.find ((fontHeight << 8) | ch);
-      cFontChar* fontChar = fontCharIt != mFontCharMap.end() ? fontCharIt->second : nullptr;
-      if (!fontChar)
-        fontChar = loadChar (fontHeight, ch);
-      if (fontChar) {
-        if (r.left + fontChar->left + fontChar->pitch >= r.right)
-          break;
-        else if (fontChar->bitmap)
-          stampClipped (colour, fontChar->bitmap,
-                         cRect (r.left + fontChar->left, r.top + fontHeight - fontChar->top,
-                                r.left + fontChar->left + fontChar->pitch,
-                                r.top + fontHeight - fontChar->top + fontChar->rows));
-        r.left += fontChar->advance;
-        }
-      }
-    }
-
-  return r.left;
   }
 //}}}
 
@@ -694,7 +682,6 @@ void cLcd::present() {
   mDrawBuffer = !mDrawBuffer;
   }
 //}}}
-
 //{{{
 void cLcd::display (int brightness) {
 
@@ -852,6 +839,7 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   __HAL_RCC_DMA2D_CLK_ENABLE();
   }
 //}}}
+
 //{{{
 void cLcd::ready() {
 
@@ -892,7 +880,7 @@ cFontChar* cLcd::loadChar (uint16_t fontHeight, char ch) {
     //  FTglyphSlot->bitmap.pitch * FTglyphSlot->bitmap.rows + ((uint32_t)fontChar->bitmap - alignedAddr));
     }
 
-  return mFontCharMap.insert (cFontCharMap::value_type (fontHeight<<8 | ch, fontChar)).first->second;
+  return mFontCharMap.insert (std::map<uint16_t, cFontChar*>::value_type (fontHeight<<8 | ch, fontChar)).first->second;
   }
 //}}}
 

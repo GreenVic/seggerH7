@@ -98,9 +98,20 @@ public:
 
   uint16_t getBrightness() { return mBrightness; }
 
-  bool changed();
   void change() { mChanged = true; }
-  void toggle();
+  //{{{
+  bool changed() {
+    bool wasChanged = mChanged;
+    mChanged = false;
+    return wasChanged;
+    }
+  //}}}
+  //{{{
+  void toggle() {
+    mShowInfo = !mShowInfo;
+    change();
+    }
+  //}}}
 
   void info (uint16_t colour, const std::string str);
   void info (const std::string str) { info (COL_WHITE, str); }
@@ -109,17 +120,20 @@ public:
   void rect (uint16_t colour, const cRect& r);
   void rectClipped (uint16_t colour, cRect r);
   void rectOutline (uint16_t colour, const cRect& r, uint8_t thickness);
+  void ellipse (uint16_t colour, cPoint centre, cPoint radius);
+
   void stamp (uint16_t colour, uint8_t* src, const cRect& r);
   void stampClipped (uint16_t colour, uint8_t* src, cRect r);
+  int text (uint16_t colour, uint16_t fontHeight, const std::string str, cRect r);
+
   void copy (cTile* srcTile, cPoint p);
   void copy90 (cTile* srcTile, cPoint p);
   void size (cTile* srcTile, const cRect& r);
   void sizeBi (cTile* srcTile, const cRect& r);
+
   void pixel (uint16_t colour, cPoint p);
-  void ellipse (uint16_t colour, cPoint centre, cPoint radius);
-  void ellipseOutline (uint16_t colour, cPoint centre, cPoint radius);
   void line (uint16_t colour, cPoint p1, cPoint p2);
-  int text (uint16_t colour, uint16_t fontHeight, const std::string str, cRect r);
+  void ellipseOutline (uint16_t colour, cPoint centre, cPoint radius);
 
   static void rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize);
   static void jpegYuvTo565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
@@ -138,8 +152,6 @@ public:
   static SemaphoreHandle_t mFrameSem;
 
 private:
-  typedef std::map<uint16_t, cFontChar*> cFontCharMap;
-
   void ltdcInit (uint16_t* frameBufferAddress);
   cFontChar* loadChar (uint16_t fontHeight, char ch);
 
@@ -164,7 +176,7 @@ private:
   uint32_t mWaitTime = 0;
   uint32_t mNumPresents = 0;
 
-  cFontCharMap mFontCharMap;
+  std::map<uint16_t, cFontChar*> mFontCharMap;
 
   FT_Library FTlibrary;
   FT_Face FTface;
