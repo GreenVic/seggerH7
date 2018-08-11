@@ -673,7 +673,7 @@ void dmaEnd() {
 
 // callbacks
 //{{{
-void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
+void dmaInCpltCallback (MDMA_HandleTypeDef* hmdma) {
 
   // Disable JPEG IT so DMA Input Callback can not be interrupted by the JPEG EOC IT or JPEG HPD IT
   __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_INTERRUPT_MASK);
@@ -720,7 +720,7 @@ void MDMAInCpltCallback (MDMA_HandleTypeDef* hmdma) {
   }
 //}}}
 //{{{
-void MDMAOutCpltCallback (MDMA_HandleTypeDef* hmdma) {
+void dmaOutCpltCallback (MDMA_HandleTypeDef* hmdma) {
 
   // Disable JPEG IT so DMA Output Callback not interrupted by the JPEG EOC IT or JPEG HPD IT
   __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_INTERRUPT_MASK);
@@ -742,7 +742,7 @@ void MDMAOutCpltCallback (MDMA_HandleTypeDef* hmdma) {
   }
 //}}}
 //{{{
-void MDMAErrorCallback (MDMA_HandleTypeDef* hmdma) {
+void dmaErrorCallback (MDMA_HandleTypeDef* hmdma) {
 
   // Stop Decoding
   JPEG->CONFR0 &= ~JPEG_CONFR0_START;
@@ -753,7 +753,7 @@ void MDMAErrorCallback (MDMA_HandleTypeDef* hmdma) {
 
 //}}}
 //{{{
-void MDMAOutAbortCallback (MDMA_HandleTypeDef* hmdma) {
+void dmaOutAbortCallback (MDMA_HandleTypeDef* hmdma) {
 
   if ((mHandle.Context & JPEG_CONTEXT_ENDING_DMA) != 0)
     dmaEnd();
@@ -844,11 +844,11 @@ void init() {
   // Enable header processing
   JPEG->CONFR1 |= JPEG_CONFR1_HDR;
 
-  mHandle.hmdmaIn.XferCpltCallback = MDMAInCpltCallback;
-  mHandle.hmdmaIn.XferErrorCallback = MDMAErrorCallback;
-  mHandle.hmdmaOut.XferCpltCallback = MDMAOutCpltCallback;
-  mHandle.hmdmaOut.XferErrorCallback = MDMAErrorCallback;
-  mHandle.hmdmaOut.XferAbortCallback = MDMAOutAbortCallback;
+  mHandle.hmdmaIn.XferCpltCallback = dmaInCpltCallback;
+  mHandle.hmdmaIn.XferErrorCallback = dmaErrorCallback;
+  mHandle.hmdmaOut.XferCpltCallback = dmaOutCpltCallback;
+  mHandle.hmdmaOut.XferErrorCallback = dmaErrorCallback;
+  mHandle.hmdmaOut.XferAbortCallback = dmaOutAbortCallback;
   }
 //}}}
 

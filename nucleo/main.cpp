@@ -19,6 +19,7 @@ const bool kRamTest = false;
 // vars
 cRtc mRtc;
 cLcd* lcd = nullptr;
+
 vector<string> mFileVec;
 vector<cTile*> mTileVec;
 SemaphoreHandle_t mTileVecSem;
@@ -341,18 +342,15 @@ void uiThread (void* arg) {
 
   lcd->display (80);
 
-  int tick = 0;
   int count = 0;
   while (true) {
     if (lcd->changed() || (count == 500)) {
-      tick++;
       count = 0;
       lcd->start();
       lcd->clear (COL_BLACK);
       //{{{  draw tiles
       int item = 0;
       int rows = sqrt ((float)mTileVec.size()) + 1;
-      //printf ("uiThread %d %d %d\n", tick, mTileVec.size(), rows);
 
       xSemaphoreTake (mTileVecSem, 1000);
       for (auto tile : mTileVec) {
