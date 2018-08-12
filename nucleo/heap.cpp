@@ -181,22 +181,22 @@ void* sdRamAlloc (size_t size) {
 
   vTaskSuspendAll();
     {
-    // Check the requested block size is not so large that the top bit is set.
+    // Check the requested block size is not so large that the top bit is set
     // The top bit of the block size member of the tBlockLink_t structure is used to determine who owns the block
-    // - the application or the kernel, so it must be free.
+    // - the application or the kernel, so it must be free
     if ((size & xBlockAllocatedBit) == 0) {
-      // The wanted size is increased so it can contain a tBlockLink_t structure in addition to the requested amount of bytes. */
+      // The wanted size is increased so it can contain a tBlockLink_t structure in addition to the requested amount of bytes
       if (size > 0) {
         size += xHeapStructSize;
 
-        // Ensure that blocks are always aligned to the required number of bytes. */
+        // Ensure that blocks are always aligned to the required number of bytes
         if ((size & portBYTE_ALIGNMENT_MASK ) != 0x00)
           // Byte alignment required. */
           size += (portBYTE_ALIGNMENT - (size & portBYTE_ALIGNMENT_MASK));
         }
 
       if ((size > 0) && (size <= xFreeBytesRemaining)) {
-        // Traverse the list from the start (lowest address) block until one of adequate size is found. */
+        // Traverse the list from the start (lowest address) block until one of adequate size is found
         previousBlock = &xStart;
         block = xStart.mNextFreeBlock;
         while ((block->mBlockSize < size) && (block->mNextFreeBlock != NULL)) {
