@@ -103,15 +103,15 @@ void findFiles (const string& dirPath, const string& ext) {
       auto filePath = dirPath + "/" + filinfo.fname;
       if (filinfo.fattrib & AM_DIR) {
         printf ("- findFiles dir %s\n", filePath.c_str());
-        lcd->info (" - findFiles dir" + filePath);
-        lcd->change();
+        //lcd->info (" - findFiles dir" + filePath);
+        //lcd->change();
         findFiles (filePath, ext);
         }
       else if (filePath.find (ext) == filePath.size() - 4) {
         mFileVec.push_back (filePath);
         printf ("- findFiles file %s\n", filePath.c_str());
-        lcd->info ("- findFiles file " + filePath);
-        lcd->change();
+        //lcd->info ("- findFiles file " + filePath);
+        //lcd->change();
         }
       }
     f_closedir (&dir);

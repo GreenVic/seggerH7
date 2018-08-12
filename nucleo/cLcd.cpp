@@ -558,8 +558,6 @@ void cLcd::rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize) {
 //{{{
 void cLcd::jpegYuvTo565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling) {
 
-  xSemaphoreTake (mLockSem, 1000);
-
   uint32_t cssMode = DMA2D_CSS_420;
   uint32_t inputLineOffset = 0;
 
@@ -582,33 +580,18 @@ void cLcd::jpegYuvTo565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t y
       inputLineOffset = 16 - inputLineOffset;
     }
 
-  // Configure the DMA2D Mode, Color Mode and output offset
-  DMA2D_Handle.Instance = DMA2D;
-  DMA2D_Handle.Init.Mode = DMA2D_M2M_PFC;
-  DMA2D_Handle.Init.ColorMode = DMA2D_OUTPUT_RGB565;
-  DMA2D_Handle.Init.OutputOffset = 0; //1024 - xsize;
-  DMA2D_Handle.Init.AlphaInverted = DMA2D_REGULAR_ALPHA;  /* No Output Alpha Inversion*/
-  DMA2D_Handle.Init.RedBlueSwap = DMA2D_RB_REGULAR;     /* No Output Red & Blue swap */
+  xSemaphoreTake (mLockSem, 1000);
 
-  // DMA2D Callbacks Configuration
-  DMA2D_Handle.XferCpltCallback  = NULL;
-
-  // Foreground Configuration
-  DMA2D_Handle.LayerCfg[1].AlphaMode = DMA2D_REPLACE_ALPHA;
-  DMA2D_Handle.LayerCfg[1].InputAlpha = 0xFF;
-  DMA2D_Handle.LayerCfg[1].InputColorMode = DMA2D_INPUT_YCBCR;
-  DMA2D_Handle.LayerCfg[1].ChromaSubSampling = cssMode;
-  DMA2D_Handle.LayerCfg[1].InputOffset = inputLineOffset;
-  DMA2D_Handle.LayerCfg[1].RedBlueSwap = DMA2D_RB_REGULAR; /* No ForeGround Red/Blue swap */
-  DMA2D_Handle.LayerCfg[1].AlphaInverted = DMA2D_REGULAR_ALPHA; /* No ForeGround Alpha inversion */
-
-  // DMA2D Initialization
-  HAL_DMA2D_Init (&DMA2D_Handle);
-  HAL_DMA2D_ConfigLayer (&DMA2D_Handle, 1);
-
-  // copy the new decoded frame to the LCD Frame buffer
-  HAL_DMA2D_Start (&DMA2D_Handle, (uint32_t)src, (uint32_t)dst, xsize, ysize);
-  HAL_DMA2D_PollForTransfer (&DMA2D_Handle, 25);
+  DMA2D->FGPFCCR = DMA2D_INPUT_YCBCR | (cssMode << POSITION_VAL(DMA2D_FGPFCCR_CSS));
+  DMA2D->FGMAR = (uint32_t)src;
+  DMA2D->FGOR = inputLineOffset;
+  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
+  DMA2D->OMAR = (uint32_t)dst;
+  DMA2D->OOR = 0;
+  DMA2D->NLR = (xsize << 16) | ysize;
+  DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
+  mDma2dWait = eWaitIrq;
+  ready();
 
   xSemaphoreGive (mLockSem);
   }
