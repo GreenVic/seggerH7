@@ -7,7 +7,7 @@
 //}}}
 
 //#define LCD_DEBUG
-#define PRINTF_DEBUG
+//#define PRINTF_DEBUG
 
 #define QUEUE_SIZE      10
 #define READ_CPLT_MSG   1
