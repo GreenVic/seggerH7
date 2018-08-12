@@ -31,6 +31,7 @@ cRtc mRtc;
 
 cLcd* lcd = nullptr;
 vector<string> mFileVec;
+SemaphoreHandle_t mTileSem;
 
 __IO cTile* showTile = nullptr;
 
@@ -125,18 +126,20 @@ void uiThread (void* arg) {
 
   int count = 0;
   while (true) {
-    if (lcd->changed() || (count == 500)) {
+    if (lcd->changed() || (count == 1000)) {
       count = 0;
       lcd->start();
       lcd->clear (COL_BLACK);
 
+      xSemaphoreTake (mTileSem, 1000);
       if (showTile) {
-        if (showTile->mWidth > lcd->getWidth() ||  showTile->mHeight > lcd->getHeight())
-          lcd->size ((cTile*)showTile, cRect (0,0, lcd->getWidth(), lcd->getHeight()));
-        else
+        if (showTile->mWidth <= lcd->getWidth() &&  showTile->mHeight <=lcd->getHeight())
           lcd->copy ((cTile*)showTile, cPoint ((lcd->getWidth() - showTile->mWidth) / 2,
                                                (lcd->getHeight() - showTile->mHeight) / 2));
+        else
+          lcd->size ((cTile*)showTile, cRect (0,0, lcd->getWidth(), lcd->getHeight()));
         }
+      xSemaphoreGive (mTileSem);
 
       //{{{  draw clock
       float hourAngle;
@@ -200,29 +203,33 @@ void appThread (void* arg) {
     lcd->info (COL_WHITE, "findFiles took" + dec(HAL_GetTick() - startTime) + " " + dec(mFileVec.size()));
     lcd->changed();
 
-    for (auto fileName : mFileVec) {
-      auto startTime = HAL_GetTick();
-      auto tile = hwJpegDecode (fileName);
-      //auto tile = swJpegDecode (fileName, 1);
-      if (tile) {
-        printf ("hwJpegDecode %s %dx%d took %d\n",
-                fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
-        lcd->info (COL_YELLOW, fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
-        lcd->changed();
+    while (true) {
+      for (auto fileName : mFileVec) {
+        auto startTime = HAL_GetTick();
+        auto tile = hwJpegDecode (fileName);
+        //auto tile = swJpegDecode (fileName, 1);
+        if (tile) {
+          printf ("hwJpegDecode %s %dx%d took %d\n",
+                  fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
 
-        auto lastTile = showTile;
-        showTile = tile;
-        if (lastTile)
-          delete (lastTile);
-        lcd->changed();
+          xSemaphoreTake (mTileSem, 1000);
+          auto lastTile = showTile;
+          showTile = tile;
+          if (lastTile)
+            delete (lastTile);
+          xSemaphoreGive (mTileSem);
 
-        vTaskDelay (1000);
-        }
-      else {
-        printf ("hwJpegDecode tile error\n");
-        lcd->info ("hwJpegDecode load error " + fileName);
-        lcd->changed();
-        goto exit;
+          lcd->info (COL_YELLOW, fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
+          lcd->changed();
+
+          vTaskDelay (2000);
+          }
+        else {
+          printf ("hwJpegDecode tile error\n");
+          lcd->info ("hwJpegDecode load error " + fileName);
+          lcd->changed();
+          goto exit;
+          }
         }
       }
 
@@ -270,7 +277,9 @@ void clockConfig() {
   __HAL_PWR_VOLTAGESCALING_CONFIG (PWR_REGULATOR_VOLTAGE_SCALE1);
   while (!__HAL_PWR_GET_FLAG (PWR_FLAG_VOSRDY)) {}
 
-  // Enable D2 domain SRAM3 Clock (0x30040000 AXI)
+  // Enable D2 domain SRAM Clocks
+  __HAL_RCC_D2SRAM1_CLK_ENABLE();
+  __HAL_RCC_D2SRAM2_CLK_ENABLE();
   __HAL_RCC_D2SRAM3_CLK_ENABLE();
 
   // enable HSE Oscillator, activate PLL HSE source
@@ -505,6 +514,7 @@ int main() {
 
   mRtc.init();
   printf ("%s\n", kHello.c_str());
+  mTileSem = xSemaphoreCreateMutex();
 
   lcd = new cLcd ((uint16_t*)SDRAM_DEVICE_ADDR,
                   (uint16_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*2));

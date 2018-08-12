@@ -150,13 +150,6 @@ void cLcd::info (uint16_t colour, const std::string str) {
 //}}}
 
 //{{{
-void cLcd::clear (uint16_t colour) {
-
-  cRect r (getSize());
-  rect (colour, r);
-  }
-//}}}
-//{{{
 void cLcd::rect (uint16_t colour, const cRect& r) {
 //__IO uint32_t OPFCCR  Output PFC Control Register,    Address offset: 0x34
 //__IO uint32_t OCOLR   Output Color Register,          Address offset: 0x38
@@ -178,6 +171,13 @@ void cLcd::rect (uint16_t colour, const cRect& r) {
   mDma2dWait = eWaitIrq;
   ready();
   xSemaphoreGive (mLockSem);
+  }
+//}}}
+//{{{
+void cLcd::clear (uint16_t colour) {
+
+  cRect r (getSize());
+  rect (colour, r);
   }
 //}}}
 //{{{
@@ -218,6 +218,7 @@ void cLcd::rectOutline (uint16_t colour, const cRect& r, uint8_t thickness) {
   rectClipped (colour, cRect (r.left, r.top, r.left+thickness, r.bottom));
   }
 //}}}
+
 //{{{
 void cLcd::ellipse (uint16_t colour, cPoint centre, cPoint radius) {
 
@@ -412,6 +413,7 @@ void cLcd::copy90 (cTile* srcTile, cPoint p) {
   xSemaphoreGive (mLockSem);
   }
 //}}}
+
 //{{{
 void cLcd::size (cTile* srcTile, const cRect& r) {
 
@@ -865,7 +867,8 @@ cFontChar* cLcd::loadChar (uint16_t fontHeight, char ch) {
     //  FTglyphSlot->bitmap.pitch * FTglyphSlot->bitmap.rows + ((uint32_t)fontChar->bitmap - alignedAddr));
     }
 
-  return mFontCharMap.insert (std::map<uint16_t, cFontChar*>::value_type (fontHeight<<8 | ch, fontChar)).first->second;
+  return mFontCharMap.insert (
+    std::map<uint16_t, cFontChar*>::value_type (fontHeight<<8 | ch, fontChar)).first->second;
   }
 //}}}
 

@@ -83,7 +83,7 @@ typedef struct A_BLOCK_LINK {
 
 //}}}
 //{{{  statics
-static const size_t xHeapStructSize = 
+static const size_t xHeapStructSize =
   (sizeof(BlockLink_t) + ((size_t)(portBYTE_ALIGNMENT-1))) & ~((size_t)portBYTE_ALIGNMENT_MASK);
 
 static BlockLink_t xStart;
@@ -94,15 +94,50 @@ static size_t xBlockAllocatedBit = 0;
 //}}}
 
 //{{{
+static void insertBlockIntoFreeList (BlockLink_t* pxBlockToInsert) {
+
+  // Iterate through the list until a block is found that has a higher address than the block being inserted
+  BlockLink_t* pxIterator;
+  for (pxIterator = &xStart; pxIterator->pxNextFreeBlock < pxBlockToInsert; pxIterator = pxIterator->pxNextFreeBlock) {}
+
+  // Do the block being inserted, and the block it is being inserted after make a contiguous block of memory? */
+  uint8_t* puc = (uint8_t*) pxIterator;
+  if ((puc + pxIterator->xBlockSize) == (uint8_t*)pxBlockToInsert) {
+    pxIterator->xBlockSize += pxBlockToInsert->xBlockSize;
+    pxBlockToInsert = pxIterator;
+    }
+
+  // Do the block being inserted, and the block it is being inserted before make a contiguous block of memory?
+  puc = ( uint8_t * ) pxBlockToInsert;
+  if ((puc + pxBlockToInsert->xBlockSize ) == ( uint8_t * ) pxIterator->pxNextFreeBlock ) {
+    if (pxIterator->pxNextFreeBlock != pxEnd ) {
+      // Form one big block from the two blocks
+      pxBlockToInsert->xBlockSize += pxIterator->pxNextFreeBlock->xBlockSize;
+      pxBlockToInsert->pxNextFreeBlock = pxIterator->pxNextFreeBlock->pxNextFreeBlock;
+      }
+    else
+      pxBlockToInsert->pxNextFreeBlock = pxEnd;
+    }
+  else
+    pxBlockToInsert->pxNextFreeBlock = pxIterator->pxNextFreeBlock;
+
+  // If the block being inserted plugged a gab, so was merged with the block
+  // before and the block after, then it's pxNextFreeBlock pointer will have
+  // already been set, and should not be set here as that would make it point to itself/
+  if( pxIterator != pxBlockToInsert )
+    pxIterator->pxNextFreeBlock = pxBlockToInsert;
+  }
+//}}}
+
+//{{{
 void sdRamInit (uint32_t start, uint32_t size) {
 
   BlockLink_t* pxFirstFreeBlock;
   uint8_t* pucAlignedHeap;
 
-  size_t xTotalHeapSize = size;
-
-  // Ensure the heap starts on a correctly aligned boundary. */
+  // Ensure the heap starts on a correctly aligned boundary
   size_t uxAddress = (size_t)start;
+  size_t xTotalHeapSize = size;
   if ((uxAddress & portBYTE_ALIGNMENT_MASK) != 0) {
     uxAddress += (portBYTE_ALIGNMENT - 1);
     uxAddress &= ~((size_t)portBYTE_ALIGNMENT_MASK);
@@ -112,94 +147,30 @@ void sdRamInit (uint32_t start, uint32_t size) {
   pucAlignedHeap = (uint8_t*)uxAddress;
 
   // xStart is used to hold a pointer to the first item in the list of free blocks.
-  // The void cast is used to prevent compiler warnings. */
-  xStart.pxNextFreeBlock = (void*) pucAlignedHeap;
+  xStart.pxNextFreeBlock = (void*)pucAlignedHeap;
   xStart.xBlockSize = (size_t)0;
 
   // pxEnd is used to mark the end of the list of free blocks and is inserted at the end of the heap space. */
   uxAddress = ((size_t)pucAlignedHeap) + xTotalHeapSize;
   uxAddress -= xHeapStructSize;
   uxAddress &= ~((size_t) portBYTE_ALIGNMENT_MASK );
-  pxEnd = (void*) uxAddress;
+  pxEnd = (void*)uxAddress;
   pxEnd->xBlockSize = 0;
   pxEnd->pxNextFreeBlock = NULL;
 
-  // To start with there is a single free block that is sized to take up the
-  // entire heap space, minus the space taken by pxEnd. */
+  // start with single free block sized to take up entire heap space, minus space taken by pxEnd
   pxFirstFreeBlock = (void*) pucAlignedHeap;
-  pxFirstFreeBlock->xBlockSize = uxAddress - ( size_t ) pxFirstFreeBlock;
+  pxFirstFreeBlock->xBlockSize = uxAddress - (size_t)pxFirstFreeBlock;
   pxFirstFreeBlock->pxNextFreeBlock = pxEnd;
 
-  // Only one block exists - and it covers the entire usable heap space. */
+  // Only one block exists - and it covers the entire usable heap space 
   xMinimumEverFreeBytesRemaining = pxFirstFreeBlock->xBlockSize;
   xFreeBytesRemaining = pxFirstFreeBlock->xBlockSize;
 
-  // Work out the position of the top bit in a size_t variable. */
+  // Work out the position of the top bit in a size_t variable
   xBlockAllocatedBit = ((size_t)1) << ((sizeof(size_t) * heapBITS_PER_BYTE) - 1);
   }
 //}}}
-//{{{
-static void insertBlockIntoFreeList (BlockLink_t* pxBlockToInsert)
-{
-BlockLink_t *pxIterator;
-uint8_t *puc;
-
-  /* Iterate through the list until a block is found that has a higher address
-  than the block being inserted. */
-  for( pxIterator = &xStart; pxIterator->pxNextFreeBlock < pxBlockToInsert; pxIterator = pxIterator->pxNextFreeBlock )
-  {
-    /* Nothing to do here, just iterate to the right position. */
-  }
-
-  /* Do the block being inserted, and the block it is being inserted after
-  make a contiguous block of memory? */
-  puc = ( uint8_t * ) pxIterator;
-  if( ( puc + pxIterator->xBlockSize ) == ( uint8_t * ) pxBlockToInsert )
-  {
-    pxIterator->xBlockSize += pxBlockToInsert->xBlockSize;
-    pxBlockToInsert = pxIterator;
-  }
-  else
-  {
-    mtCOVERAGE_TEST_MARKER();
-  }
-
-  /* Do the block being inserted, and the block it is being inserted before
-  make a contiguous block of memory? */
-  puc = ( uint8_t * ) pxBlockToInsert;
-  if( ( puc + pxBlockToInsert->xBlockSize ) == ( uint8_t * ) pxIterator->pxNextFreeBlock )
-  {
-    if( pxIterator->pxNextFreeBlock != pxEnd )
-    {
-      /* Form one big block from the two blocks. */
-      pxBlockToInsert->xBlockSize += pxIterator->pxNextFreeBlock->xBlockSize;
-      pxBlockToInsert->pxNextFreeBlock = pxIterator->pxNextFreeBlock->pxNextFreeBlock;
-    }
-    else
-    {
-      pxBlockToInsert->pxNextFreeBlock = pxEnd;
-    }
-  }
-  else
-  {
-    pxBlockToInsert->pxNextFreeBlock = pxIterator->pxNextFreeBlock;
-  }
-
-  /* If the block being inserted plugged a gab, so was merged with the block
-  before and the block after, then it's pxNextFreeBlock pointer will have
-  already been set, and should not be set here as that would make it point
-  to itself. */
-  if( pxIterator != pxBlockToInsert )
-  {
-    pxIterator->pxNextFreeBlock = pxBlockToInsert;
-  }
-  else
-  {
-    mtCOVERAGE_TEST_MARKER();
-  }
-}
-//}}}
-
 //{{{
 void* sdRamAlloc (size_t xWantedSize) {
 
