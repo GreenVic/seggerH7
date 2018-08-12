@@ -31,8 +31,8 @@ cRtc mRtc;
 
 cLcd* lcd = nullptr;
 vector<string> mFileVec;
-vector<cTile*> mTileVec;
-SemaphoreHandle_t mTileVecSem;
+
+__IO cTile* showTile = nullptr;
 
 extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
@@ -129,25 +129,15 @@ void uiThread (void* arg) {
       count = 0;
       lcd->start();
       lcd->clear (COL_BLACK);
-      //{{{  draw tiles
-      int item = 0;
-      int rows = sqrt ((float)mTileVec.size()) + 1;
 
-      xSemaphoreTake (mTileVecSem, 1000);
-      for (auto tile : mTileVec) {
-        int16_t col = item % rows;
-        int16_t row = item / rows;
-        cPoint p (col * lcd->getWidth() / rows, row * lcd->getHeight() / rows);
-        cPoint p1 ((col+1) * lcd->getWidth() / rows, (row+1) * lcd->getHeight() / rows);
-
-        if ((p.x + tile->mWidth <= p1.x) && (p.y + tile->mHeight <= p1.y))
-          lcd->copy (tile, p);
+      if (showTile) {
+        if (showTile->mWidth > lcd->getWidth() ||  showTile->mHeight > lcd->getHeight())
+          lcd->size ((cTile*)showTile, cRect (0,0, lcd->getWidth(), lcd->getHeight()));
         else
-          lcd->size (tile, cRect (p, p1));
-        item++;
+          lcd->copy ((cTile*)showTile, cPoint ((lcd->getWidth() - showTile->mWidth) / 2,
+                                               (lcd->getHeight() - showTile->mHeight) / 2));
         }
-      xSemaphoreGive (mTileVecSem);
-      //}}}
+
       //{{{  draw clock
       float hourAngle;
       float minuteAngle;
@@ -210,49 +200,23 @@ void appThread (void* arg) {
     lcd->info (COL_WHITE, "findFiles took" + dec(HAL_GetTick() - startTime) + " " + dec(mFileVec.size()));
     lcd->changed();
 
-    #ifdef SW_JPEG
-    //{{{  swJpegDecode
-    for (auto fileName : mFileVec) {
-      for (int i = 2; i <= 4; i++) {
-        auto startTime = HAL_GetTick();
-        auto tile = swJpegDecode (fileName, i);
-        if (tile) {
-          printf ("swJpegDecode %s %dx%d took %d\n",
-                  fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
-          lcd->info (COL_YELLOW, "loadJpeg " + fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
-          lcd->changed();
-
-          xSemaphoreTake (mTileVecSem, 1000);
-          mTileVec.push_back (tile);
-          xSemaphoreGive (mTileVecSem);
-          taskYIELD();
-          }
-        else {
-          printf ("swJpegDecode tile error\n");
-          lcd->info ("swJpegDecode load error " + fileName);
-          lcd->changed();
-          goto exit;
-          }
-        }
-      }
-    //}}}
-    #endif
-
-    #ifdef HW_JPEG
-    //{{{  hwJpegDecode
     for (auto fileName : mFileVec) {
       auto startTime = HAL_GetTick();
       auto tile = hwJpegDecode (fileName);
+      //auto tile = swJpegDecode (fileName, 1);
       if (tile) {
         printf ("hwJpegDecode %s %dx%d took %d\n",
                 fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
-        lcd->info (COL_YELLOW, "loadJpeg " + fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
+        lcd->info (COL_YELLOW, fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
         lcd->changed();
 
-        xSemaphoreTake (mTileVecSem, 1000);
-        mTileVec.push_back (tile);
-        xSemaphoreGive (mTileVecSem);
-        taskYIELD();
+        auto lastTile = showTile;
+        showTile = tile;
+        if (lastTile)
+          delete (lastTile);
+        lcd->changed();
+
+        vTaskDelay (1000);
         }
       else {
         printf ("hwJpegDecode tile error\n");
@@ -261,8 +225,6 @@ void appThread (void* arg) {
         goto exit;
         }
       }
-    //}}}
-    #endif
 
   exit:
     lcd->info (COL_WHITE, "loadFiles done");
@@ -542,12 +504,12 @@ int main() {
   BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_EXTI);
 
   mRtc.init();
-  mTileVecSem = xSemaphoreCreateMutex();
   printf ("%s\n", kHello.c_str());
 
-  lcd = new cLcd ((uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2),
-                  (uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2));
+  lcd = new cLcd ((uint16_t*)SDRAM_DEVICE_ADDR,
+                  (uint16_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*2));
   lcd->init (kHello);
+  sdRamInit (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
 
   TaskHandle_t uiHandle;
   xTaskCreate ((TaskFunction_t)uiThread, "ui", 1024, 0, 4, &uiHandle);

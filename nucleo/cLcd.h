@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "../system/stm32h7xx.h"
+#include "heap.h"
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -55,7 +56,7 @@ public:
   cTile() {};
   cTile (uint8_t* piccy, uint16_t components, uint16_t pitch,
          uint16_t x, uint16_t y, uint16_t width, uint16_t height)
-     :  mPiccy((uint32_t)piccy), mComponents(components), mPitch(pitch), mX(x), mY(y), mWidth(width), mHeight(height) {
+     :  mPiccy(piccy), mComponents(components), mPitch(pitch), mX(x), mY(y), mWidth(width), mHeight(height) {
    if (components == 2)
      mFormat = DMA2D_INPUT_RGB565;
    else if (components == 3)
@@ -64,18 +65,19 @@ public:
      mFormat = DMA2D_INPUT_ARGB8888;
     };
 
-  void free() {
-    vPortFree ((void*)mPiccy);
-    }
+  ~cTile () {
+    sdRamFree (mPiccy);
+    mPiccy = nullptr;
+    };
 
-  uint32_t mPiccy;
-  uint16_t mComponents;
-  uint16_t mPitch;
-  uint16_t mX;
-  uint16_t mY;
-  uint16_t mWidth;
-  uint16_t mHeight;
-  uint16_t mFormat;
+  uint8_t* mPiccy = nullptr;
+  uint16_t mComponents = 0;
+  uint16_t mPitch = 0;
+  uint16_t mX = 0;
+  uint16_t mY = 0;
+  uint16_t mWidth = 0;
+  uint16_t mHeight = 0;
+  uint16_t mFormat = 0;
   };
 //}}}
 //{{{

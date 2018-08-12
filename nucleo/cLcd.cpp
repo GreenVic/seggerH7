@@ -164,17 +164,19 @@ void cLcd::rect (uint16_t colour, const cRect& r) {
 //__IO uint32_t OOR     Output Offset Register,         Address offset: 0x40
 //__IO uint32_t NLR     Number of Line Register,        Address offset: 0x44
 
+  xSemaphoreTake (mLockSem, 1000);
+
   rectRegs[1] = colour;
   rectRegs[2] = uint32_t (mBuffer[mDrawBuffer] + r.top * getWidth() + r.left);
   rectRegs[3] = getWidth() - r.getWidth();
   rectRegs[4] = (r.getWidth() << 16) | r.getHeight();
 
-  xSemaphoreTake (mLockSem, 1000);
   ready();
   memcpy ((void*)(&DMA2D->OPFCCR), rectRegs, 5*4);
 
   DMA2D->CR = DMA2D_R2M | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
+  ready();
   xSemaphoreGive (mLockSem);
   }
 //}}}
@@ -284,6 +286,8 @@ void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r) {
 //  DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE | DMA2D_CR_START;
 //}}}
 
+  xSemaphoreTake (mLockSem, 1000);
+
   stampRegs[0] = (uint32_t)src;
   stampRegs[2] = uint32_t(mBuffer[mDrawBuffer] + r.top * getWidth() + r.left);
   stampRegs[3] = getWidth() - r.getWidth();
@@ -293,11 +297,11 @@ void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r) {
   stampRegs[13] = stampRegs[3];
   stampRegs[14] = (r.getWidth() << 16) | r.getHeight();
 
-  xSemaphoreTake (mLockSem, 1000);
-  ready();
   memcpy ((void*)(&DMA2D->FGMAR), stampRegs, 15*4);
   DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
+  ready();
+
   xSemaphoreGive (mLockSem);
   }
 //}}}
@@ -361,11 +365,11 @@ int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string str, cRe
 //{{{
 void cLcd::copy (cTile* srcTile, cPoint p) {
 
+  xSemaphoreTake (mLockSem, 1000);
+
   uint16_t width = p.x + srcTile->mWidth > getWidth() ? getWidth() - p.x : srcTile->mWidth;
   uint16_t height = p.y + srcTile->mHeight > getHeight() ? getHeight() - p.y : srcTile->mHeight;
 
-  xSemaphoreTake (mLockSem, 1000);
-  ready();
   DMA2D->FGPFCCR = srcTile->mFormat;
   DMA2D->FGMAR = (uint32_t)srcTile->mPiccy;
   DMA2D->FGOR = srcTile->mPitch - width;
@@ -375,17 +379,19 @@ void cLcd::copy (cTile* srcTile, cPoint p) {
   DMA2D->NLR = (width << 16) | height;
   DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
+  ready();
+
   xSemaphoreGive (mLockSem);
   }
 //}}}
 //{{{
 void cLcd::copy90 (cTile* srcTile, cPoint p) {
 
+  xSemaphoreTake (mLockSem, 1000);
+
   uint32_t src = (uint32_t)srcTile->mPiccy;
   uint32_t dst = (uint32_t)mBuffer[mDrawBuffer];
 
-  xSemaphoreTake (mLockSem, 1000);
-  ready();
   DMA2D->FGPFCCR = srcTile->mFormat;
   DMA2D->FGOR = 0;
   DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
@@ -396,14 +402,13 @@ void cLcd::copy90 (cTile* srcTile, cPoint p) {
     DMA2D->FGMAR = src;
     DMA2D->OMAR = dst;
     DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
-    mDma2dWait = eWaitIrq;
-
     src += srcTile->mWidth * srcTile->mComponents;
     dst += 2;
 
     mDma2dWait = eWaitDone;
     ready();
     }
+
   xSemaphoreGive (mLockSem);
   }
 //}}}
@@ -497,7 +502,6 @@ void cLcd::line (uint16_t colour, cPoint p1, cPoint p2) {
     inc1.y = 0;            // Don't change the y when numerator >= denominator
     }
 
-  ready();
   int16_t num = den / 2;
   int16_t numPix = den;
   for (int16_t pix = 0; pix <= numPix; pix++) {
@@ -520,7 +524,6 @@ void cLcd::ellipseOutline (uint16_t colour, cPoint centre, cPoint radius) {
   int err = 2 - 2 * radius.x;
   float k = (float)radius.y / (float)radius.x;
 
-  ready();
   do {
     pixel (colour, centre + cPoint (-(int16_t)(x / k), y));
     pixel (colour, centre + cPoint ((int16_t)(x / k), y));
@@ -542,7 +545,6 @@ void cLcd::ellipseOutline (uint16_t colour, cPoint centre, cPoint radius) {
 //{{{
 void cLcd::rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize) {
 
-  ready();
   for (uint16_t x = 0; x < xsize; x++) {
     uint8_t b = (*src++) & 0xF8;
     uint8_t g = (*src++) & 0xFC;
@@ -555,7 +557,6 @@ void cLcd::rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize) {
 void cLcd::jpegYuvTo565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling) {
 
   xSemaphoreTake (mLockSem, 1000);
-  ready();
 
   uint32_t cssMode = DMA2D_CSS_420;
   uint32_t inputLineOffset = 0;
@@ -653,7 +654,7 @@ void cLcd::drawInfo() {
 //{{{
 void cLcd::present() {
 
-  ready();
+  //ready();
   mDrawTime = HAL_GetTick() - mStartTime;
 
   // enable interrupts
