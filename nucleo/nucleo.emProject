@@ -45,6 +45,7 @@
       <file file_name="sd.cpp" />
       <file file_name="cRtc.cpp" />
       <file file_name="jpeg.cpp" />
+      <file file_name="heap.cpp" />
     </folder>
     <folder Name="RTT Files">
       <configuration Name="Common" macros="STLport=No" />
@@ -260,7 +261,6 @@
       <file file_name="../FreeRTOS/cpuUsage.c" />
       <file file_name="../FreeRTOS/queue.c" />
       <file file_name="../FreeRTOS/tasks.c" />
-      <file file_name="heap.c" />
       <file file_name="../FreeRTOS/portable/GCC/ARM_CM7/port.c" />
     </folder>
     <configuration Name="Debug" gcc_optimization_level="Debug" />

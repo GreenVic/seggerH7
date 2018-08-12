@@ -222,7 +222,7 @@ void appThread (void* arg) {
           lcd->info (COL_YELLOW, fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
           lcd->changed();
 
-          vTaskDelay (2000);
+          vTaskDelay (1000);
           }
         else {
           printf ("hwJpegDecode tile error\n");

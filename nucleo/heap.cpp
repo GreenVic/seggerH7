@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include "FreeRTOS.h"
 #include "task.h"
@@ -54,11 +55,11 @@ uint8_t* sram123Alloc (size_t bytes) {
 //}}}
 
 //{{{
-void* pvPortMalloc (size_t xWantedSize) {
+void* pvPortMalloc (size_t size) {
   vTaskSuspendAll();
-  void* pvReturn = malloc (xWantedSize);
+  void* allocAddress = malloc (size);
   xTaskResumeAll();
-  return pvReturn;
+  return allocAddress;
   }
 //}}}
 //{{{
@@ -75,63 +76,63 @@ void vPortFree (void* pv) {
 #define heapBITS_PER_BYTE ((size_t)8)
 #define heapMINIMUM_BLOCK_SIZE ((size_t)(xHeapStructSize << 1))
 //}}}
-//{{{  struct BlockLink_t
+//{{{  struct tBlockLink_t
 typedef struct A_BLOCK_LINK {
-  struct A_BLOCK_LINK* pxNextFreeBlock; // The next free block in the list
-  size_t xBlockSize;                    // The size of the free block
-  } BlockLink_t;
+  struct A_BLOCK_LINK* mNextFreeBlock; // The next free block in the list
+  size_t mBlockSize;                   // The size of the free block
+  } tBlockLink_t;
 
 //}}}
 //{{{  statics
 static const size_t xHeapStructSize =
-  (sizeof(BlockLink_t) + ((size_t)(portBYTE_ALIGNMENT-1))) & ~((size_t)portBYTE_ALIGNMENT_MASK);
+  (sizeof(tBlockLink_t) + ((size_t)(portBYTE_ALIGNMENT-1))) & ~((size_t)portBYTE_ALIGNMENT_MASK);
 
-static BlockLink_t xStart;
-static BlockLink_t* pxEnd = NULL;
+static tBlockLink_t xStart;
+static tBlockLink_t* pxEnd = NULL;
 static size_t xFreeBytesRemaining = 0U;
 static size_t xMinimumEverFreeBytesRemaining = 0U;
 static size_t xBlockAllocatedBit = 0;
 //}}}
 //{{{
-static void insertBlockIntoFreeList (BlockLink_t* pxBlockToInsert) {
+static void insertBlockIntoFreeList (tBlockLink_t* insertBlock) {
 
   // iterate through list until block found that has higher address than block being inserted
-  BlockLink_t* pxIterator;
-  for (pxIterator = &xStart; pxIterator->pxNextFreeBlock < pxBlockToInsert; pxIterator = pxIterator->pxNextFreeBlock) {}
+  tBlockLink_t* blockIt;
+  for (blockIt = &xStart; blockIt->mNextFreeBlock < insertBlock; blockIt = blockIt->mNextFreeBlock) {}
 
   // Do the block being inserted, and the block it is being inserted after make a contiguous block of memory? */
-  uint8_t* puc = (uint8_t*) pxIterator;
-  if ((puc + pxIterator->xBlockSize) == (uint8_t*)pxBlockToInsert) {
-    pxIterator->xBlockSize += pxBlockToInsert->xBlockSize;
-    pxBlockToInsert = pxIterator;
+  uint8_t* puc = (uint8_t*)blockIt;
+  if ((puc + blockIt->mBlockSize) == (uint8_t*)insertBlock) {
+    blockIt->mBlockSize += insertBlock->mBlockSize;
+    insertBlock = blockIt;
     }
 
   // Do the block being inserted, and the block it is being inserted before make a contiguous block of memory?
-  puc = ( uint8_t * ) pxBlockToInsert;
-  if ((puc + pxBlockToInsert->xBlockSize ) == ( uint8_t * ) pxIterator->pxNextFreeBlock ) {
-    if (pxIterator->pxNextFreeBlock != pxEnd ) {
+  puc = (uint8_t*)insertBlock;
+  if ((puc + insertBlock->mBlockSize) == (uint8_t*)blockIt->mNextFreeBlock) {
+    if (blockIt->mNextFreeBlock != pxEnd ) {
       // Form one big block from the two blocks
-      pxBlockToInsert->xBlockSize += pxIterator->pxNextFreeBlock->xBlockSize;
-      pxBlockToInsert->pxNextFreeBlock = pxIterator->pxNextFreeBlock->pxNextFreeBlock;
+      insertBlock->mBlockSize += blockIt->mNextFreeBlock->mBlockSize;
+      insertBlock->mNextFreeBlock = blockIt->mNextFreeBlock->mNextFreeBlock;
       }
     else
-      pxBlockToInsert->pxNextFreeBlock = pxEnd;
+      insertBlock->mNextFreeBlock = pxEnd;
     }
   else
-    pxBlockToInsert->pxNextFreeBlock = pxIterator->pxNextFreeBlock;
+    insertBlock->mNextFreeBlock = blockIt->mNextFreeBlock;
 
   // If the block being inserted plugged a gab, so was merged with the block
-  // before and the block after, then it's pxNextFreeBlock pointer will have
+  // before and the block after, then it's mNextFreeBlock pointer will have
   // already been set, and should not be set here as that would make it point to itself/
-  if( pxIterator != pxBlockToInsert )
-    pxIterator->pxNextFreeBlock = pxBlockToInsert;
+  if (blockIt != insertBlock)
+    blockIt->mNextFreeBlock = insertBlock;
   }
 //}}}
 
 //{{{
 void sdRamInit (uint32_t start, uint32_t size) {
 
-  BlockLink_t* pxFirstFreeBlock;
+  tBlockLink_t* pxFirstFreeBlock;
   uint8_t* pucAlignedHeap;
 
   // Ensure the heap starts on a correctly aligned boundary
@@ -146,101 +147,101 @@ void sdRamInit (uint32_t start, uint32_t size) {
   pucAlignedHeap = (uint8_t*)uxAddress;
 
   // xStart is used to hold a pointer to the first item in the list of free blocks.
-  xStart.pxNextFreeBlock = (void*)pucAlignedHeap;
-  xStart.xBlockSize = (size_t)0;
+  xStart.mNextFreeBlock = (tBlockLink_t*)pucAlignedHeap;
+  xStart.mBlockSize = (size_t)0;
 
   // pxEnd is used to mark the end of the list of free blocks and is inserted at the end of the heap space. */
   uxAddress = ((size_t)pucAlignedHeap) + xTotalHeapSize;
   uxAddress -= xHeapStructSize;
   uxAddress &= ~((size_t) portBYTE_ALIGNMENT_MASK );
-  pxEnd = (void*)uxAddress;
-  pxEnd->xBlockSize = 0;
-  pxEnd->pxNextFreeBlock = NULL;
+  pxEnd = (tBlockLink_t*)uxAddress;
+  pxEnd->mBlockSize = 0;
+  pxEnd->mNextFreeBlock = NULL;
 
   // start with single free block sized to take up entire heap space, minus space taken by pxEnd
-  pxFirstFreeBlock = (void*) pucAlignedHeap;
-  pxFirstFreeBlock->xBlockSize = uxAddress - (size_t)pxFirstFreeBlock;
-  pxFirstFreeBlock->pxNextFreeBlock = pxEnd;
+  pxFirstFreeBlock = (tBlockLink_t*)pucAlignedHeap;
+  pxFirstFreeBlock->mBlockSize = uxAddress - (size_t)pxFirstFreeBlock;
+  pxFirstFreeBlock->mNextFreeBlock = pxEnd;
 
   // Only one block exists - and it covers the entire usable heap space
-  xMinimumEverFreeBytesRemaining = pxFirstFreeBlock->xBlockSize;
-  xFreeBytesRemaining = pxFirstFreeBlock->xBlockSize;
+  xMinimumEverFreeBytesRemaining = pxFirstFreeBlock->mBlockSize;
+  xFreeBytesRemaining = pxFirstFreeBlock->mBlockSize;
 
   // Work out the position of the top bit in a size_t variable
   xBlockAllocatedBit = ((size_t)1) << ((sizeof(size_t) * heapBITS_PER_BYTE) - 1);
   }
 //}}}
 //{{{
-void* sdRamAlloc (size_t xWantedSize) {
+void* sdRamAlloc (size_t size) {
 
-  BlockLink_t* pxBlock;
-  BlockLink_t* pxPreviousBlock;
-  BlockLink_t* pxNewBlockLink;
-  void* pvReturn = NULL;
+  tBlockLink_t* block;
+  tBlockLink_t* previousBlock;
+  tBlockLink_t* newBlockLink;
+  void* allocAddress = NULL;
 
   vTaskSuspendAll();
     {
     // Check the requested block size is not so large that the top bit is set.
-    // The top bit of the block size member of the BlockLink_t structure is used to determine who owns the block
+    // The top bit of the block size member of the tBlockLink_t structure is used to determine who owns the block
     // - the application or the kernel, so it must be free.
-    if ((xWantedSize & xBlockAllocatedBit) == 0) {
-      // The wanted size is increased so it can contain a BlockLink_t structure in addition to the requested amount of bytes. */
-      if (xWantedSize > 0) {
-        xWantedSize += xHeapStructSize;
+    if ((size & xBlockAllocatedBit) == 0) {
+      // The wanted size is increased so it can contain a tBlockLink_t structure in addition to the requested amount of bytes. */
+      if (size > 0) {
+        size += xHeapStructSize;
 
         // Ensure that blocks are always aligned to the required number of bytes. */
-        if ((xWantedSize & portBYTE_ALIGNMENT_MASK ) != 0x00)
+        if ((size & portBYTE_ALIGNMENT_MASK ) != 0x00)
           // Byte alignment required. */
-          xWantedSize += (portBYTE_ALIGNMENT - (xWantedSize & portBYTE_ALIGNMENT_MASK));
+          size += (portBYTE_ALIGNMENT - (size & portBYTE_ALIGNMENT_MASK));
         }
 
-      if ((xWantedSize > 0) && (xWantedSize <= xFreeBytesRemaining)) {
+      if ((size > 0) && (size <= xFreeBytesRemaining)) {
         // Traverse the list from the start (lowest address) block until one of adequate size is found. */
-        pxPreviousBlock = &xStart;
-        pxBlock = xStart.pxNextFreeBlock;
-        while ((pxBlock->xBlockSize < xWantedSize) && (pxBlock->pxNextFreeBlock != NULL)) {
-          pxPreviousBlock = pxBlock;
-          pxBlock = pxBlock->pxNextFreeBlock;
+        previousBlock = &xStart;
+        block = xStart.mNextFreeBlock;
+        while ((block->mBlockSize < size) && (block->mNextFreeBlock != NULL)) {
+          previousBlock = block;
+          block = block->mNextFreeBlock;
           }
 
         // If the end marker was reached then a block of adequate size was not found
-        if (pxBlock != pxEnd) {
-          // Return the memory space pointed to - jumping over the BlockLink_t structure at its start
-          pvReturn = (void*)(((uint8_t*)pxPreviousBlock->pxNextFreeBlock) + xHeapStructSize);
+        if (block != pxEnd) {
+          // Return the memory space pointed to - jumping over the tBlockLink_t structure at its start
+          allocAddress = (void*)(((uint8_t*)previousBlock->mNextFreeBlock) + xHeapStructSize);
 
           //This block is being returned for use so must be taken out of the list of free blocks
-          pxPreviousBlock->pxNextFreeBlock = pxBlock->pxNextFreeBlock;
+          previousBlock->mNextFreeBlock = block->mNextFreeBlock;
 
           // If the block is larger than required it can be split into two.
-          if ((pxBlock->xBlockSize - xWantedSize) > heapMINIMUM_BLOCK_SIZE) {
+          if ((block->mBlockSize - size) > heapMINIMUM_BLOCK_SIZE) {
             // This block is to be split into two
             // Create a new block following the number of bytes requested
             // The void cast is used to prevent byte alignment warnings from the compiler
-            pxNewBlockLink = (void*)(((uint8_t*)pxBlock) + xWantedSize);
+            newBlockLink = (tBlockLink_t*)(((uint8_t*)block) + size);
 
             // Calculate the sizes of two blocks split from the single block
-            pxNewBlockLink->xBlockSize = pxBlock->xBlockSize - xWantedSize;
-            pxBlock->xBlockSize = xWantedSize;
+            newBlockLink->mBlockSize = block->mBlockSize - size;
+            block->mBlockSize = size;
 
             // Insert the new block into the list of free blocks
-            insertBlockIntoFreeList( pxNewBlockLink );
+            insertBlockIntoFreeList (newBlockLink);
             }
 
-          xFreeBytesRemaining -= pxBlock->xBlockSize;
+          xFreeBytesRemaining -= block->mBlockSize;
           if (xFreeBytesRemaining < xMinimumEverFreeBytesRemaining )
             xMinimumEverFreeBytesRemaining = xFreeBytesRemaining;
 
           // The block is being returned - it is allocated and owned by the application and has no "next" block. */
-          pxBlock->xBlockSize |= xBlockAllocatedBit;
-          pxBlock->pxNextFreeBlock = NULL;
+          block->mBlockSize |= xBlockAllocatedBit;
+          block->mNextFreeBlock = NULL;
           }
         }
       }
     }
   xTaskResumeAll();
 
-  printf ("sdramAlloc %p %d\n", pvReturn, xWantedSize);
-  return pvReturn;
+  printf ("sdramAlloc %p %d\n", allocAddress, size);
+  return allocAddress;
   }
 //}}}
 //{{{
@@ -249,25 +250,25 @@ void sdRamFree (void* p) {
   printf ("sdRamFree %p\n", p);
 
   uint8_t* puc = (uint8_t*)p;
-  BlockLink_t* pxLink;
+  tBlockLink_t* pxLink;
 
   if (p != NULL) {
-    // The memory being freed will have an BlockLink_t structure immediately before it.
+    // The memory being freed will have an tBlockLink_t structure immediately before it.
     puc -= xHeapStructSize;
 
     // casting is to keep the compiler from issuing warnings.
-    pxLink = (void*)puc;
+    pxLink = (tBlockLink_t*)puc;
 
-    if ((pxLink->xBlockSize & xBlockAllocatedBit ) != 0) {
-      if (pxLink->pxNextFreeBlock == NULL) {
+    if ((pxLink->mBlockSize & xBlockAllocatedBit ) != 0) {
+      if (pxLink->mNextFreeBlock == NULL) {
         // The block is being returned to the heap - it is no longer allocated.
-        pxLink->xBlockSize &= ~xBlockAllocatedBit;
+        pxLink->mBlockSize &= ~xBlockAllocatedBit;
 
         vTaskSuspendAll();
           {
           // Add this block to the list of free blocks.
-          xFreeBytesRemaining += pxLink->xBlockSize;
-          insertBlockIntoFreeList (((BlockLink_t*)pxLink));
+          xFreeBytesRemaining += pxLink->mBlockSize;
+          insertBlockIntoFreeList (pxLink);
           }
         xTaskResumeAll();
         }
