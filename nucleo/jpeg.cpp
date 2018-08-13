@@ -937,16 +937,15 @@ extern "C" { void MDMA_IRQHandler() {
 //{{{
 cTile* hwJpegDecode (const string& fileName) {
 
+  mHandle.Instance = JPEG;
+  init();
+
+  mInBuf[0].mBuf = (uint8_t*)pvPortMalloc (4096);
+  mInBuf[1].mBuf = (uint8_t*)pvPortMalloc (4096);
+  mOutYuvBuf = (uint8_t*)sdRamAlloc (1600*1250*2);
   mOutLen = 0;
-  if (!mOutYuvBuf) {
-    mOutYuvBuf = (uint8_t*)sdRamAlloc (1200*1200*3);
-    mHandle.Instance = JPEG;
-    init();
 
-    mInBuf[0].mBuf = (uint8_t*)pvPortMalloc (4096);
-    mInBuf[1].mBuf = (uint8_t*)pvPortMalloc (4096);
-    }
-
+  cTile* tile = nullptr;
   FIL file;
   if (f_open (&file, fileName.c_str(), FA_READ) == FR_OK) {
     if (f_read (&file, mInBuf[0].mBuf, 4096, &mInBuf[0].mSize) == FR_OK)
@@ -993,13 +992,18 @@ cTile* hwJpegDecode (const string& fileName) {
     auto rgb565pic = (uint16_t*)sdRamAlloc (mHandle.mWidth * mHandle.mHeight * 2);
     if (rgb565pic) {
       cLcd::jpegYuvTo565 (mOutYuvBuf, rgb565pic, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
-      return new cTile ((uint8_t*)rgb565pic, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
+      tile = new cTile ((uint8_t*)rgb565pic, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
       }
-    else
-      return nullptr;
     }
 
-  return nullptr;
+  vPortFree (mInBuf[0].mBuf);
+  mInBuf[0].mBuf = nullptr;
+  vPortFree (mInBuf[1].mBuf);
+  mInBuf[1].mBuf = nullptr;
+  sdRamFree (mOutYuvBuf);
+  mOutYuvBuf = nullptr;
+
+  return tile;
   }
 //}}}
 
