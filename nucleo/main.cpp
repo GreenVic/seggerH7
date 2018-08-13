@@ -213,10 +213,8 @@ void appThread (void* arg) {
                   fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
 
           xSemaphoreTake (mTileSem, 1000);
-          auto lastTile = showTile;
+          delete (showTile);
           showTile = tile;
-          if (lastTile)
-            delete (lastTile);
           xSemaphoreGive (mTileSem);
 
           lcd->info (COL_YELLOW, fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));

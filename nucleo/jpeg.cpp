@@ -939,7 +939,7 @@ cTile* hwJpegDecode (const string& fileName) {
 
   mOutLen = 0;
   if (!mOutYuvBuf) {
-    mOutYuvBuf = (uint8_t*)sdRamAlloc (650*650*3);
+    mOutYuvBuf = (uint8_t*)sdRamAlloc (1200*1200*3);
     mHandle.Instance = JPEG;
     init();
 

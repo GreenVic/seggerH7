@@ -73,7 +73,7 @@ void vPortFree (void* pv) {
 //}}}
 
 //{{{  defines
-#define heapMINIMUM_BLOCK_SIZE ((size_t)(xHeapStructSize << 1))
+#define heapMINIMUM_BLOCK_SIZE ((size_t)(kHeapStructSize << 1))
 //}}}
 //{{{
 class cHeap {
@@ -81,7 +81,7 @@ public:
   //{{{
   void init (uint32_t start, size_t size) {
 
-    tBlockLink_t* pxFirstFreeBlock;
+    tLink_t* pxFirstFreeBlock;
     uint8_t* pucAlignedHeap;
 
     // Ensure the heap starts on a correctly aligned boundary
@@ -96,47 +96,42 @@ public:
     pucAlignedHeap = (uint8_t*)uxAddress;
 
     // mStart is used to hold a pointer to the first item in the list of free blocks.
-    mStart.mNextFreeBlock = (tBlockLink_t*)pucAlignedHeap;
+    mStart.mNextFreeBlock = (tLink_t*)pucAlignedHeap;
     mStart.mBlockSize = (size_t)0;
 
     // mEnd is used to mark the end of the list of free blocks and is inserted at the end of the heap space. */
     uxAddress = ((size_t)pucAlignedHeap) + xTotalHeapSize;
-    uxAddress -= xHeapStructSize;
+    uxAddress -= kHeapStructSize;
     uxAddress &= ~((size_t) portBYTE_ALIGNMENT_MASK );
-    mEnd = (tBlockLink_t*)uxAddress;
+    mEnd = (tLink_t*)uxAddress;
     mEnd->mBlockSize = 0;
     mEnd->mNextFreeBlock = NULL;
 
     // start with single free block sized to take up entire heap space, minus space taken by mEnd
-    pxFirstFreeBlock = (tBlockLink_t*)pucAlignedHeap;
+    pxFirstFreeBlock = (tLink_t*)pucAlignedHeap;
     pxFirstFreeBlock->mBlockSize = uxAddress - (size_t)pxFirstFreeBlock;
     pxFirstFreeBlock->mNextFreeBlock = mEnd;
 
     // Only one block exists - and it covers the entire usable heap space
     mMinimumEverFreeBytesRemaining = pxFirstFreeBlock->mBlockSize;
     mFreeBytesRemaining = pxFirstFreeBlock->mBlockSize;
-
-    // Work out the position of the top bit in a size_t variable
-    mBlockAllocatedBit = ((size_t)1) << ((sizeof(size_t) * 8) - 1);
     }
   //}}}
+
   //{{{
   void* alloc (size_t size) {
 
-    tBlockLink_t* block;
-    tBlockLink_t* previousBlock;
-    tBlockLink_t* newBlockLink;
     void* allocAddress = NULL;
+    size_t largestBlock = 0;
 
     vTaskSuspendAll();
       {
       // Check the requested block size is not so large that the top bit is set
-      // The top bit of the block size member of the tBlockLink_t structure is used to determine who owns the block
-      // - the application or the kernel, so it must be free
-      if ((size & mBlockAllocatedBit) == 0) {
-        // The wanted size is increased so it can contain a tBlockLink_t structure in addition to the requested amount of bytes
+      // The top bit of the block size member of the tLink_t structure is used to determine who owns the block
+      if ((size & kBlockAllocatedBit) == 0) {
+        // The wanted size is increased so it can contain a tLink_t structure in addition to the requested amount of bytes
         if (size > 0) {
-          size += xHeapStructSize;
+          size += kHeapStructSize;
 
           // Ensure that blocks are always aligned to the required number of bytes
           if ((size & portBYTE_ALIGNMENT_MASK ) != 0x00)
@@ -146,34 +141,36 @@ public:
 
         if ((size > 0) && (size <= mFreeBytesRemaining)) {
           // Traverse the list from the start (lowest address) block until one of adequate size is found
-          previousBlock = &mStart;
-          block = mStart.mNextFreeBlock;
+          tLink_t* prevBlock = &mStart;
+          tLink_t* block = mStart.mNextFreeBlock;
+          largestBlock = mStart.mBlockSize;
           while ((block->mBlockSize < size) && (block->mNextFreeBlock != NULL)) {
-            previousBlock = block;
+            prevBlock = block;
             block = block->mNextFreeBlock;
+            if (block->mBlockSize > largestBlock)
+              largestBlock = block->mBlockSize;
             }
 
           // If the end marker was reached then a block of adequate size was not found
           if (block != mEnd) {
-            // Return the memory space pointed to - jumping over the tBlockLink_t structure at its start
-            allocAddress = (void*)(((uint8_t*)previousBlock->mNextFreeBlock) + xHeapStructSize);
+            // Return the memory space pointed to - jumping over the tLink_t structure at its start
+            allocAddress = (void*)(((uint8_t*)prevBlock->mNextFreeBlock) + kHeapStructSize);
 
             //This block is being returned for use so must be taken out of the list of free blocks
-            previousBlock->mNextFreeBlock = block->mNextFreeBlock;
+            prevBlock->mNextFreeBlock = block->mNextFreeBlock;
 
             // If the block is larger than required it can be split into two.
             if ((block->mBlockSize - size) > heapMINIMUM_BLOCK_SIZE) {
               // This block is to be split into two
               // Create a new block following the number of bytes requested
-              // The void cast is used to prevent byte alignment warnings from the compiler
-              newBlockLink = (tBlockLink_t*)(((uint8_t*)block) + size);
+              tLink_t* newLink = (tLink_t*)(((uint8_t*)block) + size);
 
               // Calculate the sizes of two blocks split from the single block
-              newBlockLink->mBlockSize = block->mBlockSize - size;
+              newLink->mBlockSize = block->mBlockSize - size;
               block->mBlockSize = size;
 
               // Insert the new block into the list of free blocks
-              insertBlockIntoFreeList (newBlockLink);
+              insertBlockIntoFreeList (newLink);
               }
 
             mFreeBytesRemaining -= block->mBlockSize;
@@ -181,7 +178,7 @@ public:
               mMinimumEverFreeBytesRemaining = mFreeBytesRemaining;
 
             // The block is being returned - it is allocated and owned by the application and has no "next" block. */
-            block->mBlockSize |= mBlockAllocatedBit;
+            block->mBlockSize |= kBlockAllocatedBit;
             block->mNextFreeBlock = NULL;
             }
           }
@@ -189,7 +186,12 @@ public:
       }
     xTaskResumeAll();
 
-    printf ("sdramAlloc %p %d\n", allocAddress, size);
+    if (allocAddress)
+      printf ("sdramAlloc %p size:%d free:%d minFree:%d\n",
+              allocAddress, size, mFreeBytesRemaining,mMinimumEverFreeBytesRemaining);
+    else
+      printf ("*** sdramAlloc failed size:%d free:%d minFree:%d largest:%d\n",
+              size, mFreeBytesRemaining,mMinimumEverFreeBytesRemaining, largestBlock);
     return allocAddress;
     }
   //}}}
@@ -198,26 +200,21 @@ public:
 
     printf ("sdRamFree %p\n", p);
 
-    uint8_t* puc = (uint8_t*)p;
-    tBlockLink_t* pxLink;
+    if (p) {
+      // memory being freed will have an tLink_t structure immediately before it.
+      uint8_t* puc = (uint8_t*)p - kHeapStructSize;
+      tLink_t* link = (tLink_t*)puc;
 
-    if (p != NULL) {
-      // The memory being freed will have an tBlockLink_t structure immediately before it.
-      puc -= xHeapStructSize;
-
-      // casting is to keep the compiler from issuing warnings.
-      pxLink = (tBlockLink_t*)puc;
-
-      if ((pxLink->mBlockSize & mBlockAllocatedBit ) != 0) {
-        if (pxLink->mNextFreeBlock == NULL) {
-          // The block is being returned to the heap - it is no longer allocated.
-          pxLink->mBlockSize &= ~mBlockAllocatedBit;
+      if ((link->mBlockSize & kBlockAllocatedBit ) != 0) {
+        if (link->mNextFreeBlock == NULL) {
+          // block is being returned to the heap - it is no longer allocated.
+          link->mBlockSize &= ~kBlockAllocatedBit;
 
           vTaskSuspendAll();
             {
             // Add this block to the list of free blocks.
-            mFreeBytesRemaining += pxLink->mBlockSize;
-            insertBlockIntoFreeList (pxLink);
+            mFreeBytesRemaining += link->mBlockSize;
+            insertBlockIntoFreeList (link);
             }
           xTaskResumeAll();
           }
@@ -225,27 +222,29 @@ public:
       }
     }
   //}}}
+
   size_t getFreeHeapSize() { return mFreeBytesRemaining; }
   size_t getMinEverHeapSize() { return mMinimumEverFreeBytesRemaining; }
 
 private:
-  //{{{  struct tBlockLink_t
+  //{{{  struct tLink_t
   typedef struct A_BLOCK_LINK {
     struct A_BLOCK_LINK* mNextFreeBlock; // The next free block in the list
     size_t mBlockSize;                   // The size of the free block
-    } tBlockLink_t;
+    } tLink_t;
 
   //}}}
-  //{{{  const
-  static const size_t xHeapStructSize =
-    (sizeof(tBlockLink_t) + ((size_t)(portBYTE_ALIGNMENT-1))) & ~((size_t)portBYTE_ALIGNMENT_MASK);
-  //}}}
+  const size_t kHeapStructSize =
+    (sizeof(tLink_t) + ((size_t)(portBYTE_ALIGNMENT-1))) & ~((size_t)portBYTE_ALIGNMENT_MASK);
+  //const size_t kByteAlignment = 8;
+  //const size_t kHeapStructSize = (sizeof(tLink_t) + (kByteAlignment-1)) & ~kByteAlignment;
+  const size_t kBlockAllocatedBit = 0x80000000;
 
   //{{{
-  void insertBlockIntoFreeList (tBlockLink_t* insertBlock) {
+  void insertBlockIntoFreeList (tLink_t* insertBlock) {
 
     // iterate through list until block found that has higher address than block being inserted
-    tBlockLink_t* blockIt;
+    tLink_t* blockIt;
     for (blockIt = &mStart; blockIt->mNextFreeBlock < insertBlock; blockIt = blockIt->mNextFreeBlock) {}
 
     // Do the block being inserted, and the block it is being inserted after make a contiguous block of memory? */
@@ -277,11 +276,10 @@ private:
     }
   //}}}
 
-  tBlockLink_t mStart;
-  tBlockLink_t* mEnd = NULL;
+  tLink_t mStart;
+  tLink_t* mEnd = NULL;
   size_t mFreeBytesRemaining = 0U;
   size_t mMinimumEverFreeBytesRemaining = 0U;
-  size_t mBlockAllocatedBit = 0;
   };
 //}}}
 cHeap mSdRamHeap;
