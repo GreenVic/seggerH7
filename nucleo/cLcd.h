@@ -147,7 +147,7 @@ public:
   void line (uint16_t colour, cPoint p1, cPoint p2);
   void ellipseOutline (uint16_t colour, cPoint centre, cPoint radius);
 
-  static void rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize);
+  static void rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize);
   static void jpegYuvTo565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
 
   void start();

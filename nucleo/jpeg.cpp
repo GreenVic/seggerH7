@@ -1059,7 +1059,7 @@ cTile* swJpegDecode (const string& fileName, int scale) {
       auto rgbLine = (uint8_t*)malloc (mCinfo.output_width * 3);
       while (mCinfo.output_scanline < mCinfo.output_height) {
         jpeg_read_scanlines (&mCinfo, &rgbLine, 1);
-        cLcd::rgb888to565 (rgbLine, rgb565pic + ((mCinfo.output_scanline-1) * mCinfo.output_width), mCinfo.output_width);
+        cLcd::rgb888to565 (rgbLine, rgb565pic + ((mCinfo.output_scanline-1) * mCinfo.output_width), mCinfo.output_width, 1);
         }
       free (rgbLine);
       }
