@@ -18,11 +18,6 @@ using namespace std;
 #define SRAM123_CACHE_MPU
 #define SDRAM_CACHE_MPU
 
-#define APP
-//#define HW_JPEG
-#define SW_JPEG
-//#define RAM_TEST
-
 const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
 
 // vars
@@ -70,8 +65,9 @@ void sdRamTest (uint16_t offset, uint16_t* addr, uint32_t len) {
       }
     }
 
-  if (readErr != 0) {
-    //lcd->info (COL_YELLOW, "sdRam ok " + hex((uint32_t)addr));
+  if (readErr == 0)
+    lcd->info (COL_YELLOW, "sdRam ok " + hex((uint32_t)addr));
+  else {
     string str = "errors ";
     for (int i = 15; i >= 0; i--)
       if (bitErr[i])
@@ -81,10 +77,8 @@ void sdRamTest (uint16_t offset, uint16_t* addr, uint32_t len) {
     float rate = (readErr * 1000.f) / 0x00100000;
     str += "  " + dec(readErr) + " " + dec (int(rate)/10,1) + "." + dec(int(rate) % 10,1) + "%";
     lcd->info (COL_CYAN, str);
-    lcd->changed();
     }
-
-  vTaskDelay (200);
+  lcd->changed();
   }
 //}}}
 
@@ -103,15 +97,15 @@ void findFiles (const string& dirPath, const string& ext) {
       auto filePath = dirPath + "/" + filinfo.fname;
       if (filinfo.fattrib & AM_DIR) {
         printf ("- findFiles dir %s\n", filePath.c_str());
-        //lcd->info (" - findFiles dir" + filePath);
-        //lcd->change();
+        lcd->info (" - findFiles dir" + filePath);
+        lcd->change();
         findFiles (filePath, ext);
         }
       else if (filePath.find (ext) == filePath.size() - 4) {
         mFileVec.push_back (filePath);
         printf ("- findFiles file %s\n", filePath.c_str());
-        //lcd->info ("- findFiles file " + filePath);
-        //lcd->change();
+        lcd->info ("- findFiles file " + filePath);
+        lcd->change();
         }
       }
     f_closedir (&dir);
@@ -122,7 +116,7 @@ void findFiles (const string& dirPath, const string& ext) {
 //{{{
 void uiThread (void* arg) {
 
-  lcd->display (80);
+  lcd->display (30);
 
   int count = 0;
   while (true) {
@@ -236,14 +230,13 @@ void appThread (void* arg) {
     lcd->changed();
     }
 
-  #ifdef RAM_TEST
-    uint32_t offset = 0;
-    while (true)
-      for (int j = 8; j <= 0xF; j++) {
-        offset += HAL_GetTick();
-        sdRamTest (uint16_t(offset++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
-        }
-  #endif
+  uint32_t offset = 0;
+  while (true)
+    for (int j = 8; j <= 0x7F; j++) {
+      offset += HAL_GetTick();
+      sdRamTest (uint16_t(offset++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
+      vTaskDelay (100);
+      }
 
   while (true)
     vTaskDelay (1000);
@@ -363,7 +356,7 @@ void sdRamConfig() {
 
   #define kClockEnable  FMC_SDRAM_CMD_TARGET_BANK2 | FMC_SDRAM_CMD_CLK_ENABLE;
   #define kPreChargeAll FMC_SDRAM_CMD_TARGET_BANK2 | FMC_SDRAM_CMD_PALL;
-  #define kAutoRefresh  FMC_SDRAM_CMD_TARGET_BANK2 | FMC_SDRAM_CMD_AUTOREFRESH_MODE | ((4-1) << 5)
+  #define kAutoRefresh  FMC_SDRAM_CMD_TARGET_BANK2 | FMC_SDRAM_CMD_AUTOREFRESH_MODE | ((8-1) << 5)
   #define kLoadMode     FMC_SDRAM_CMD_TARGET_BANK2 | FMC_SDRAM_CMD_LOAD_MODE| \
                         ((SDRAM_MODEREG_WRITEBURST_MODE_SINGLE | \
                           SDRAM_MODEREG_CAS_LATENCY_2 | \
@@ -417,11 +410,13 @@ void sdRamConfig() {
   SDRAM_HandleTypeDef sdramHandle;
   sdramHandle.Instance = FMC_SDRAM_DEVICE;
   sdramHandle.Init.SDBank             = FMC_SDRAM_BANK2;
-  sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_2;
+  sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_3;
   sdramHandle.Init.ReadBurst          = FMC_SDRAM_RBURST_ENABLE;
   sdramHandle.Init.CASLatency         = FMC_SDRAM_CAS_LATENCY_2;
-  sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_9;  // 11
-  sdramHandle.Init.RowBitsNumber      = FMC_SDRAM_ROW_BITS_NUM_12;    // 13
+  //sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_9;
+  //sdramHandle.Init.RowBitsNumber      = FMC_SDRAM_ROW_BITS_NUM_12;
+  sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_11;
+  sdramHandle.Init.RowBitsNumber      = FMC_SDRAM_ROW_BITS_NUM_13;
   sdramHandle.Init.MemoryDataWidth    = FMC_SDRAM_MEM_BUS_WIDTH_16;
   sdramHandle.Init.InternalBankNumber = FMC_SDRAM_INTERN_BANKS_NUM_4;
   sdramHandle.Init.WriteProtection    = FMC_SDRAM_WRITE_PROTECTION_DISABLE;
@@ -472,7 +467,7 @@ void mpuConfig() {
   #ifdef SDRAM_CACHE_MPU
     mpuRegion.Number = MPU_REGION_NUMBER1;
     mpuRegion.BaseAddress = 0xD0000000;
-    mpuRegion.Size = MPU_REGION_SIZE_16MB;
+    mpuRegion.Size = MPU_REGION_SIZE_128MB;
     mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
     mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
     mpuRegion.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
@@ -502,7 +497,7 @@ int main() {
   sdRamConfig();
 
   SCB_EnableICache();
-  SCB_EnableDCache();
+  //SCB_EnableDCache();
   mpuConfig();
 
   BSP_LED_Init (LED_GREEN);
@@ -522,10 +517,8 @@ int main() {
   TaskHandle_t uiHandle;
   xTaskCreate ((TaskFunction_t)uiThread, "ui", 1024, 0, 4, &uiHandle);
 
-  #ifdef APP
-    TaskHandle_t appHandle;
-    xTaskCreate ((TaskFunction_t)appThread, "app", 8192, 0, 4, &appHandle);
-  #endif
+  TaskHandle_t appHandle;
+  xTaskCreate ((TaskFunction_t)appThread, "app", 8192, 0, 4, &appHandle);
 
   vTaskStartScheduler();
 

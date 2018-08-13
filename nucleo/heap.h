@@ -1,7 +1,7 @@
 #pragma once
 
 #define SDRAM_DEVICE_ADDR 0xD0000000
-#define SDRAM_DEVICE_SIZE 0x01000000
+#define SDRAM_DEVICE_SIZE 0x08000000
 
 //{{{
 #ifdef __cplusplus

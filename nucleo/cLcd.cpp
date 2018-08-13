@@ -79,14 +79,23 @@ extern "C" {void LTDC_ER_IRQHandler() {
 }
 //}}}
 //{{{
-extern "C" {void DMA2D_IRQHandler() {
+extern "C" { void DMA2D_IRQHandler() {
 
-  if (DMA2D->ISR & DMA2D_FLAG_TC) {
+  uint32_t isr = DMA2D->ISR;
+  if (isr & DMA2D_FLAG_TC) {
     DMA2D->IFCR = DMA2D_FLAG_TC;
 
     portBASE_TYPE taskWoken = pdFALSE;
     if (xSemaphoreGiveFromISR (cLcd::mDma2dSem, &taskWoken) == pdTRUE)
       portEND_SWITCHING_ISR (taskWoken);
+    }
+  if (isr & DMA2D_FLAG_CE) {
+    printf ("DMA2D_IRQHandler config error\n");
+    DMA2D->IFCR = DMA2D_FLAG_CE;
+    }
+  if (isr & DMA2D_FLAG_TE) {
+    printf ("DMA2D_IRQHandler transfer error\n");
+    DMA2D->IFCR = DMA2D_FLAG_TE;
     }
   }
 }
