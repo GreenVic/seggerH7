@@ -72,9 +72,6 @@ void vPortFree (void* pv) {
   }
 //}}}
 
-//{{{  defines
-#define heapMINIMUM_BLOCK_SIZE ((size_t)(kHeapStructSize << 1))
-//}}}
 //{{{
 class cHeap {
 public:
@@ -160,7 +157,7 @@ public:
             prevBlock->mNextFreeBlock = block->mNextFreeBlock;
 
             // If the block is larger than required it can be split into two.
-            if ((block->mBlockSize - size) > heapMINIMUM_BLOCK_SIZE) {
+            if ((block->mBlockSize - size) > kHeapMinimumBlockSize) {
               // This block is to be split into two
               // Create a new block following the number of bytes requested
               tLink_t* newLink = (tLink_t*)(((uint8_t*)block) + size);
@@ -234,10 +231,9 @@ private:
     } tLink_t;
 
   //}}}
-  const size_t kHeapStructSize =
-    (sizeof(tLink_t) + ((size_t)(portBYTE_ALIGNMENT-1))) & ~((size_t)portBYTE_ALIGNMENT_MASK);
-  //const size_t kByteAlignment = 8;
-  //const size_t kHeapStructSize = (sizeof(tLink_t) + (kByteAlignment-1)) & ~kByteAlignment;
+
+  const size_t kHeapStructSize = (sizeof(tLink_t) + ((size_t)(portBYTE_ALIGNMENT-1))) & ~((size_t)portBYTE_ALIGNMENT_MASK);
+  const size_t kHeapMinimumBlockSize = kHeapStructSize << 1;
   const size_t kBlockAllocatedBit = 0x80000000;
 
   //{{{
