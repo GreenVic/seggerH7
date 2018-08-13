@@ -205,13 +205,14 @@ void appThread (void* arg) {
           lcd->change();
           xSemaphoreGive (mTileSem);
 
-          lcd->info (COL_YELLOW, fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
+          lcd->info (COL_YELLOW, fileName + " " + dec (tile->mWidth) + "x" + dec (tile->mHeight));
+          vTaskDelay (1000);
           }
         else {
           printf ("decode tile error\n");
           lcd->info ("decode load error " + fileName);
+          vTaskDelay (5000);
           }
-        vTaskDelay (1000);
         }
       }
 
