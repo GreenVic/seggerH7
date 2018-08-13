@@ -201,8 +201,8 @@ void appThread (void* arg) {
       for (auto fileName : mFileVec) {
         auto startTime = HAL_GetTick();
 
-        auto tile = hwJpegDecode (fileName);
-        //auto tile = swJpegDecode (fileName, 1);
+        //auto tile = hwJpegDecode (fileName);
+        auto tile = swJpegDecode (fileName, 1);
         if (tile) {
           printf ("hwJpegDecode %s %dx%d took %d\n",
                   fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
