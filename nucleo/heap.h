@@ -14,6 +14,7 @@ uint8_t* sram123Alloc (size_t bytes);
 
 void sdRamInit (uint32_t start, uint32_t size);
 void* sdRamAlloc (size_t size);
+void* sdRamAllocInt (size_t size);
 void sdRamFree (void* p);
 
 //{{{

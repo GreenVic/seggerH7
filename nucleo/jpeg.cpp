@@ -199,6 +199,8 @@ tHandle mHandle;
 
 tBufs mInBuf[2] = { { false, nullptr, 0 }, { false, nullptr, 0 } };
 uint8_t* mOutYuvBuf = nullptr;
+uint32_t mOutYuvLen = 0;
+uint32_t mOutYuvStripLen = 0;
 uint32_t mOutLen = 0;
 
 //{{{
@@ -208,12 +210,12 @@ void outputData (uint8_t* data, uint32_t len) {
   //lcd->info (COL_GREEN, "outputData " + hex(uint32_t(data)) + ":" + hex(len));
   //lcd->changed();
   mHandle.OutBuffPtr = data + len;
-  mHandle.OutLen = kYuvChunkSize;
+  mHandle.OutLen = mOutYuvStripLen;
   mOutLen += len;
   }
 //}}}
 //{{{
-void dmaDecode (uint8_t* inBuff, uint32_t inLen, uint8_t* outBuff, uint32_t outLen) {
+void dmaDecode (uint8_t* inBuff, uint32_t inLen) {
 
   mHandle.Context = 0;
 
@@ -221,8 +223,8 @@ void dmaDecode (uint8_t* inBuff, uint32_t inLen, uint8_t* outBuff, uint32_t outL
   mHandle.InLen = inLen;
   mHandle.InCount = 0;
 
-  mHandle.OutBuffPtr = outBuff;
-  mHandle.OutLen = outLen;
+  mHandle.OutBuffPtr = nullptr;
+  mHandle.OutLen = 0;
   mHandle.OutCount = 0;
 
   // set JPEG Codec to decode
@@ -890,6 +892,18 @@ extern "C" { void JPEG_IRQHandler() {
     // clear header processing done flag
     __HAL_JPEG_CLEAR_FLAG (&mHandle, JPEG_FLAG_HPDF);
 
+    if (mHandle.mChromaSampling == JPEG_444_SUBSAMPLING) {
+      mOutYuvLen = ((mHandle.mWidth + 7) & ~8) * ((mHandle.mHeight + 7) & ~8) * 3;
+      mOutYuvStripLen = ((mHandle.mWidth + 7) & ~8) * 8 * 3;
+      }
+    else if (mHandle.mChromaSampling == JPEG_422_SUBSAMPLING) {
+      mOutYuvLen = ((mHandle.mWidth + 15) & ~16) * ((mHandle.mHeight + 7) & ~8) * 2;
+      mOutYuvStripLen = ((mHandle.mWidth + 7) & ~8) * 8 * 3;
+      }
+    mOutYuvBuf = (uint8_t*)sdRamAllocInt (mOutYuvLen);
+    mHandle.OutBuffPtr = mOutYuvBuf;
+    mHandle.OutLen = mOutYuvStripLen;
+
     // if the MDMA Out is triggred with JPEG Out FIFO Threshold flag then MDMA out buffer size is 32 bytes
     // else (MDMA Out is triggred with JPEG Out FIFO not empty flag then MDMA buffer size is 4 bytes
     // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)
@@ -942,7 +956,6 @@ cTile* hwJpegDecode (const string& fileName) {
 
   mInBuf[0].mBuf = (uint8_t*)pvPortMalloc (4096);
   mInBuf[1].mBuf = (uint8_t*)pvPortMalloc (4096);
-  mOutYuvBuf = (uint8_t*)sdRamAlloc (1600*1250*2);
   mOutLen = 0;
 
   cTile* tile = nullptr;
@@ -956,7 +969,7 @@ cTile* hwJpegDecode (const string& fileName) {
     mHandle.mReadIndex = 0;
     mHandle.mWriteIndex = 0;
     mHandle.mDecodeDone = false;
-    dmaDecode (mInBuf[0].mBuf, mInBuf[0].mSize, mOutYuvBuf, kYuvChunkSize);
+    dmaDecode (mInBuf[0].mBuf, mInBuf[0].mSize);
 
     while (!mHandle.mDecodeDone) {
       if (!mInBuf[mHandle.mWriteIndex].mFull) {
@@ -986,8 +999,8 @@ cTile* hwJpegDecode (const string& fileName) {
       }
     f_close (&file);
 
-    printf ("hwJpegDecode %dx%d:%d - %dbytes\n",
-            mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling, mOutLen);
+    printf ("hwJpegDecode %dx%d:%d - %d:%dbytes\n",
+            mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling, mOutYuvLen, mOutLen);
 
     auto rgb565pic = (uint16_t*)sdRamAlloc (mHandle.mWidth * mHandle.mHeight * 2);
     if (rgb565pic) {
