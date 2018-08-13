@@ -78,7 +78,7 @@ void sdRamTest (uint16_t offset, uint16_t* addr, uint32_t len) {
     str += "  " + dec(readErr) + " " + dec (int(rate)/10,1) + "." + dec(int(rate) % 10,1) + "%";
     lcd->info (COL_CYAN, str);
     }
-  lcd->changed();
+  lcd->change();
   }
 //}}}
 
@@ -173,14 +173,14 @@ void appThread (void* arg) {
     //{{{  no driver error
     printf ("sdCard - no driver\n");
     lcd->info (COL_RED, "sdCard - no driver");
-    lcd->changed();
+    lcd->change();
     }
     //}}}
   else if (f_mount (&fatFs, (TCHAR const*)sdPath, 1) != FR_OK) {
     //{{{  no sdCard error
     printf ("sdCard - not mounted\n");
     lcd->info (COL_RED, "sdCard - not mounted");
-    lcd->changed();
+    lcd->change();
     }
     //}}}
   else {
@@ -189,13 +189,13 @@ void appThread (void* arg) {
     f_getlabel ("", label, &volumeSerialNumber);
     printf ("sdCard mounted label %s\n", label);
     lcd->info ("sdCard mounted label:" + string (label));
-    lcd->changed();
+    lcd->change();
 
     auto startTime = HAL_GetTick();
     findFiles ("", ".jpg");
     printf ("findFiles took %d %d\n", HAL_GetTick() - startTime, mFileVec.size());
     lcd->info (COL_WHITE, "findFiles took" + dec(HAL_GetTick() - startTime) + " " + dec(mFileVec.size()));
-    lcd->changed();
+    lcd->change();
 
     while (true) {
       for (auto fileName : mFileVec) {
@@ -212,14 +212,14 @@ void appThread (void* arg) {
           xSemaphoreGive (mTileSem);
 
           lcd->info (COL_YELLOW, fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
-          lcd->changed();
+          lcd->change();
 
           vTaskDelay (1000);
           }
         else {
           printf ("hwJpegDecode tile error\n");
           lcd->info ("hwJpegDecode load error " + fileName);
-          lcd->changed();
+          lcd->change();
           goto exit;
           }
         }
@@ -227,7 +227,7 @@ void appThread (void* arg) {
 
   exit:
     lcd->info (COL_WHITE, "loadFiles done");
-    lcd->changed();
+    lcd->change();
     }
 
   uint32_t offset = 0;
@@ -235,7 +235,7 @@ void appThread (void* arg) {
     for (int j = 8; j <= 0x7F; j++) {
       offset += HAL_GetTick();
       sdRamTest (uint16_t(offset++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00100000)), 0x00100000);
-      vTaskDelay (100);
+      vTaskDelay (201);
       }
 
   while (true)

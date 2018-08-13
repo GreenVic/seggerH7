@@ -100,7 +100,7 @@ DSTATUS SD_initialize (BYTE lun) {
 
   if (HAL_SD_Init (&gSdHandle) != HAL_OK) {
     cLcd::mLcd->info (COL_RED, "HAL_SD_Init failed");
-    cLcd::mLcd->changed();
+    cLcd::mLcd->change();
     }
 
   osMessageQDef (sdQueue, QUEUE_SIZE, uint16_t);
@@ -125,7 +125,7 @@ DRESULT SD_read (BYTE lun, BYTE* buff, DWORD sector, UINT count) {
 
   #ifdef LCD_DEBUG
     cLcd::mLcd->info (COL_YELLOW, "sdRead " + hex(uint32_t(buff)) + " " + dec(sector) + " " + dec(count));
-    cLcd::mLcd->changed();
+    cLcd::mLcd->change();
   #endif
 
   if (HAL_SD_ReadBlocks_DMA (&gSdHandle, buff, sector, count) == HAL_OK) {

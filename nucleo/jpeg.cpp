@@ -208,7 +208,7 @@ void outputData (uint8_t* data, uint32_t len) {
 
   //printf ("outputData %x %d\n", data, len);
   //lcd->info (COL_GREEN, "outputData " + hex(uint32_t(data)) + ":" + hex(len));
-  //lcd->changed();
+  //lcd->change();
   mHandle.OutBuffPtr = data + len;
   mHandle.OutLen = mOutYuvStripLen;
   mOutLen += len;
@@ -1032,7 +1032,7 @@ cTile* swJpegDecode (const string& fileName, int scale) {
   //lcd->info (COL_YELLOW, "loadFile " + fileName + " bytes:" + dec ((int)(filInfo.fsize)) + " " +
   //           dec (filInfo.ftime >> 11) + ":" + dec ((filInfo.ftime >> 5) & 63) + " " +
   //           dec (filInfo.fdate & 31) + ":" + dec ((filInfo.fdate >> 5) & 15) + ":" + dec ((filInfo.fdate >> 9) + 1980));
-  //lcd->changed();
+  //lcd->change();
 
   FIL gFile;
   if (f_open (&gFile, fileName.c_str(), FA_READ)) {
