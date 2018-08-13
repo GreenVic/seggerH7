@@ -78,7 +78,6 @@ void sdRamTest (uint16_t offset, uint16_t* addr, uint32_t len) {
     str += "  " + dec(readErr) + " " + dec (int(rate)/10,1) + "." + dec(int(rate) % 10,1) + "%";
     lcd->info (COL_CYAN, str);
     }
-  lcd->change();
   }
 //}}}
 
@@ -98,14 +97,12 @@ void findFiles (const string& dirPath, const string& ext) {
       if (filinfo.fattrib & AM_DIR) {
         printf ("- findFiles dir %s\n", filePath.c_str());
         lcd->info (" - findFiles dir" + filePath);
-        lcd->change();
         findFiles (filePath, ext);
         }
       else if (filePath.find (ext) == filePath.size() - 4) {
         mFileVec.push_back (filePath);
         printf ("- findFiles file %s\n", filePath.c_str());
         lcd->info ("- findFiles file " + filePath);
-        lcd->change();
         }
       }
     f_closedir (&dir);
@@ -116,11 +113,11 @@ void findFiles (const string& dirPath, const string& ext) {
 //{{{
 void uiThread (void* arg) {
 
-  lcd->display (30);
+  lcd->display (50);
 
   int count = 0;
   while (true) {
-    if (lcd->changed() || (count == 1000)) {
+    if (lcd->isChanged() || (count == 1000)) {
       count = 0;
       lcd->start();
       lcd->clear (COL_BLACK);
@@ -173,14 +170,12 @@ void appThread (void* arg) {
     //{{{  no driver error
     printf ("sdCard - no driver\n");
     lcd->info (COL_RED, "sdCard - no driver");
-    lcd->change();
     }
     //}}}
   else if (f_mount (&fatFs, (TCHAR const*)sdPath, 1) != FR_OK) {
     //{{{  no sdCard error
     printf ("sdCard - not mounted\n");
     lcd->info (COL_RED, "sdCard - not mounted");
-    lcd->change();
     }
     //}}}
   else {
@@ -189,13 +184,11 @@ void appThread (void* arg) {
     f_getlabel ("", label, &volumeSerialNumber);
     printf ("sdCard mounted label %s\n", label);
     lcd->info ("sdCard mounted label:" + string (label));
-    lcd->change();
 
     auto startTime = HAL_GetTick();
     findFiles ("", ".jpg");
     printf ("findFiles took %d %d\n", HAL_GetTick() - startTime, mFileVec.size());
     lcd->info (COL_WHITE, "findFiles took" + dec(HAL_GetTick() - startTime) + " " + dec(mFileVec.size()));
-    lcd->change();
 
     while (true) {
       for (auto fileName : mFileVec) {
@@ -204,30 +197,26 @@ void appThread (void* arg) {
         //auto tile = hwJpegDecode (fileName);
         auto tile = swJpegDecode (fileName, 1);
         if (tile) {
-          printf ("hwJpegDecode %s %dx%d took %d\n",
+          printf ("decode %s %dx%d took %d\n",
                   fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
           xSemaphoreTake (mTileSem, 1000);
           delete (showTile);
           showTile = tile;
+          lcd->change();
           xSemaphoreGive (mTileSem);
 
           lcd->info (COL_YELLOW, fileName + dec (tile->mWidth) + "x" + dec (tile->mHeight));
-          lcd->change();
-
-          vTaskDelay (1000);
           }
         else {
-          printf ("hwJpegDecode tile error\n");
-          lcd->info ("hwJpegDecode load error " + fileName);
-          lcd->change();
-          goto exit;
+          printf ("decode tile error\n");
+          lcd->info ("decode load error " + fileName);
           }
+        vTaskDelay (1000);
         }
       }
 
   exit:
     lcd->info (COL_WHITE, "loadFiles done");
-    lcd->change();
     }
 
   uint32_t offset = 0;

@@ -112,7 +112,7 @@ public:
 
   void change() { mChanged = true; }
   //{{{
-  bool changed() {
+  bool isChanged() {
     bool wasChanged = mChanged;
     mChanged = false;
     return wasChanged;

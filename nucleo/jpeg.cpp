@@ -208,7 +208,6 @@ void outputData (uint8_t* data, uint32_t len) {
 
   //printf ("outputData %x %d\n", data, len);
   //lcd->info (COL_GREEN, "outputData " + hex(uint32_t(data)) + ":" + hex(len));
-  //lcd->change();
   mHandle.OutBuffPtr = data + len;
   mHandle.OutLen = mOutYuvStripLen;
   mOutLen += len;
@@ -1023,6 +1022,8 @@ cTile* hwJpegDecode (const string& fileName) {
 //{{{
 cTile* swJpegDecode (const string& fileName, int scale) {
 
+  cTile* tile = nullptr;
+
   FILINFO filInfo;
   if (f_stat (fileName.c_str(), &filInfo)) {
     printf ("swJpegDecode fstat fail\n");
@@ -1032,25 +1033,23 @@ cTile* swJpegDecode (const string& fileName, int scale) {
   //lcd->info (COL_YELLOW, "loadFile " + fileName + " bytes:" + dec ((int)(filInfo.fsize)) + " " +
   //           dec (filInfo.ftime >> 11) + ":" + dec ((filInfo.ftime >> 5) & 63) + " " +
   //           dec (filInfo.fdate & 31) + ":" + dec ((filInfo.fdate >> 5) & 15) + ":" + dec ((filInfo.fdate >> 9) + 1980));
-  //lcd->change();
 
-  FIL gFile;
-  if (f_open (&gFile, fileName.c_str(), FA_READ)) {
+  FIL file;
+  if (f_open (&file, fileName.c_str(), FA_READ)) {
     printf ("swJpegDecode open fail\n");
     return nullptr;
     }
 
   auto buf = (uint8_t*)pvPortMalloc (filInfo.fsize);
   if (!buf)  {
-    printf ("swJpegDecode alloc fail\n");
+    printf ("swJpegDecode buf alloc fail\n");
     return nullptr;
     }
 
   UINT bytesRead = 0;
-  f_read (&gFile, buf, (UINT)filInfo.fsize, &bytesRead);
-  f_close (&gFile);
+  f_read (&file, buf, (UINT)filInfo.fsize, &bytesRead);
+  f_close (&file);
 
-  cTile* tile = nullptr;
   if (bytesRead > 0) {
     struct jpeg_error_mgr jerr;
     struct jpeg_decompress_struct mCinfo;
@@ -1077,15 +1076,14 @@ cTile* swJpegDecode (const string& fileName, int scale) {
       free (rgbLine);
       }
     else
-      printf ("swJpegDecode alloc fail\n");
+      printf ("swJpegDecode pic alloc fail\n");
     jpeg_finish_decompress (&mCinfo);
     jpeg_destroy_decompress (&mCinfo);
     }
-  else {
+  else
     printf ("swJpegDecode read fail\n");
-    }
 
-  free (buf);
+  vPortFree (buf);
   return tile;
   }
 //}}}
