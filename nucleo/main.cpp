@@ -189,7 +189,7 @@ void appThread (void* arg) {
     lcd->info ("sdCard mounted label:" + string (label));
 
     auto startTime = HAL_GetTick();
-    findFiles ("", ".jpg");
+    findFiles ("", ".JPG");
     printf ("findFiles took %d %d\n", HAL_GetTick() - startTime, mFileVec.size());
     lcd->info (COL_WHITE, "findFiles " + dec(mFileVec.size()) + " took " + dec(HAL_GetTick() - startTime));
 
@@ -198,8 +198,8 @@ void appThread (void* arg) {
         auto startTime = HAL_GetTick();
 
         printf ("decode %s\n", fileName.c_str());
-        //auto tile = hwJpegDecode (fileName);
-        auto tile = swJpegDecode (fileName, 1);
+        auto tile = hwJpegDecode (fileName);
+        //auto tile = swJpegDecode (fileName, 1);
         if (tile) {
           printf ("- decoded %s - %dx%d - took %d\n",
                   fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
