@@ -200,7 +200,7 @@ void appThread (void* arg) {
         //auto tile = hwJpegDecode (fileName);
         auto tile = swJpegDecode (fileName, 1);
         if (tile) {
-          printf ("decode %s %dx%d took %d\n",
+          printf ("decoded %s - %dx%d - took %d\n",
                   fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
           xSemaphoreTake (mTileSem, 1000);
           delete (showTile);
@@ -212,7 +212,7 @@ void appThread (void* arg) {
           vTaskDelay (1000);
           }
         else {
-          printf ("decode tile error\n");
+          printf ("decode %s tile error\n", fileName.c_str());
           lcd->info ("decode load error " + fileName);
           vTaskDelay (5000);
           }

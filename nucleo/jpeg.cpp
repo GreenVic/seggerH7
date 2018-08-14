@@ -949,6 +949,7 @@ extern "C" { void MDMA_IRQHandler() {
 //{{{
 size_t read_file (FIL* file, uint8_t* buf, uint32_t sizeofbuf) {
 
+  printf ("read_file %p %d\n", buf, sizeofbuf);
   size_t bytesRead;
   f_read (file, buf, sizeofbuf, &bytesRead);
   return bytesRead;
@@ -1043,15 +1044,16 @@ cTile* swJpegDecode (const string& fileName, int scale) {
 
   FIL file;
   if (f_open (&file, fileName.c_str(), FA_READ))
-    printf ("swJpegDecode open fail\n");
+    printf ("swJpegDecode %s open fail\n", fileName.c_str());
   else {
+    printf ("swJpegDecode start decoding %s\n", fileName.c_str());
+
     struct jpeg_error_mgr jerr;
     struct jpeg_decompress_struct mCinfo;
     mCinfo.err = jpeg_std_error (&jerr);
     jpeg_create_decompress (&mCinfo);
 
     jpeg_stdio_src (&mCinfo, &file);
-    //jpeg_mem_src (&mCinfo, buf, bytesRead);
     jpeg_read_header (&mCinfo, TRUE);
 
     mCinfo.dct_method = JDCT_FLOAT;
@@ -1062,7 +1064,7 @@ cTile* swJpegDecode (const string& fileName, int scale) {
 
     auto rgb565pic = (uint16_t*)sdRamAlloc (mCinfo.output_width * mCinfo.output_height*2);
     if (!rgb565pic)
-      printf ("swJpegDecode rgb565pic alloc fail\n");
+      printf ("swJpegDecode %s rgb565pic alloc fail\n", fileName.c_str());
     else {
       auto rgbLine = (uint8_t*)malloc (mCinfo.output_width * 3);
       tile = new cTile ((uint8_t*)rgb565pic, 2, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
