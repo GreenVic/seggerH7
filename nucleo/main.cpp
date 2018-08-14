@@ -198,32 +198,35 @@ void appThread (void* arg) {
     printf ("findFiles took %d %d\n", HAL_GetTick() - startTime, mFileVec.size());
     lcd->info (COL_WHITE, "findFiles " + dec(mFileVec.size()) + " took " + dec(HAL_GetTick() - startTime));
 
-    while (true) {
-      for (auto fileName : mFileVec) {
-        auto startTime = HAL_GetTick();
+    for (auto fileName : mFileVec) {
+      auto startTime = HAL_GetTick();
 
-        printf ("decode %s\n", fileName.c_str());
-        #ifdef SW_JPEG
-          showTile = swJpegDecode (fileName, 8);
-          lcd->change();
-        #else
-          delete (showTile);
+      printf ("decode %s\n", fileName.c_str());
+      #ifdef SW_JPEG
+        showTile = swJpegDecode (fileName, 8);
+        lcd->change();
+      #else
+        for (int k = 0; k < 20; k++) {
+          if (showTile)
+            delete (showTile);
           showTile = hwJpegDecode (fileName);
           lcd->change();
-        #endif
-
-        if (showTile) {
-          printf ("- decoded %s - %dx%d - took %d\n",
-                  fileName.c_str(), showTile->mWidth, showTile->mHeight, HAL_GetTick() - startTime);
-
-          lcd->info (COL_YELLOW, fileName + " " + dec (showTile->mWidth) + "x" + dec (showTile->mHeight));
-          vTaskDelay (1000);
+          lcd->info (COL_YELLOW, fileName);
+          vTaskDelay (500);
           }
-        else {
-          printf ("decode %s tile error\n", fileName.c_str());
-          lcd->info ("decode load error " + fileName);
-          vTaskDelay (5000);
-          }
+      #endif
+
+      if (showTile) {
+        printf ("- decoded %s - %dx%d - took %d\n",
+                fileName.c_str(), showTile->mWidth, showTile->mHeight, HAL_GetTick() - startTime);
+
+        lcd->info (COL_YELLOW, fileName + " " + dec (showTile->mWidth) + "x" + dec (showTile->mHeight));
+        vTaskDelay (1000);
+        }
+      else {
+        printf ("decode %s tile error\n", fileName.c_str());
+        lcd->info ("decode load error " + fileName);
+        vTaskDelay (5000);
         }
       }
     }

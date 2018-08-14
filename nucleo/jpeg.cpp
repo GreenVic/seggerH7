@@ -201,7 +201,7 @@ tBufs mInBuf[2] = { { false, nullptr, 0 }, { false, nullptr, 0 } };
 uint8_t* mOutYuvBuf = nullptr;
 uint32_t mOutYuvLen = 0;
 uint32_t mOutLen = 0;
-#define CHUNK_SIZE_OUT ((uint32_t)(64 * 1024))
+#define CHUNK_SIZE_OUT 4 * 1024
 
 //{{{
 void outputData (uint8_t* data, uint32_t len) {
@@ -900,7 +900,7 @@ extern "C" { void JPEG_IRQHandler() {
       printf ("- header 422 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
       }
     else if (mHandle.mChromaSampling == JPEG_420_SUBSAMPLING) {
-      mOutYuvLen = (((mHandle.mWidth +15) & ~16) * ((mHandle.mHeight + 7) & ~8) * 3) / 2;
+      mOutYuvLen = ((mHandle.mWidth +15) & ~16) * ((mHandle.mHeight + 7) & ~8) * 2;
       printf ("- header 420 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
       }
     else {
