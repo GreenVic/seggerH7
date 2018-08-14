@@ -89,13 +89,13 @@ extern "C" { void DMA2D_IRQHandler() {
     if (xSemaphoreGiveFromISR (cLcd::mDma2dSem, &taskWoken) == pdTRUE)
       portEND_SWITCHING_ISR (taskWoken);
     }
-  if (isr & DMA2D_FLAG_CE) {
-    printf ("DMA2D_IRQHandler config error\n");
-    DMA2D->IFCR = DMA2D_FLAG_CE;
-    }
   if (isr & DMA2D_FLAG_TE) {
     printf ("DMA2D_IRQHandler transfer error\n");
     DMA2D->IFCR = DMA2D_FLAG_TE;
+    }
+  if (isr & DMA2D_FLAG_CE) {
+    printf ("DMA2D_IRQHandler config error\n");
+    DMA2D->IFCR = DMA2D_FLAG_CE;
     }
   }
 }
@@ -556,32 +556,21 @@ void cLcd::ellipseOutline (uint16_t colour, cPoint centre, cPoint radius) {
 //{{{
 void cLcd::rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize) {
 
-  for (uint16_t x = 0; x < xsize; x++) {
-    uint8_t b = (*src++) & 0xF8;
-    uint8_t g = (*src++) & 0xFC;
-    uint8_t r = (*src++) & 0xF8;
-    *dst++ = (r << 8) | (g << 3) | (b >> 3);
-    }
+  xSemaphoreTake (mLockSem, 1000);
+
+  DMA2D->FGPFCCR = DMA2D_INPUT_RGB888;
+  DMA2D->FGMAR = uint32_t(src);
+  DMA2D->FGOR = 0;
+  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
+  DMA2D->OMAR = uint32_t(dst);
+  DMA2D->OOR = 0;
+  DMA2D->NLR = (xsize << 16) | ysize;
+  DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
+  mDma2dWait = eWaitIrq;
+  ready();
+
+  xSemaphoreGive (mLockSem);
   }
-//}}}
-//{{{
-//void cLcd::rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize) {
-
-  //xSemaphoreTake (mLockSem, 1000);
-
-  //DMA2D->FGPFCCR = uint32_t(src);
-  //DMA2D->FGMAR = DMA2D_INPUT_RGB888;
-  //DMA2D->FGOR = 0;
-  //DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
-  //DMA2D->OMAR = uint32_t(dst);
-  //DMA2D->OOR = 0;
-  //DMA2D->NLR = (xsize << 16) | ysize;
-  //DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
-  //mDma2dWait = eWaitIrq;
-  //ready();
-
-  //xSemaphoreGive (mLockSem);
-  //}
 //}}}
 //{{{
 void cLcd::jpegYuvTo565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling) {

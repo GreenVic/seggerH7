@@ -218,9 +218,6 @@ void appThread (void* arg) {
           }
         }
       }
-
-  exit:
-    lcd->info (COL_WHITE, "loadFiles done");
     }
 
   uint32_t offset = 0;
