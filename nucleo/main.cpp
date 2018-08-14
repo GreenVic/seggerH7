@@ -1,5 +1,11 @@
 //// main.cpp
 //{{{  includes
+#include <algorithm>
+#include <string>
+//#include <stdio.h>
+#include <ctype.h>
+
+
 #include "cmsis_os.h"
 #include "stm32h7xx_nucleo_144.h"
 #include "heap.h"
@@ -95,6 +101,7 @@ void findFiles (const string& dirPath, const string& ext) {
         continue;
 
       auto filePath = dirPath + "/" + filinfo.fname;
+      transform (filePath.begin(), filePath.end(), filePath.begin(), ::tolower);
       if (filinfo.fattrib & AM_DIR) {
         printf ("- findFiles dir %s\n", filePath.c_str());
         lcd->info (" - findFiles dir" + filePath);
@@ -187,7 +194,7 @@ void appThread (void* arg) {
     lcd->info ("sdCard mounted label:" + string (label));
 
     auto startTime = HAL_GetTick();
-    findFiles ("", ".JPG");
+    findFiles ("", ".jpg");
     printf ("findFiles took %d %d\n", HAL_GetTick() - startTime, mFileVec.size());
     lcd->info (COL_WHITE, "findFiles " + dec(mFileVec.size()) + " took " + dec(HAL_GetTick() - startTime));
 
@@ -284,14 +291,14 @@ void clockConfig() {
   // select PLL system clock source. config bus clocks dividers
   RCC_ClkInitTypeDef rccClkInit;
   rccClkInit.ClockType = (RCC_CLOCKTYPE_SYSCLK  | RCC_CLOCKTYPE_HCLK |
-                          RCC_CLOCKTYPE_D1PCLK1 | RCC_CLOCKTYPE_PCLK1 |
-                          RCC_CLOCKTYPE_PCLK2   | RCC_CLOCKTYPE_D3PCLK1);
+                          RCC_CLOCKTYPE_PCLK1   | RCC_CLOCKTYPE_PCLK2 |
+                          RCC_CLOCKTYPE_D1PCLK1 | RCC_CLOCKTYPE_D3PCLK1);
   rccClkInit.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   rccClkInit.SYSCLKDivider = RCC_SYSCLK_DIV1;
   rccClkInit.AHBCLKDivider = RCC_HCLK_DIV2;
-  rccClkInit.APB3CLKDivider = RCC_APB3_DIV2;
   rccClkInit.APB1CLKDivider = RCC_APB1_DIV2;
   rccClkInit.APB2CLKDivider = RCC_APB2_DIV2;
+  rccClkInit.APB3CLKDivider = RCC_APB3_DIV2;
   rccClkInit.APB4CLKDivider = RCC_APB4_DIV2;
   HAL_RCC_ClockConfig (&rccClkInit, FLASH_LATENCY_4);
 
