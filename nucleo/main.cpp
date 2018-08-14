@@ -125,7 +125,6 @@ void uiThread (void* arg) {
       lcd->start();
       lcd->clear (COL_BLACK);
 
-      xSemaphoreTake (mTileSem, 1000);
       if (showTile) {
         if (showTile->mWidth <= lcd->getWidth() &&  showTile->mHeight <=lcd->getHeight())
           lcd->copy ((cTile*)showTile, cPoint ((lcd->getWidth() - showTile->mWidth) / 2,
@@ -133,7 +132,6 @@ void uiThread (void* arg) {
         else
           lcd->size ((cTile*)showTile, cRect (0,0, lcd->getWidth(), lcd->getHeight()));
         }
-      xSemaphoreGive (mTileSem);
 
       //{{{  draw clock
       float hourAngle;
@@ -199,18 +197,17 @@ void appThread (void* arg) {
 
         printf ("decode %s\n", fileName.c_str());
         #ifdef SW_JPEG
-          auto tile = swJpegDecode (fileName, 8);
+          showTile = swJpegDecode (fileName, 8);
+          lcd->change();
         #else
           delete (showTile);
           showTile = hwJpegDecode (fileName);
+          lcd->change();
         #endif
 
         if (showTile) {
           printf ("- decoded %s - %dx%d - took %d\n",
                   fileName.c_str(), showTile->mWidth, showTile->mHeight, HAL_GetTick() - startTime);
-          //xSemaphoreTake (mTileSem, 1000);
-          lcd->change();
-          //xSemaphoreGive (mTileSem);
 
           lcd->info (COL_YELLOW, fileName + " " + dec (showTile->mWidth) + "x" + dec (showTile->mHeight));
           vTaskDelay (1000);
