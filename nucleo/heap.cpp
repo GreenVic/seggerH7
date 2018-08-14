@@ -59,6 +59,10 @@ void* pvPortMalloc (size_t size) {
   vTaskSuspendAll();
   void* allocAddress = malloc (size);
   xTaskResumeAll();
+
+  if (!allocAddress)
+    printf ("pvPortMalloc %d fail\n", size);
+
   return allocAddress;
   }
 //}}}
@@ -115,88 +119,6 @@ public:
     }
   //}}}
 
-  //{{{
-  void* alloc (size_t size) {
-
-    void* allocAddress = NULL;
-    size_t largestBlock = 0;
-
-    vTaskSuspendAll();
-      {
-      // The wanted size is increased so it can contain a tLink_t structure in addition to the requested amount of bytes
-      size += kHeapStructSize;
-
-      // Ensure that blocks are always aligned to the required number of bytes
-      if ((size & portBYTE_ALIGNMENT_MASK) != 0x00)
-        // Byte alignment required. */
-        size += (portBYTE_ALIGNMENT - (size & portBYTE_ALIGNMENT_MASK));
-      }
-
-    if ((size > 0) && (size <= mFreeBytesRemaining)) {
-      // Traverse the list from the start (lowest address) block until one of adequate size is found
-      tLink_t* prevBlock = &mStart;
-      tLink_t* block = mStart.mNextFreeBlock;
-      largestBlock = mStart.mBlockSize;
-      while ((block->mBlockSize < size) && (block->mNextFreeBlock != NULL)) {
-        prevBlock = block;
-        block = block->mNextFreeBlock;
-        if (block->mBlockSize > largestBlock)
-          largestBlock = block->mBlockSize;
-        }
-
-      // If the end marker was reached then a block of adequate size was not found
-      if (block != mEnd) {
-        // Return the memory space pointed to - jumping over the tLink_t structure at its start
-        allocAddress = (void*)(((uint8_t*)prevBlock->mNextFreeBlock) + kHeapStructSize);
-
-        //This block is being returned for use so must be taken out of the list of free blocks
-        prevBlock->mNextFreeBlock = block->mNextFreeBlock;
-
-        // If the block is larger than required it can be split into two.
-        if ((block->mBlockSize - size) > kHeapMinimumBlockSize) {
-          // This block is to be split into two
-          // Create a new block following the number of bytes requested
-          tLink_t* newLink = (tLink_t*)(((uint8_t*)block) + size);
-
-          // Calculate the sizes of two blocks split from the single block
-          newLink->mBlockSize = block->mBlockSize - size;
-          block->mBlockSize = size;
-
-          // Insert the new block into the list of free blocks
-          insertBlockIntoFreeList (newLink);
-          }
-
-        mFreeBytesRemaining -= block->mBlockSize;
-        if (mFreeBytesRemaining < mMinimumEverFreeBytesRemaining )
-          mMinimumEverFreeBytesRemaining = mFreeBytesRemaining;
-
-        // The block is being returned - it is allocated and owned by the application and has no "next" block. */
-        block->mBlockSize |= kBlockAllocatedBit;
-        block->mNextFreeBlock = NULL;
-        }
-      }
-    xTaskResumeAll();
-
-    if (allocAddress)
-      printf ("sdramAlloc %p size:%d free:%d minFree:%d\n",
-              allocAddress, size, mFreeBytesRemaining,mMinimumEverFreeBytesRemaining);
-    else {
-      printf ("***sdramAlloc failed size:%d free:%d minFree:%d largest:%d\n",
-              size, mFreeBytesRemaining,mMinimumEverFreeBytesRemaining, largestBlock);
-
-      tLink_t* block = mStart.mNextFreeBlock;
-      while (block) {
-        if ((block->mBlockSize & kBlockAllocatedBit) == 0)
-          printf (" - alloc %p size:%d\n", block, block->mBlockSize);
-        else
-          printf (" -  free %p size:%d\n", block, block->mBlockSize);
-        block = block->mNextFreeBlock;
-        }
-      }
-
-    return allocAddress;
-    }
-  //}}}
   //{{{
   void* allocInt (size_t size) {
 
@@ -261,9 +183,39 @@ public:
     }
   //}}}
   //{{{
+  void* alloc (size_t size) {
+
+    size_t largestBlock = 0;
+
+    vTaskSuspendAll();
+    void* allocAddress = allocInt (size);
+    xTaskResumeAll();
+
+    if (allocAddress) {
+      //printf ("sdramAlloc %p size:%d free:%d minFree:%d\n",
+      //        allocAddress, size, mFreeBytesRemaining,mMinimumEverFreeBytesRemaining);
+      }
+    else {
+      printf ("***sdramAlloc failed size:%d free:%d minFree:%d largest:%d\n",
+              size, mFreeBytesRemaining,mMinimumEverFreeBytesRemaining, largestBlock);
+
+      tLink_t* block = mStart.mNextFreeBlock;
+      while (block) {
+        if ((block->mBlockSize & kBlockAllocatedBit) == 0)
+          printf (" - alloc %p size:%d\n", block, block->mBlockSize);
+        else
+          printf (" -  free %p size:%d\n", block, block->mBlockSize);
+        block = block->mNextFreeBlock;
+        }
+      }
+
+    return allocAddress;
+    }
+  //}}}
+  //{{{
   void free (void* p) {
 
-    printf ("sdRamFree %p\n", p);
+    //printf ("sdRamFree %p\n", p);
 
     if (p) {
       // memory being freed will have an tLink_t structure immediately before it.

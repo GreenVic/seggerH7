@@ -197,10 +197,11 @@ void appThread (void* arg) {
       for (auto fileName : mFileVec) {
         auto startTime = HAL_GetTick();
 
+        printf ("decode %s\n", fileName.c_str());
         //auto tile = hwJpegDecode (fileName);
         auto tile = swJpegDecode (fileName, 1);
         if (tile) {
-          printf ("decoded %s - %dx%d - took %d\n",
+          printf ("- decoded %s - %dx%d - took %d\n",
                   fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
           xSemaphoreTake (mTileSem, 1000);
           delete (showTile);
