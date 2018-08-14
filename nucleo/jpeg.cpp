@@ -949,9 +949,9 @@ extern "C" { void MDMA_IRQHandler() {
 //{{{
 size_t read_file (FIL* file, uint8_t* buf, uint32_t sizeofbuf) {
 
-  printf ("read_file %p %d\n", buf, sizeofbuf);
   size_t bytesRead;
   f_read (file, buf, sizeofbuf, &bytesRead);
+  printf ("read_file %p %d:%d\n", buf, sizeofbuf, bytesRead);
   return bytesRead;
   }
 //}}}
