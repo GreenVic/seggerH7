@@ -193,12 +193,12 @@ void appThread (void* arg) {
     printf ("findFiles took %d %d\n", HAL_GetTick() - startTime, mFileVec.size());
     lcd->info (COL_WHITE, "findFiles " + dec(mFileVec.size()) + " took " + dec(HAL_GetTick() - startTime));
 
-    while (false) {
+    while (true) {
       for (auto fileName : mFileVec) {
         auto startTime = HAL_GetTick();
 
-        auto tile = hwJpegDecode (fileName);
-        //auto tile = swJpegDecode (fileName, 1);
+        //auto tile = hwJpegDecode (fileName);
+        auto tile = swJpegDecode (fileName, 1);
         if (tile) {
           printf ("decode %s %dx%d took %d\n",
                   fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);

@@ -946,6 +946,15 @@ extern "C" { void MDMA_IRQHandler() {
 }
 //}}}
 
+//{{{
+size_t read_file (FIL* file, uint8_t* buf, uint32_t sizeofbuf) {
+
+  size_t bytesRead;
+  f_read (file, buf, sizeofbuf, &bytesRead);
+  return bytesRead;
+  }
+//}}}
+
 // interface
 //{{{
 cTile* hwJpegDecode (const string& fileName) {
@@ -1023,40 +1032,26 @@ cTile* hwJpegDecode (const string& fileName) {
 cTile* swJpegDecode (const string& fileName, int scale) {
 
   cTile* tile = nullptr;
-
-  FILINFO filInfo;
-  if (f_stat (fileName.c_str(), &filInfo)) {
-    printf ("swJpegDecode fstat fail\n");
-    return nullptr;
-    }
-
+  //FILINFO filInfo;
+  //if (f_stat (fileName.c_str(), &filInfo)) {
+  //  printf ("swJpegDecode fstat fail\n");
+  //  return nullptr;
+  //  }
   //lcd->info (COL_YELLOW, "loadFile " + fileName + " bytes:" + dec ((int)(filInfo.fsize)) + " " +
   //           dec (filInfo.ftime >> 11) + ":" + dec ((filInfo.ftime >> 5) & 63) + " " +
   //           dec (filInfo.fdate & 31) + ":" + dec ((filInfo.fdate >> 5) & 15) + ":" + dec ((filInfo.fdate >> 9) + 1980));
 
   FIL file;
-  if (f_open (&file, fileName.c_str(), FA_READ)) {
+  if (f_open (&file, fileName.c_str(), FA_READ))
     printf ("swJpegDecode open fail\n");
-    return nullptr;
-    }
-
-  auto buf = (uint8_t*)pvPortMalloc (filInfo.fsize);
-  if (!buf)  {
-    printf ("swJpegDecode buf alloc fail\n");
-    return nullptr;
-    }
-
-  UINT bytesRead = 0;
-  f_read (&file, buf, (UINT)filInfo.fsize, &bytesRead);
-  f_close (&file);
-
-  if (bytesRead > 0) {
+  else {
     struct jpeg_error_mgr jerr;
     struct jpeg_decompress_struct mCinfo;
     mCinfo.err = jpeg_std_error (&jerr);
     jpeg_create_decompress (&mCinfo);
 
-    jpeg_mem_src (&mCinfo, buf, bytesRead);
+    jpeg_stdio_src (&mCinfo, &file);
+    //jpeg_mem_src (&mCinfo, buf, bytesRead);
     jpeg_read_header (&mCinfo, TRUE);
 
     mCinfo.dct_method = JDCT_FLOAT;
@@ -1066,24 +1061,22 @@ cTile* swJpegDecode (const string& fileName, int scale) {
     jpeg_start_decompress (&mCinfo);
 
     auto rgb565pic = (uint16_t*)sdRamAlloc (mCinfo.output_width * mCinfo.output_height*2);
-    if (rgb565pic) {
-      tile = new cTile ((uint8_t*)rgb565pic, 2, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
+    if (!rgb565pic)
+      printf ("swJpegDecode rgb565pic alloc fail\n");
+    else {
       auto rgbLine = (uint8_t*)malloc (mCinfo.output_width * 3);
+      tile = new cTile ((uint8_t*)rgb565pic, 2, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
       while (mCinfo.output_scanline < mCinfo.output_height) {
         jpeg_read_scanlines (&mCinfo, &rgbLine, 1);
         cLcd::rgb888to565 (rgbLine, rgb565pic + ((mCinfo.output_scanline-1) * mCinfo.output_width), mCinfo.output_width, 1);
         }
       free (rgbLine);
       }
-    else
-      printf ("swJpegDecode pic alloc fail\n");
     jpeg_finish_decompress (&mCinfo);
     jpeg_destroy_decompress (&mCinfo);
+    f_close (&file);
     }
-  else
-    printf ("swJpegDecode read fail\n");
 
-  vPortFree (buf);
   return tile;
   }
 //}}}

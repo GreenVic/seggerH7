@@ -1,13 +1,28 @@
 #define DCT_SCALING_SUPPORTED
 
-#define JMALLOC  malloc
-#define JFREE    free
+#include <stdint.h>
+#include <stdlib.h>
+#include "../fatFs/ff.h"
+#include "cmsis_os.h"
+
+#define JFILE  FIL
+//#define JMALLOC  malloc
+//#define JFREE    free
+
+size_t read_file (JFILE* file, uint8_t* buf, uint32_t sizeofbuf);
+size_t write_file (JFILE* file, uint8_t* buf, uint32_t sizeofbuf) ;
+
+#define JFREAD(file,buf,sizeofbuf) read_file (file, buf, sizeofbuf)
+#define JFWRITE(file,buf,sizeofbuf) write_file (file, buf, sizeofbuf)
+
+#define JMALLOC  pvPortMalloc
+#define JFREE    vPortFree
 
 #define NO_GETENV
 #undef  USE_MSDOS_MEMMGR
 #undef  USE_MAC_MEMMGR
 #define USE_HEAP_MEM
-#define MAX_ALLOC_CHUNK  0x10000 
+#define MAX_ALLOC_CHUNK  0x10000
 
 #define HAVE_PROTOTYPES
 #define HAVE_UNSIGNED_CHAR
@@ -26,6 +41,6 @@
 
 #ifdef JPEG_INTERNALS
   #undef RIGHT_SHIFT_IS_UNSIGNED
-#endif 
+#endif
 
 #undef PROGRESS_REPORT
