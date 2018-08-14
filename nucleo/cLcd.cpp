@@ -310,6 +310,7 @@ void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r) {
   memcpy ((void*)(&DMA2D->FGMAR), stampRegs, 15*4);
   DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
+
   ready();
 
   xSemaphoreGive (mLockSem);
@@ -383,12 +384,15 @@ void cLcd::copy (cTile* srcTile, cPoint p) {
   DMA2D->FGPFCCR = srcTile->mFormat;
   DMA2D->FGMAR = (uint32_t)srcTile->mPiccy;
   DMA2D->FGOR = srcTile->mPitch - width;
+
   DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
   DMA2D->OMAR = uint32_t(mBuffer[mDrawBuffer] + p.y * getWidth() + p.x);
   DMA2D->OOR = getWidth() - srcTile->mWidth;
+
   DMA2D->NLR = (width << 16) | height;
   DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
+
   ready();
 
   xSemaphoreGive (mLockSem);
@@ -561,12 +565,15 @@ void cLcd::rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ys
   DMA2D->FGPFCCR = DMA2D_INPUT_RGB888;
   DMA2D->FGMAR = uint32_t(src);
   DMA2D->FGOR = 0;
+
   DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
   DMA2D->OMAR = uint32_t(dst);
   DMA2D->OOR = 0;
+
   DMA2D->NLR = (xsize << 16) | ysize;
   DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
+
   ready();
 
   xSemaphoreGive (mLockSem);
@@ -602,12 +609,15 @@ void cLcd::jpegYuvTo565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t y
   DMA2D->FGPFCCR = DMA2D_INPUT_YCBCR | (cssMode << POSITION_VAL(DMA2D_FGPFCCR_CSS));
   DMA2D->FGMAR = (uint32_t)src;
   DMA2D->FGOR = inputLineOffset;
+
   DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
   DMA2D->OMAR = (uint32_t)dst;
   DMA2D->OOR = 0;
+
   DMA2D->NLR = (xsize << 16) | ysize;
   DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
+
   ready();
 
   xSemaphoreGive (mLockSem);
