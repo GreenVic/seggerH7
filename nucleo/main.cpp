@@ -14,9 +14,7 @@
 using namespace std;
 //}}}
 
-#define SRAM_CACHE_MPU
-#define SRAM123_CACHE_MPU
-#define SDRAM_CACHE_MPU
+//#define SW_JPEG
 
 const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
 
@@ -102,11 +100,13 @@ void findFiles (const string& dirPath, const string& ext) {
         lcd->info (" - findFiles dir" + filePath);
         findFiles (filePath, ext);
         }
-      else if (filePath.find (ext) == filePath.size() - 4) {
-        mFileVec.push_back (filePath);
+      else if (filePath.size() - filePath.find (ext) == ext.size()) {
         printf ("- findFiles file %s\n", filePath.c_str());
-        lcd->info ("- findFiles file " + filePath);
+        mFileVec.push_back (filePath);
+        //lcd->info ("- findFiles file " + filePath);
         }
+      else
+        lcd->info (COL_GREEN, "- ignore %s" + filePath);
       }
     f_closedir (&dir);
     }
@@ -198,18 +198,21 @@ void appThread (void* arg) {
         auto startTime = HAL_GetTick();
 
         printf ("decode %s\n", fileName.c_str());
-        auto tile = hwJpegDecode (fileName);
-        //auto tile = swJpegDecode (fileName, 1);
-        if (tile) {
-          printf ("- decoded %s - %dx%d - took %d\n",
-                  fileName.c_str(), tile->mWidth, tile->mHeight, HAL_GetTick() - startTime);
-          xSemaphoreTake (mTileSem, 1000);
+        #ifdef SW_JPEG
+          auto tile = swJpegDecode (fileName, 8);
+        #else
           delete (showTile);
-          showTile = tile;
-          lcd->change();
-          xSemaphoreGive (mTileSem);
+          showTile = hwJpegDecode (fileName);
+        #endif
 
-          lcd->info (COL_YELLOW, fileName + " " + dec (tile->mWidth) + "x" + dec (tile->mHeight));
+        if (showTile) {
+          printf ("- decoded %s - %dx%d - took %d\n",
+                  fileName.c_str(), showTile->mWidth, showTile->mHeight, HAL_GetTick() - startTime);
+          //xSemaphoreTake (mTileSem, 1000);
+          lcd->change();
+          //xSemaphoreGive (mTileSem);
+
+          lcd->info (COL_YELLOW, fileName + " " + dec (showTile->mWidth) + "x" + dec (showTile->mHeight));
           vTaskDelay (1000);
           }
         else {
@@ -443,35 +446,29 @@ void mpuConfig() {
   mpuRegion.SubRegionDisable = 0x00;
   mpuRegion.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
 
-  #ifdef SRAM_CACHE_MPU
-    mpuRegion.Number = MPU_REGION_NUMBER0;
-    mpuRegion.BaseAddress = 0x24000000;
-    mpuRegion.Size = MPU_REGION_SIZE_512KB;
-    mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-    mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
-    mpuRegion.IsShareable = MPU_ACCESS_SHAREABLE;
-    HAL_MPU_ConfigRegion (&mpuRegion);
-  #endif
+  mpuRegion.Number = MPU_REGION_NUMBER0;
+  mpuRegion.BaseAddress = 0x24000000;
+  mpuRegion.Size = MPU_REGION_SIZE_512KB;
+  mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
+  mpuRegion.IsShareable = MPU_ACCESS_SHAREABLE;
+  HAL_MPU_ConfigRegion (&mpuRegion);
 
-  #ifdef SDRAM_CACHE_MPU
-    mpuRegion.Number = MPU_REGION_NUMBER1;
-    mpuRegion.BaseAddress = 0xD0000000;
-    mpuRegion.Size = MPU_REGION_SIZE_128MB;
-    mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-    mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
-    mpuRegion.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-    HAL_MPU_ConfigRegion (&mpuRegion);
-  #endif
+  mpuRegion.Number = MPU_REGION_NUMBER1;
+  mpuRegion.BaseAddress = 0xD0000000;
+  mpuRegion.Size = MPU_REGION_SIZE_128MB;
+  mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
+  mpuRegion.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  HAL_MPU_ConfigRegion (&mpuRegion);
 
-  #ifdef SRAM123_CACHE_MPU
-    mpuRegion.Number = MPU_REGION_NUMBER2;
-    mpuRegion.BaseAddress = 0x30000000;
-    mpuRegion.Size = MPU_REGION_SIZE_512KB;
-    mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-    mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
-    mpuRegion.IsShareable = MPU_ACCESS_SHAREABLE;
-    HAL_MPU_ConfigRegion (&mpuRegion);
-  #endif
+  mpuRegion.Number = MPU_REGION_NUMBER2;
+  mpuRegion.BaseAddress = 0x30000000;
+  mpuRegion.Size = MPU_REGION_SIZE_512KB;
+  mpuRegion.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  mpuRegion.IsCacheable = MPU_ACCESS_CACHEABLE;
+  mpuRegion.IsShareable = MPU_ACCESS_SHAREABLE;
+  HAL_MPU_ConfigRegion (&mpuRegion);
 
   // Enable the MPU
   HAL_MPU_Enable (MPU_PRIVILEGED_DEFAULT);

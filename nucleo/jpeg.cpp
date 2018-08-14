@@ -891,17 +891,23 @@ extern "C" { void JPEG_IRQHandler() {
     // clear header processing done flag
     __HAL_JPEG_CLEAR_FLAG (&mHandle, JPEG_FLAG_HPDF);
 
-    mOutYuvLen = ((mHandle.mWidth +15) & ~16) * ((mHandle.mHeight + 7) & ~8) * 3;
-    mOutYuvBuf = (uint8_t*)sdRamAllocInt (mOutYuvLen);
-    if (mHandle.mChromaSampling == JPEG_444_SUBSAMPLING)
+    if (mHandle.mChromaSampling == JPEG_444_SUBSAMPLING) {
+      mOutYuvLen = ((mHandle.mWidth + 7) & ~8) * ((mHandle.mHeight + 7) & ~8) * 3;
       printf ("- header 422 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
-    else if (mHandle.mChromaSampling == JPEG_422_SUBSAMPLING)
+      }
+    else if (mHandle.mChromaSampling == JPEG_422_SUBSAMPLING) {
+      mOutYuvLen = ((mHandle.mWidth +15) & ~16) * ((mHandle.mHeight + 7) & ~8) * 2;
       printf ("- header 422 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
-    else if (mHandle.mChromaSampling == JPEG_420_SUBSAMPLING)
+      }
+    else if (mHandle.mChromaSampling == JPEG_420_SUBSAMPLING) {
+      mOutYuvLen = (((mHandle.mWidth +15) & ~16) * ((mHandle.mHeight + 7) & ~8) * 3) / 2;
       printf ("- header 420 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
-    else
+      }
+    else {
+      mOutYuvLen = ((mHandle.mWidth +15) & ~16) * ((mHandle.mHeight + 7) & ~8) * 3;
       printf ("unrecognised chroma sampling %d\n", mHandle.mChromaSampling);
-
+      }
+    mOutYuvBuf = (uint8_t*)sdRamAllocInt (mOutYuvLen);
     mHandle.OutBuffPtr = mOutYuvBuf;
     mHandle.OutLen = CHUNK_SIZE_OUT;
 
@@ -977,6 +983,7 @@ cTile* hwJpegDecode (const string& fileName) {
     if (f_read (&file, mInBuf[1].mBuf, 4096, &mInBuf[1].mSize) == FR_OK)
       mInBuf[1].mFull = true;
 
+    mOutYuvBuf = nullptr;
     mHandle.mReadIndex = 0;
     mHandle.mWriteIndex = 0;
     mHandle.mDecodeDone = false;
@@ -1021,11 +1028,8 @@ cTile* hwJpegDecode (const string& fileName) {
     }
 
   vPortFree (mInBuf[0].mBuf);
-  mInBuf[0].mBuf = nullptr;
   vPortFree (mInBuf[1].mBuf);
-  mInBuf[1].mBuf = nullptr;
   sdRamFree (mOutYuvBuf);
-  mOutYuvBuf = nullptr;
 
   return tile;
   }
