@@ -141,7 +141,6 @@ public:
   void copy (cTile* srcTile, cPoint p);
   void copy90 (cTile* srcTile, cPoint p);
   void size (cTile* srcTile, const cRect& r);
-  void sizeBi (cTile* srcTile, const cRect& r);
 
   void pixel (uint16_t colour, cPoint p);
   void line (uint16_t colour, cPoint p1, cPoint p2);
