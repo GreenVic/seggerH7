@@ -786,6 +786,8 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   curLayerCfg->ImageHeight = getHeight();
   HAL_LTDC_ConfigLayer (&mLtdcHandle, curLayerCfg, 0);
 
+  HAL_LTDC_EnableDither (&mLtdcHandle);
+
   // set line interupt lineNumber
   LTDC->LIPCR = 0;
   LTDC->ICR = LTDC_IT_TE | LTDC_IT_FU | LTDC_IT_LI;

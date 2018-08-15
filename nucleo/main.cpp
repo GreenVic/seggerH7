@@ -56,7 +56,8 @@ void sdRamTest (uint16_t offset, uint16_t* addr, uint32_t len) {
   uint32_t readErr = 0;
   uint32_t bitErr[16] = {0};
 
-  for (int k = 0; k < 64; k++) {
+  for (int k = 0; k < 16; k++) {
+    vTaskDelay (k*20);
     auto readAddress = addr;
     for (uint32_t j = 0; j < len / 2; j++) {
       uint16_t readWord1 = *readAddress++;
