@@ -32,7 +32,8 @@ cLcd* lcd = nullptr;
 vector<string> mFileVec;
 static SemaphoreHandle_t mLockSem;
 
-__IO cTile* showTile = nullptr;
+__IO bool show = false;
+__IO cTile* showTile[2] = { nullptr, nullptr };
 
 extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
@@ -132,15 +133,13 @@ void uiThread (void* arg) {
       lcd->start();
       lcd->clear (COL_BLACK);
 
-      xSemaphoreTake (mLockSem, 1000);
-      if (showTile) {
-        if (showTile->mWidth <= lcd->getWidth() &&  showTile->mHeight <=lcd->getHeight())
-          lcd->copy ((cTile*)showTile, cPoint ((lcd->getWidth() - showTile->mWidth) / 2,
-                                               (lcd->getHeight() - showTile->mHeight) / 2));
+      if (showTile[show]) {
+        if (showTile[show]->mWidth <= lcd->getWidth() &&  showTile[show]->mHeight <=lcd->getHeight())
+          lcd->copy ((cTile*)showTile[show], cPoint ((lcd->getWidth() - showTile[show]->mWidth) / 2,
+                                               (lcd->getHeight() - showTile[show]->mHeight) / 2));
         else
-          lcd->size ((cTile*)showTile, cRect (0,0, lcd->getWidth(), lcd->getHeight()));
+          lcd->size ((cTile*)showTile[show], cRect (0,0, lcd->getWidth(), lcd->getHeight()));
         }
-      xSemaphoreGive (mLockSem);
 
       //{{{  draw clock
       float hourAngle;
@@ -204,25 +203,21 @@ void appThread (void* arg) {
       auto startTime = HAL_GetTick();
 
       printf ("decode %s\n", fileName.c_str());
+
+      delete showTile[!show];
       #ifdef SW_JPEG
-        showTile = swJpegDecode (fileName, 8);
-        lcd->change();
+        showTile[!show] = swJpegDecode (fileName, 8);
       #else
-        auto tile = hwJpegDecode (fileName);
-        xSemaphoreTake (mLockSem, 1000);
-        auto oldTile = showTile;
-        showTile = tile;
-        if (oldTile)
-          delete (oldTile);
-        xSemaphoreGive (mLockSem);
-        lcd->change();
+        showTile[!show] = hwJpegDecode (fileName);
       #endif
+      show = !show;
+      lcd->change();
 
-      if (showTile) {
+      if (showTile[show]) {
         printf ("- decoded %s - %dx%d - took %d\n",
-                fileName.c_str(), showTile->mWidth, showTile->mHeight, HAL_GetTick() - startTime);
+                fileName.c_str(), showTile[show]->mWidth, showTile[show]->mHeight, HAL_GetTick() - startTime);
 
-        lcd->info (COL_YELLOW, fileName + " " + dec (showTile->mWidth) + "x" + dec (showTile->mHeight));
+        lcd->info (COL_YELLOW, fileName + " " + dec (showTile[show]->mWidth) + "x" + dec (showTile[show]->mHeight));
         vTaskDelay (1000);
         }
       else {
