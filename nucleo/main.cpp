@@ -21,7 +21,7 @@ using namespace std;
 //}}}
 
 #define SW_JPEG
-#define SW_SCALE 3
+#define SW_SCALE 4
 
 const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
 
