@@ -32,7 +32,7 @@ SemaphoreHandle_t cLcd::mDma2dSem;
 SemaphoreHandle_t cLcd::mFrameSem;
 //}}}
 DMA2D_HandleTypeDef DMA2D_Handle;
-SemaphoreHandle_t mLockSem;
+static SemaphoreHandle_t mLockSem;
 
 //{{{
 extern "C" {void LTDC_IRQHandler() {
@@ -430,6 +430,8 @@ void cLcd::copy90 (cTile* srcTile, cPoint p) {
 //{{{
 void cLcd::size (cTile* srcTile, const cRect& r) {
 
+  xSemaphoreTake (mLockSem, 1000);
+
   uint32_t xStep16 = ((srcTile->mWidth - 1) << 16) / (r.getWidth() - 1);
   uint32_t yStep16 = ((srcTile->mHeight - 1) << 16) / (r.getHeight() - 1);
 
@@ -442,6 +444,8 @@ void cLcd::size (cTile* srcTile, const cRect& r) {
       *dstPtr++ = *(src11 + (x16 >> 16));
     dstPtr += getWidth() - r.getWidth();
     }
+
+  xSemaphoreGive (mLockSem);
   }
 //}}}
 //{{{

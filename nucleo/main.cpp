@@ -30,7 +30,7 @@ cRtc mRtc;
 
 cLcd* lcd = nullptr;
 vector<string> mFileVec;
-SemaphoreHandle_t mTileSem;
+static SemaphoreHandle_t mLockSem;
 
 __IO cTile* showTile = nullptr;
 
@@ -132,6 +132,7 @@ void uiThread (void* arg) {
       lcd->start();
       lcd->clear (COL_BLACK);
 
+      xSemaphoreTake (mLockSem, 1000);
       if (showTile) {
         if (showTile->mWidth <= lcd->getWidth() &&  showTile->mHeight <=lcd->getHeight())
           lcd->copy ((cTile*)showTile, cPoint ((lcd->getWidth() - showTile->mWidth) / 2,
@@ -139,6 +140,7 @@ void uiThread (void* arg) {
         else
           lcd->size ((cTile*)showTile, cRect (0,0, lcd->getWidth(), lcd->getHeight()));
         }
+      xSemaphoreGive (mLockSem);
 
       //{{{  draw clock
       float hourAngle;
@@ -206,10 +208,13 @@ void appThread (void* arg) {
         showTile = swJpegDecode (fileName, 8);
         lcd->change();
       #else
-        if (showTile)
-          delete (showTile);
-        showTile = nullptr;
-        showTile = hwJpegDecode (fileName);
+        auto tile = hwJpegDecode (fileName);
+        xSemaphoreTake (mLockSem, 1000);
+        auto oldTile = showTile;
+        showTile = tile;
+        if (oldTile)
+          delete (oldTile);
+        xSemaphoreGive (mLockSem);
         lcd->change();
       #endif
 
@@ -500,7 +505,7 @@ int main() {
 
   mRtc.init();
   printf ("%s\n", kHello.c_str());
-  mTileSem = xSemaphoreCreateMutex();
+  mLockSem = xSemaphoreCreateMutex();
 
   lcd = new cLcd ((uint16_t*)SDRAM_DEVICE_ADDR,
                   (uint16_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*2));
