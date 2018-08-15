@@ -20,7 +20,8 @@
 using namespace std;
 //}}}
 
-//#define SW_JPEG
+#define SW_JPEG
+#define SW_SCALE 3
 
 const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
 
@@ -114,7 +115,7 @@ void findFiles (const string& dirPath, const string& ext) {
         //lcd->info ("- findFiles file " + filePath);
         }
       else
-        lcd->info (COL_GREEN, "- ignore %s" + filePath);
+        lcd->info (COL_GREEN, "- ignoring " + filePath);
       }
     f_closedir (&dir);
     }
@@ -209,7 +210,7 @@ void appThread (void* arg) {
       delete showTile[!show];
       printf ("APP deleted %d\n", !show);
       #ifdef SW_JPEG
-        showTile[!show] = swJpegDecode (fileName, 8);
+        showTile[!show] = swJpegDecode (fileName, SW_SCALE);
       #else
         showTile[!show] = hwJpegDecode (fileName);
       #endif
