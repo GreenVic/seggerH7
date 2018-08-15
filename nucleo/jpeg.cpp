@@ -910,8 +910,7 @@ extern "C" { void JPEG_IRQHandler() {
     else
       printf ("unrecognised chroma sampling %d\n", mHandle.mChromaSampling);
 
-    //mOutYuvBuf = (uint8_t*)sdRamAllocInt (mOutYuvLen);
-    mOutYuvBuf = (uint8_t*)0xD7000000;
+    mOutYuvBuf = (uint8_t*)sdRamAllocInt (mOutYuvLen);
     mHandle.OutBuffPtr = mOutYuvBuf;
     mHandle.OutLen = kOutChunkSize;
 
@@ -1035,7 +1034,7 @@ cTile* hwJpegDecode (const string& fileName) {
 
   vPortFree (mInBuf[0].mBuf);
   vPortFree (mInBuf[1].mBuf);
-  //sdRamFree (mOutYuvBuf);
+  sdRamFree (mOutYuvBuf);
 
   return tile;
   }

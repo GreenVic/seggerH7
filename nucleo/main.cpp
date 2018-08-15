@@ -206,15 +206,11 @@ void appThread (void* arg) {
         showTile = swJpegDecode (fileName, 8);
         lcd->change();
       #else
-        for (int k = 0; k < 2; k++) {
-          if (showTile)
-            delete (showTile);
-          showTile = nullptr;
-          showTile = hwJpegDecode (fileName);
-          lcd->change();
-          lcd->info (COL_YELLOW, fileName);
-          vTaskDelay (500);
-          }
+        if (showTile)
+          delete (showTile);
+        showTile = nullptr;
+        showTile = hwJpegDecode (fileName);
+        lcd->change();
       #endif
 
       if (showTile) {
@@ -441,7 +437,7 @@ void sdRamConfig() {
   HAL_Delay (1);
   FMC_SDRAM_DEVICE->SDCMR = kLoadMode;
   uint32_t refreshCount = (516 - 20) << 1;
-  //FMC_SDRAM_DEVICE->SDRTR = refreshCount;
+  FMC_SDRAM_DEVICE->SDRTR = refreshCount;
   }
 //}}}
 //{{{
@@ -509,7 +505,7 @@ int main() {
   lcd = new cLcd ((uint16_t*)SDRAM_DEVICE_ADDR,
                   (uint16_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*2));
   lcd->init (kHello);
-  sdRamInit (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - 0x01000000 - LCD_WIDTH*LCD_HEIGHT*4);
+  sdRamInit (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
 
   TaskHandle_t uiHandle;
   xTaskCreate ((TaskFunction_t)uiThread, "ui", 1024, 0, 4, &uiHandle);
