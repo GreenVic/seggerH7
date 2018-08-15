@@ -507,8 +507,9 @@ int main() {
   printf ("%s\n", kHello.c_str());
   mLockSem = xSemaphoreCreateMutex();
 
-  sdRamInit (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
+  dtcmInit (0x20000000,  0x00020000);
   sram123Init (0x30000000,  0x00048000);
+  sdRamInit (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
 
   lcd = new cLcd ((uint16_t*)SDRAM_DEVICE_ADDR, (uint16_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*2));
   lcd->init (kHello);

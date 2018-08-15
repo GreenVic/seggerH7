@@ -1077,7 +1077,7 @@ cTile* swJpegDecode (const string& fileName, int scale) {
     if (!rgb565pic)
       printf ("swJpegDecode %s rgb565pic alloc fail\n", fileName.c_str());
     else {
-      auto rgbLine = (uint8_t*)pvPortMalloc (mCinfo.output_width * 3);
+      auto rgbLine = (uint8_t*)sram123Alloc (mCinfo.output_width * 3);
       if (!rgbLine)
         printf ("swJpegDecode %s rgbLine alloc fail\n", fileName.c_str());
       else {
@@ -1086,7 +1086,7 @@ cTile* swJpegDecode (const string& fileName, int scale) {
           jpeg_read_scanlines (&mCinfo, &rgbLine, 1);
           cLcd::rgb888to565 (rgbLine, rgb565pic + (mCinfo.output_scanline-1) * mCinfo.output_width, mCinfo.output_width, 1);
           }
-        vPortFree (rgbLine);
+        sram123Free (rgbLine);
         }
       }
     jpeg_finish_decompress (&mCinfo);

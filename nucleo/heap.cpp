@@ -238,49 +238,21 @@ private:
   };
 //}}}
 
-#define DTCM_ADDR 0x20000000
-#define DTCM_SIZE 0x00020000
-static uint8_t* mDtcmAlloc = (uint8_t*)DTCM_ADDR;
-//{{{
-uint8_t* dtcmAlloc (size_t bytes) {
+//#define DTCM_ADDR 0x20000000
+//#define DTCM_SIZE 0x00020000
+cHeap mDtcmHeap;
 
-  vTaskSuspendAll();
+void dtcmInit (uint32_t start, size_t size) { mDtcmHeap.init (start, size); }
+uint8_t* dtcmAlloc (size_t size) { return (uint8_t*)mDtcmHeap.alloc (size); }
+void dtcmFree (void* p) { mDtcmHeap.free (p); }
 
-  uint8_t* alloc = mDtcmAlloc;
-  if (alloc + bytes <= (uint8_t*)DTCM_ADDR + DTCM_SIZE)
-    mDtcmAlloc += bytes;
-  else
-    alloc = NULL;
-
-  xTaskResumeAll();
-
-  return alloc;
-  }
-//}}}
-
-#define SRAM123_ADDR 0x30000000
-#define SRAM123_SIZE 0x00048000
+//#define SRAM123_ADDR 0x30000000
+//#define SRAM123_SIZE 0x00048000
 cHeap mSram123Heap;
-//static uint8_t* mSram123Alloc = (uint8_t*)SRAM123_ADDR;
 
 void sram123Init (uint32_t start, size_t size) { mSram123Heap.init (start, size); }
 uint8_t* sram123Alloc (size_t size) { return (uint8_t*)mSram123Heap.alloc (size); }
-//{{{
-//uint8_t* sram123Alloc (size_t bytes) {
-
-  //vTaskSuspendAll();
-
-  //uint8_t* alloc = mSram123Alloc;
-  //if (alloc + bytes <= (uint8_t*)SRAM123_ADDR + SRAM123_SIZE)
-    //mSram123Alloc += bytes;
-  //else
-    //alloc = NULL;
-
-  //xTaskResumeAll();
-
-  //return alloc;
-  //}
-//}}}
+void sram123Free (void* p) { mSram123Heap.free (p); }
 
 //{{{
 void* pvPortMalloc (size_t size) {
