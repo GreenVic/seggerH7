@@ -128,11 +128,12 @@ void uiThread (void* arg) {
 
   int count = 0;
   while (true) {
-    if (lcd->isChanged() || (count == 1000)) {
+    if (lcd->isChanged() || (count == 100000)) {
       count = 0;
       lcd->start();
       lcd->clear (COL_BLACK);
 
+      printf ("UI before %d\n", show);
       if (showTile[show]) {
         if (showTile[show]->mWidth <= lcd->getWidth() &&  showTile[show]->mHeight <=lcd->getHeight())
           lcd->copy ((cTile*)showTile[show], cPoint ((lcd->getWidth() - showTile[show]->mWidth) / 2,
@@ -140,6 +141,7 @@ void uiThread (void* arg) {
         else
           lcd->size ((cTile*)showTile[show], cRect (0,0, lcd->getWidth(), lcd->getHeight()));
         }
+      printf ("UI after %d\n", show);
 
       //{{{  draw clock
       float hourAngle;
@@ -202,29 +204,31 @@ void appThread (void* arg) {
     for (auto fileName : mFileVec) {
       auto startTime = HAL_GetTick();
 
-      printf ("decode %s\n", fileName.c_str());
+      printf ("APP decode %s\n", fileName.c_str());
 
       delete showTile[!show];
+      printf ("APP deleted %d\n", !show);
       #ifdef SW_JPEG
         showTile[!show] = swJpegDecode (fileName, 8);
       #else
         showTile[!show] = hwJpegDecode (fileName);
       #endif
+      printf ("APP decoded %d\n", !show);
       show = !show;
-      lcd->change();
+      //lcd->change();
+      printf ("APP changed %d\n", show);
 
       if (showTile[show]) {
-        printf ("- decoded %s - %dx%d - took %d\n",
-                fileName.c_str(), showTile[show]->mWidth, showTile[show]->mHeight, HAL_GetTick() - startTime);
-
+        printf ("APP decoded %s - show:%d  %dx%d - took %d\n",
+                fileName.c_str(),
+                show, showTile[show]->mWidth, showTile[show]->mHeight, HAL_GetTick() - startTime);
         lcd->info (COL_YELLOW, fileName + " " + dec (showTile[show]->mWidth) + "x" + dec (showTile[show]->mHeight));
-        vTaskDelay (1000);
         }
       else {
         printf ("decode %s tile error\n", fileName.c_str());
         lcd->info ("decode load error " + fileName);
-        vTaskDelay (5000);
         }
+      vTaskDelay (1000);
       }
     }
 
