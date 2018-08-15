@@ -205,11 +205,11 @@ uint32_t mOutYuvLen = 0;
 uint32_t mOutTotalLen = 0;
 uint32_t mOutTotalChunks = 0;
 //{{{
-void outputData (uint8_t* data, uint32_t len) {
+void outputData (uint32_t len) {
 
   //printf ("outputData %x %d\n", data, len);
-  //lcd->info (COL_GREEN, "outputData " + hex(uint32_t(data)) + ":" + hex(len));
-  mHandle.OutBuffPtr = data + len;
+  //lcd->info (COL_GREEN, "outputData " + hex(uint32_t(mHandle.OutBuffPtr)) + ":" + hex(len));
+  mHandle.OutBuffPtr += len;
   mHandle.OutLen = kOutChunkSize;
   mOutTotalLen += len;
   mOutTotalChunks++;
@@ -263,7 +263,7 @@ void dmaEnd() {
 
   if (mHandle.OutCount == mHandle.OutLen) {
     // Output Buffer full
-    outputData (mHandle.OutBuffPtr, mHandle.OutCount);
+    outputData (mHandle.OutCount);
     mHandle.OutCount = 0;
     }
 
@@ -271,7 +271,7 @@ void dmaEnd() {
   if (__HAL_JPEG_GET_FLAG (&mHandle, JPEG_FLAG_OFNEF) == 0) {
     if (mHandle.OutCount > 0) {
       // Output Buffer not empty
-      outputData (mHandle.OutBuffPtr, mHandle.OutCount);
+      outputData (mHandle.OutCount);
       mHandle.OutCount = 0;
       }
 
@@ -294,7 +294,7 @@ void dmaEnd() {
 
       if (mHandle.OutCount == mHandle.OutLen) {
         // Output Buffer full
-        outputData (mHandle.OutBuffPtr, mHandle.OutCount);
+        outputData (mHandle.OutCount);
         mHandle.OutCount = 0;
         }
       }
@@ -303,7 +303,7 @@ void dmaEnd() {
     JPEG->CONFR0 &=  ~JPEG_CONFR0_START;
     if (mHandle.OutCount > 0) {
       // Output Buffer not empty
-      outputData (mHandle.OutBuffPtr, mHandle.OutCount);
+      outputData (mHandle.OutCount);
       mHandle.OutCount = 0;
       }
     }
@@ -733,7 +733,7 @@ void dmaOutCpltCallback (MDMA_HandleTypeDef* hmdma) {
       mHandle.OutCount = mHandle.OutLen - (hmdma->Instance->CBNDTR & MDMA_CBNDTR_BNDT);
 
       // outputBuffer full
-      outputData (mHandle.OutBuffPtr, mHandle.OutCount);
+      outputData (mHandle.OutCount);
 
       // restart MDMA FIFO Out transfer
       HAL_MDMA_Start_IT (&mHandle.hmdmaOut, (uint32_t)&JPEG->DOR, (uint32_t)mHandle.OutBuffPtr, mHandle.OutLen, 1);
@@ -910,7 +910,8 @@ extern "C" { void JPEG_IRQHandler() {
     else
       printf ("unrecognised chroma sampling %d\n", mHandle.mChromaSampling);
 
-    mOutYuvBuf = (uint8_t*)sdRamAllocInt (mOutYuvLen);
+    //mOutYuvBuf = (uint8_t*)sdRamAllocInt (mOutYuvLen);
+    mOutYuvBuf = (uint8_t*)0xD7000000;
     mHandle.OutBuffPtr = mOutYuvBuf;
     mHandle.OutLen = kOutChunkSize;
 
@@ -1034,7 +1035,7 @@ cTile* hwJpegDecode (const string& fileName) {
 
   vPortFree (mInBuf[0].mBuf);
   vPortFree (mInBuf[1].mBuf);
-  sdRamFree (mOutYuvBuf);
+  //sdRamFree (mOutYuvBuf);
 
   return tile;
   }

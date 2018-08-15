@@ -509,7 +509,7 @@ int main() {
   lcd = new cLcd ((uint16_t*)SDRAM_DEVICE_ADDR,
                   (uint16_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*2));
   lcd->init (kHello);
-  sdRamInit (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
+  sdRamInit (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - 0x01000000 - LCD_WIDTH*LCD_HEIGHT*4);
 
   TaskHandle_t uiHandle;
   xTaskCreate ((TaskFunction_t)uiThread, "ui", 1024, 0, 4, &uiHandle);
