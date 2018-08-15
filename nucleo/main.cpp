@@ -206,9 +206,10 @@ void appThread (void* arg) {
         showTile = swJpegDecode (fileName, 8);
         lcd->change();
       #else
-        for (int k = 0; k < 20; k++) {
+        for (int k = 0; k < 2; k++) {
           if (showTile)
             delete (showTile);
+          showTile = nullptr;
           showTile = hwJpegDecode (fileName);
           lcd->change();
           lcd->info (COL_YELLOW, fileName);
@@ -351,8 +352,6 @@ void sdRamConfig() {
   #define SDRAM_MODEREG_BURST_LENGTH_8             ((uint16_t)0x0004)
   #define SDRAM_MODEREG_CAS_LATENCY_2              ((uint16_t)0x0020)
   #define SDRAM_MODEREG_WRITEBURST_MODE_SINGLE     ((uint16_t)0x0200)
-
-  #define REFRESH_COUNT                            ((uint32_t)0x0603)
   //}}}
 
   #define kClockEnable  FMC_SDRAM_CMD_TARGET_BANK2 | FMC_SDRAM_CMD_CLK_ENABLE;
@@ -435,9 +434,14 @@ void sdRamConfig() {
   FMC_SDRAM_DEVICE->SDCMR = kClockEnable;
   HAL_Delay (1);
   FMC_SDRAM_DEVICE->SDCMR = kPreChargeAll;
+  HAL_Delay (1);
   FMC_SDRAM_DEVICE->SDCMR = kAutoRefresh;
+  HAL_Delay (1);
+  FMC_SDRAM_DEVICE->SDCMR = kAutoRefresh;
+  HAL_Delay (1);
   FMC_SDRAM_DEVICE->SDCMR = kLoadMode;
-  FMC_SDRAM_DEVICE->SDRTR = REFRESH_COUNT << 1;
+  uint32_t refreshCount = (516 - 20) << 1;
+  //FMC_SDRAM_DEVICE->SDRTR = refreshCount;
   }
 //}}}
 //{{{
