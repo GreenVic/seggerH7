@@ -1,8 +1,11 @@
+// heap.cpp
+//{{{  includes
 #include <stdio.h>
 #include <stdlib.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "heap.h"
+//}}}
 
 // 0x20000000 0x00020000  sram DTCM 128k
 // ...
@@ -130,11 +133,11 @@ public:
     xTaskResumeAll();
 
     if (allocAddress) {
-      //printf ("sdramAlloc %p size:%d free:%d minFree:%d\n",
+      //printf ("heap alloc %p size:%d free:%d minFree:%d\n",
       //        allocAddress, size, mFreeBytesRemaining,mMinimumEverFreeBytesRemaining);
       }
     else {
-      printf ("***sdramAlloc failed size:%d free:%d minFree:%d largest:%d\n",
+      printf ("***heap alloc fail size:%d free:%d minFree:%d largest:%d\n",
               size, mFreeBytesRemaining,mMinimumEverFreeBytesRemaining, largestBlock);
 
       tLink_t* block = mStart.mNextFreeBlock;

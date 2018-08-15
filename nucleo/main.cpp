@@ -238,7 +238,7 @@ void appThread (void* arg) {
         printf ("decode %s tile error\n", fileName.c_str());
         lcd->info ("decode load error " + fileName);
         }
-      vTaskDelay (1000);
+      vTaskDelay (500);
       }
     }
 
@@ -247,7 +247,7 @@ void appThread (void* arg) {
     for (int j = 4; j <= 0x3F; j++) {
       offset += HAL_GetTick();
       sdRamTest (uint16_t(offset++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00200000)), 0x00200000);
-      vTaskDelay (201);
+      vTaskDelay (200);
       }
 
   while (true)
