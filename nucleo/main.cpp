@@ -129,7 +129,7 @@ void uiThread (void* arg) {
 
   int count = 0;
   while (true) {
-    if (lcd->isChanged() || (count == 100000)) {
+    if (lcd->isChanged() || (count == 1000)) {
       count = 0;
       lcd->start();
       lcd->clear (COL_BLACK);
@@ -441,8 +441,8 @@ void sdRamConfig() {
   FMC_SDRAM_DEVICE->SDCMR = kAutoRefresh;
   HAL_Delay (1);
   FMC_SDRAM_DEVICE->SDCMR = kLoadMode;
-  uint32_t refreshCount = (516 - 20) << 1;
-  FMC_SDRAM_DEVICE->SDRTR = refreshCount;
+  //uint32_t refreshCount = (516 - 20) << 1;
+  //FMC_SDRAM_DEVICE->SDRTR = 0;//refreshCount;
   }
 //}}}
 //{{{
