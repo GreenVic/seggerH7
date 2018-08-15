@@ -14,70 +14,6 @@
 // ....
 // 0x30080000 0x00010000  sram4  64k
 
-#define DTCM_ADDR 0x20000000
-#define DTCM_SIZE 0x00020000
-static uint8_t* mDtcmAlloc = (uint8_t*)DTCM_ADDR;
-//{{{
-uint8_t* dtcmAlloc (size_t bytes) {
-
-  vTaskSuspendAll();
-
-  uint8_t* alloc = mDtcmAlloc;
-  if (alloc + bytes <= (uint8_t*)DTCM_ADDR + DTCM_SIZE)
-    mDtcmAlloc += bytes;
-  else
-    alloc = NULL;
-
-  xTaskResumeAll();
-
-  return alloc;
-  }
-//}}}
-
-#define SRAM123_ADDR 0x30000000
-#define SRAM123_SIZE 0x00048000
-static uint8_t* mSram123Alloc = (uint8_t*)SRAM123_ADDR;
-//{{{
-uint8_t* sram123Alloc (size_t bytes) {
-
-  vTaskSuspendAll();
-
-  uint8_t* alloc = mSram123Alloc;
-  if (alloc + bytes <= (uint8_t*)SRAM123_ADDR + SRAM123_SIZE)
-    mSram123Alloc += bytes;
-  else
-    alloc = NULL;
-
-  xTaskResumeAll();
-
-  return alloc;
-  }
-//}}}
-
-//{{{
-void* pvPortMalloc (size_t size) {
-  vTaskSuspendAll();
-  void* allocAddress = malloc (size);
-  xTaskResumeAll();
-
-  if (!allocAddress)
-    printf ("pvPortMalloc %d fail\n", size);
-
-  return allocAddress;
-  }
-//}}}
-//{{{
-void vPortFree (void* pv) {
-  if (pv != NULL) {
-    vTaskSuspendAll();
-    free (pv);
-    xTaskResumeAll();
-    }
-  }
-//}}}
-
-//#define SDRAM_DEVICE_ADDR 0xD0000000
-//#define SDRAM_DEVICE_SIZE 0x08000000
 //{{{
 class cHeap {
 public:
@@ -90,9 +26,9 @@ public:
     // Ensure the heap starts on a correctly aligned boundary
     size_t uxAddress = (size_t)start;
     size_t xTotalHeapSize = size;
-    if ((uxAddress & portBYTE_ALIGNMENT_MASK) != 0) {
-      uxAddress += (portBYTE_ALIGNMENT - 1);
-      uxAddress &= ~((size_t)portBYTE_ALIGNMENT_MASK);
+    if ((uxAddress & mAlignmentMask) != 0) {
+      uxAddress += (mAlignment - 1);
+      uxAddress &= ~((size_t)mAlignmentMask);
       xTotalHeapSize -= uxAddress - (size_t)start;
       }
 
@@ -105,7 +41,7 @@ public:
     // mEnd is used to mark the end of the list of free blocks and is inserted at the end of the heap space. */
     uxAddress = ((size_t)pucAlignedHeap) + xTotalHeapSize;
     uxAddress -= kHeapStructSize;
-    uxAddress &= ~((size_t) portBYTE_ALIGNMENT_MASK );
+    uxAddress &= ~((size_t) mAlignmentMask );
     mEnd = (tLink_t*)uxAddress;
     mEnd->mBlockSize = 0;
     mEnd->mNextFreeBlock = NULL;
@@ -132,9 +68,9 @@ public:
       size += kHeapStructSize;
 
       // Ensure that blocks are always aligned to the required number of bytes
-      if ((size & portBYTE_ALIGNMENT_MASK) != 0x00)
+      if ((size & mAlignmentMask) != 0x00)
         // Byte alignment required. */
-        size += (portBYTE_ALIGNMENT - (size & portBYTE_ALIGNMENT_MASK));
+        size += (mAlignment - (size & mAlignmentMask));
       }
 
     if ((size > 0) && (size <= mFreeBytesRemaining)) {
@@ -251,10 +187,11 @@ private:
     struct A_BLOCK_LINK* mNextFreeBlock; // The next free block in the list
     size_t mBlockSize;                   // The size of the free block
     } tLink_t;
-
   //}}}
 
-  const size_t kHeapStructSize = (sizeof(tLink_t) + ((size_t)(portBYTE_ALIGNMENT-1))) & ~((size_t)portBYTE_ALIGNMENT_MASK);
+  const uint32_t mAlignment = 8;
+  const uint32_t mAlignmentMask = 7;
+  const size_t kHeapStructSize = 8;
   const size_t kHeapMinimumBlockSize = kHeapStructSize << 1;
   const size_t kBlockAllocatedBit = 0x80000000;
 
@@ -296,14 +233,83 @@ private:
 
   tLink_t mStart;
   tLink_t* mEnd = NULL;
-  size_t mFreeBytesRemaining = 0U;
-  size_t mMinimumEverFreeBytesRemaining = 0U;
+  size_t mFreeBytesRemaining = 0;
+  size_t mMinimumEverFreeBytesRemaining = 0;
   };
 //}}}
+
+#define DTCM_ADDR 0x20000000
+#define DTCM_SIZE 0x00020000
+static uint8_t* mDtcmAlloc = (uint8_t*)DTCM_ADDR;
+//{{{
+uint8_t* dtcmAlloc (size_t bytes) {
+
+  vTaskSuspendAll();
+
+  uint8_t* alloc = mDtcmAlloc;
+  if (alloc + bytes <= (uint8_t*)DTCM_ADDR + DTCM_SIZE)
+    mDtcmAlloc += bytes;
+  else
+    alloc = NULL;
+
+  xTaskResumeAll();
+
+  return alloc;
+  }
+//}}}
+
+#define SRAM123_ADDR 0x30000000
+#define SRAM123_SIZE 0x00048000
+cHeap mSram123Heap;
+//static uint8_t* mSram123Alloc = (uint8_t*)SRAM123_ADDR;
+
+void sram123Init (uint32_t start, size_t size) { mSram123Heap.init (start, size); }
+uint8_t* sram123Alloc (size_t size) { return (uint8_t*)mSram123Heap.alloc (size); }
+//{{{
+//uint8_t* sram123Alloc (size_t bytes) {
+
+  //vTaskSuspendAll();
+
+  //uint8_t* alloc = mSram123Alloc;
+  //if (alloc + bytes <= (uint8_t*)SRAM123_ADDR + SRAM123_SIZE)
+    //mSram123Alloc += bytes;
+  //else
+    //alloc = NULL;
+
+  //xTaskResumeAll();
+
+  //return alloc;
+  //}
+//}}}
+
+//{{{
+void* pvPortMalloc (size_t size) {
+  vTaskSuspendAll();
+  void* allocAddress = malloc (size);
+  xTaskResumeAll();
+
+  if (!allocAddress)
+    printf ("pvPortMalloc %d fail\n", size);
+
+  return allocAddress;
+  }
+//}}}
+//{{{
+void vPortFree (void* pv) {
+  if (pv != NULL) {
+    vTaskSuspendAll();
+    free (pv);
+    xTaskResumeAll();
+    }
+  }
+//}}}
+
+//#define SDRAM_DEVICE_ADDR 0xD0000000
+//#define SDRAM_DEVICE_SIZE 0x08000000
 cHeap mSdRamHeap;
 
 void sdRamInit (uint32_t start, size_t size) { mSdRamHeap.init (start, size); }
-void* sdRamAlloc (size_t size) { return mSdRamHeap.alloc (size); }
+void* sdRamAlloc (size_t size) {return mSdRamHeap.alloc (size); }
 void* sdRamAllocInt (size_t size) { return mSdRamHeap.allocInt (size); }
 void sdRamFree (void* p) { mSdRamHeap.free (p); }
 size_t getSdRamFreeHeapSize() { return mSdRamHeap.getFreeHeapSize(); }

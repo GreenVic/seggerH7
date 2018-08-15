@@ -507,10 +507,11 @@ int main() {
   printf ("%s\n", kHello.c_str());
   mLockSem = xSemaphoreCreateMutex();
 
-  lcd = new cLcd ((uint16_t*)SDRAM_DEVICE_ADDR,
-                  (uint16_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*2));
-  lcd->init (kHello);
   sdRamInit (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
+  sram123Init (0x30000000,  0x00048000);
+
+  lcd = new cLcd ((uint16_t*)SDRAM_DEVICE_ADDR, (uint16_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*2));
+  lcd->init (kHello);
 
   TaskHandle_t uiHandle;
   xTaskCreate ((TaskFunction_t)uiThread, "ui", 1024, 0, 4, &uiHandle);

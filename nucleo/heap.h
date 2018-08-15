@@ -10,6 +10,8 @@
 //}}}
 
 uint8_t* dtcmAlloc (size_t bytes);
+
+void sram123Init (uint32_t start, uint32_t size);
 uint8_t* sram123Alloc (size_t bytes);
 
 void sdRamInit (uint32_t start, uint32_t size);
