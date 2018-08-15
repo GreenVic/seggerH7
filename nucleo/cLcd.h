@@ -110,6 +110,8 @@ public:
 
   uint16_t getBrightness() { return mBrightness; }
 
+  void setShowInfo (bool show);
+  void setTitle (const std::string& str) { mTitle = str; mChanged = true; }
   void change() { mChanged = true; }
   //{{{
   bool isChanged() {

@@ -147,6 +147,14 @@ void cLcd::init (const std::string& title) {
 //}}}
 
 //{{{
+void cLcd::setShowInfo (bool show) {
+  if (show != mShowInfo) {
+    mShowInfo = show;
+    mChanged = true;
+    }
+  }
+//}}}
+//{{{
 void cLcd::info (uint16_t colour, const std::string str) {
 
   uint16_t line = mCurLine++ % kMaxLines;
@@ -786,11 +794,12 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   curLayerCfg->ImageHeight = getHeight();
   HAL_LTDC_ConfigLayer (&mLtdcHandle, curLayerCfg, 0);
 
-  HAL_LTDC_EnableDither (&mLtdcHandle);
-
   // set line interupt lineNumber
   LTDC->LIPCR = 0;
   LTDC->ICR = LTDC_IT_TE | LTDC_IT_FU | LTDC_IT_LI;
+
+  // enable dither
+  LTDC->GCR |= (uint32_t)LTDC_GCR_DEN;
 
   HAL_NVIC_SetPriority (LTDC_IRQn, 0xE, 0);
   HAL_NVIC_EnableIRQ (LTDC_IRQn);

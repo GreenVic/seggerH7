@@ -36,12 +36,12 @@ static SemaphoreHandle_t mLockSem;
 __IO bool show = false;
 __IO cTile* showTile[2] = { nullptr, nullptr };
 
-extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
+//extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
-void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
-  if (GPIO_Pin == USER_BUTTON_PIN)
-    lcd->toggle();
-  }
+//void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
+  //if (GPIO_Pin == USER_BUTTON_PIN)
+    //lcd->toggle();
+  //}
 //}}}
 
 //{{{
@@ -165,6 +165,7 @@ void uiThread (void* arg) {
 
       lcd->cLcd::text (COL_WHITE, 45, mRtc.getClockTimeDateString(), cRect (550,545, 1024,600));
       //}}}
+      lcd->setShowInfo (BSP_PB_GetState (BUTTON_KEY) == 0);
       lcd->drawInfo();
       lcd->present();
       }
@@ -177,6 +178,8 @@ void uiThread (void* arg) {
 //}}}
 //{{{
 void appThread (void* arg) {
+
+  bool hwJpeg = BSP_PB_GetState (BUTTON_KEY) != 0;
 
   char sdPath[4];
   if (FATFS_LinkDriver (&SD_Driver, sdPath) != 0) {
@@ -203,28 +206,34 @@ void appThread (void* arg) {
     printf ("findFiles took %d %d\n", HAL_GetTick() - startTime, mFileVec.size());
     lcd->info (COL_WHITE, "findFiles " + dec(mFileVec.size()) + " took " + dec(HAL_GetTick() - startTime));
 
+    int count = 1;
     for (auto fileName : mFileVec) {
       auto startTime = HAL_GetTick();
+      FILINFO filInfo;
+      if (f_stat (fileName.c_str(), &filInfo))
+        printf ("swJpegDecode fstat fail\n");
 
       printf ("APP decode %s\n", fileName.c_str());
 
       delete showTile[!show];
       printf ("APP deleted %d\n", !show);
-      #ifdef SW_JPEG
-        showTile[!show] = swJpegDecode (fileName, SW_SCALE);
-      #else
+      if (hwJpeg)
         showTile[!show] = hwJpegDecode (fileName);
-      #endif
+      else
+        showTile[!show] = swJpegDecode (fileName, SW_SCALE);
       printf ("APP decoded %d\n", !show);
       show = !show;
-      //lcd->change();
       printf ("APP changed %d\n", show);
 
       if (showTile[show]) {
-        printf ("APP decoded %s - show:%d  %dx%d - took %d\n",
-                fileName.c_str(),
+        printf ("APP decoded %s - show:%d  %dx%d - took %d\n", fileName.c_str(),
                 show, showTile[show]->mWidth, showTile[show]->mHeight, HAL_GetTick() - startTime);
-        lcd->info (COL_YELLOW, fileName + " " + dec (showTile[show]->mWidth) + "x" + dec (showTile[show]->mHeight));
+        lcd->setTitle (dec (count++) + " " +
+                       fileName + " " +
+                       dec (showTile[show]->mWidth) + "x" + dec (showTile[show]->mHeight) + " " +
+                       dec ((int)(filInfo.fsize)/1000) + "k " +
+                       dec (filInfo.ftime >> 11) + ":" + dec ((filInfo.ftime >> 5) & 63) + " " +
+                       dec (filInfo.fdate & 31) + ":" + dec ((filInfo.fdate >> 5) & 15) + ":" + dec ((filInfo.fdate >> 9) + 1980));
         }
       else {
         printf ("decode %s tile error\n", fileName.c_str());
@@ -502,7 +511,8 @@ int main() {
   BSP_LED_Init (LED_GREEN);
   BSP_LED_Init (LED_BLUE);
   BSP_LED_Init (LED_RED);
-  BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_EXTI);
+
+  BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_GPIO);
 
   mRtc.init();
   printf ("%s\n", kHello.c_str());
