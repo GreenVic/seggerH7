@@ -107,7 +107,7 @@ void findFiles (const string& dirPath, const string& ext) {
       transform (filePath.begin(), filePath.end(), filePath.begin(), ::tolower);
       if (filinfo.fattrib & AM_DIR) {
         printf ("- findFiles dir %s\n", filePath.c_str());
-        lcd->info (" - findFiles dir" + filePath);
+        //lcd->info (" - findFiles dir" + filePath);
         findFiles (filePath, ext);
         }
       else if (filePath.size() - filePath.find (ext) == ext.size()) {
@@ -116,7 +116,7 @@ void findFiles (const string& dirPath, const string& ext) {
         //lcd->info ("- findFiles file " + filePath);
         }
       else
-        lcd->info (COL_GREEN, "- ignoring " + filePath);
+        printf ("- ignoring %s\n", filePath.c_str());
       }
     f_closedir (&dir);
     }
@@ -201,10 +201,9 @@ void appThread (void* arg) {
     printf ("sdCard mounted label %s\n", label);
     lcd->info ("sdCard mounted label:" + string (label));
 
-    auto startTime = HAL_GetTick();
     findFiles ("", ".jpg");
-    printf ("findFiles took %d %d\n", HAL_GetTick() - startTime, mFileVec.size());
-    lcd->info (COL_WHITE, "findFiles " + dec(mFileVec.size()) + " took " + dec(HAL_GetTick() - startTime));
+    printf ("found %d piccies\n", mFileVec.size());
+    lcd->info (COL_WHITE, "found " + dec(mFileVec.size()) + " piccies");
 
     int count = 1;
     for (auto fileName : mFileVec) {
