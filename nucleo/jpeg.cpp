@@ -199,22 +199,23 @@ tHandle mHandle;
 
 tBufs mInBuf[2] = { { false, nullptr, 0 }, { false, nullptr, 0 } };
 
+uint32_t mOutChunkSize = 0;
 uint8_t* mOutYuvBuf = nullptr;
+
+uint32_t mRgb565Size = 0;
 uint8_t* mRgb565Buf = nullptr;
 uint8_t* mRgb565BufPtr = nullptr;
 
-uint32_t mOutChunkSize = 0;
 uint32_t mOutTotalLen = 0;
 uint32_t mOutTotalChunks = 0;
 
 //{{{
 void outputData (uint32_t len) {
 
-  //printf ("outputData %x %d\n", data, len);
-  //lcd->info (COL_GREEN, "outputData " + hex(uint32_t(mHandle.OutBuffPtr)) + ":" + hex(len));
-
+  //printf ("outputData1 %d %d %d %p %p\n", len, mOutTotalChunks, mOutTotalLen, mRgb565BufPtr, mOutYuvBuf);
   cLcd::jpegYuvTo565int (mOutYuvBuf, (uint16_t*)mRgb565BufPtr, mHandle.mWidth, 8, mHandle.mChromaSampling);
   mRgb565BufPtr += mHandle.mWidth * 8 * 2;
+  //printf ("outputData2 %d\n", len);
 
   mHandle.OutBuffPtr = mOutYuvBuf;
   mHandle.OutLen = mOutChunkSize;
@@ -530,29 +531,31 @@ extern "C" { void JPEG_IRQHandler() {
     __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_IT_HPD);
     __HAL_JPEG_CLEAR_FLAG (&mHandle, JPEG_FLAG_HPDF);
 
+    mRgb565Size = mHandle.mWidth * mHandle.mHeight * 2;
+    mRgb565Buf = (uint8_t*)sdRamAllocInt (mRgb565Size);
     if (mHandle.mChromaSampling == JPEG_444_SUBSAMPLING) {
       mOutChunkSize = mHandle.mWidth * 8 * 3;
       mOutYuvBuf = (uint8_t*)sram123AllocInt (mOutChunkSize);
-      printf ("- header 422 %dx%d %d %p\n", mHandle.mWidth, mHandle.mHeight, mOutChunkSize, mOutYuvBuf);
+      printf ("- header 422 %dx%d yuv %d %p  rgb %d %p\n",
+              mHandle.mWidth, mHandle.mHeight, mOutChunkSize, mOutYuvBuf, mRgb565Size, mRgb565Buf);
       }
     else if (mHandle.mChromaSampling == JPEG_420_SUBSAMPLING) {
       mOutChunkSize = (mHandle.mWidth * 8 * 3) / 2;
       mOutYuvBuf = (uint8_t*)sram123AllocInt (mOutChunkSize);
-      printf ("- header 420 %dx%d %d %p\n", mHandle.mWidth, mHandle.mHeight, mOutChunkSize, mOutYuvBuf);
+      printf ("- header 420 %dx%d yuv %d %p  rgb %d %p\n",
+              mHandle.mWidth, mHandle.mHeight, mOutChunkSize, mOutYuvBuf, mRgb565Size, mRgb565Buf);
       }
     else if (mHandle.mChromaSampling == JPEG_422_SUBSAMPLING) {
-      //mOutChunkSize = ((mHandle.mWidth + 7) & ~8) * 8 * 2;
       mOutChunkSize = mHandle.mWidth * 8 * 2;
       mOutYuvBuf = (uint8_t*)sram123AllocInt (mOutChunkSize);
-      printf ("- header 422 %dx%d %d %p\n", mHandle.mWidth, mHandle.mHeight, mOutChunkSize, mOutYuvBuf);
+      printf ("- header 422 %dx%d yuv %d %p  rgb %d %p\n",
+              mHandle.mWidth, mHandle.mHeight, mOutChunkSize, mOutYuvBuf, mRgb565Size, mRgb565Buf);
       }
     else
       printf ("unrecognised chroma sampling %d\n", mHandle.mChromaSampling);
 
     mHandle.OutBuffPtr = mOutYuvBuf;
     mHandle.OutLen = mOutChunkSize;
-
-    mRgb565Buf = (uint8_t*)sdRamAllocInt (mHandle.mWidth * mHandle.mHeight * 2);
     mRgb565BufPtr = mRgb565Buf;
 
     // if the MDMA Out is triggred with JPEG Out FIFO Threshold flag then MDMA out buffer size is 32 bytes
@@ -613,6 +616,11 @@ cTile* hwJpegDecode (const string& fileName) {
   mInBuf[0].mBuf = (uint8_t*)pvPortMalloc (4096);
   mInBuf[1].mBuf = (uint8_t*)pvPortMalloc (4096);
 
+  mOutYuvBuf = nullptr;
+  mHandle.OutBuffPtr = mOutYuvBuf;
+  mRgb565Buf = nullptr;
+  mRgb565BufPtr = mRgb565Buf;
+
   mOutTotalLen = 0;
   mOutTotalChunks = 0;
 
@@ -658,9 +666,9 @@ cTile* hwJpegDecode (const string& fileName) {
       }
     f_close (&file);
 
-    printf ("- decode %p %d:%dx%d - out %d of %d chunks %d\n",
+    printf ("- decode %p %d:%dx%d - out %d of %d - chunks %d\n",
             mOutYuvBuf, mHandle.mChromaSampling, mHandle.mWidth, mHandle.mHeight,
-            mOutTotalLen, mOutChunkSize, mOutTotalChunks);
+            mOutTotalLen, mRgb565Size, mOutTotalChunks);
     tile = new cTile (mRgb565Buf, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
     }
 

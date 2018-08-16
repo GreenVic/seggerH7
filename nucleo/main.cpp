@@ -130,12 +130,11 @@ void uiThread (void* arg) {
 
   int count = 0;
   while (true) {
-    if (lcd->isChanged() || (count == 1000)) {
+    if (lcd->isChanged() || (count == 100000)) {
       count = 0;
       lcd->start();
       lcd->clear (COL_BLACK);
 
-      printf ("UI before %d\n", show);
       if (showTile[show]) {
         if (showTile[show]->mWidth <= lcd->getWidth() &&  showTile[show]->mHeight <=lcd->getHeight())
           lcd->copy ((cTile*)showTile[show], cPoint ((lcd->getWidth() - showTile[show]->mWidth) / 2,
@@ -143,7 +142,6 @@ void uiThread (void* arg) {
         else
           lcd->size ((cTile*)showTile[show], cRect (0,0, lcd->getWidth(), lcd->getHeight()));
         }
-      printf ("UI after %d\n", show);
 
       //{{{  draw clock
       float hourAngle;
@@ -213,20 +211,15 @@ void appThread (void* arg) {
         printf ("swJpegDecode fstat fail\n");
 
       printf ("APP decode %s\n", fileName.c_str());
-
       delete showTile[!show];
-      printf ("APP deleted %d\n", !show);
       if (hwJpeg)
         showTile[!show] = hwJpegDecode (fileName);
       else
         showTile[!show] = swJpegDecode (fileName, SW_SCALE);
-      printf ("APP decoded %d\n", !show);
       show = !show;
-      printf ("APP changed %d\n", show);
 
       if (showTile[show]) {
-        printf ("APP decoded %s - show:%d  %dx%d - took %d\n", fileName.c_str(),
-                show, showTile[show]->mWidth, showTile[show]->mHeight, HAL_GetTick() - startTime);
+        printf ("APP decoded - show:%d - took %d\n", show, HAL_GetTick() - startTime);
         lcd->setTitle (dec (count++) + " " +
                        fileName + " " +
                        dec (showTile[show]->mWidth) + "x" + dec (showTile[show]->mHeight) + " " +
