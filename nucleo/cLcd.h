@@ -150,6 +150,7 @@ public:
 
   static void rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize);
   static void jpegYuvTo565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
+  static void jpegYuvTo565int (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
 
   void start();
   void drawInfo();
