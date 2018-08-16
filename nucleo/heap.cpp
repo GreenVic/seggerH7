@@ -255,6 +255,7 @@ cHeap mSram123Heap;
 
 void sram123Init (uint32_t start, size_t size) { mSram123Heap.init (start, size); }
 uint8_t* sram123Alloc (size_t size) { return (uint8_t*)mSram123Heap.alloc (size); }
+uint8_t* sram123AllocInt (size_t size) { return (uint8_t*)mSram123Heap.allocInt (size); }
 void sram123Free (void* p) { mSram123Heap.free (p); }
 
 //{{{

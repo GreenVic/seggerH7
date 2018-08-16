@@ -21,6 +21,7 @@ void dtcmFree (void* p);
 
 void sram123Init (uint32_t start, uint32_t size);
 uint8_t* sram123Alloc (size_t bytes);
+uint8_t* sram123AllocInt (size_t bytes);
 void sram123Free (void* p);
 
 void sdRamInit (uint32_t start, uint32_t size);
