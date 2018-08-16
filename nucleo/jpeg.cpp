@@ -644,8 +644,6 @@ cTile* hwJpegDecode (const string& fileName) {
       }
     f_close (&file);
 
-    if (mOutTotalLen > mOutYuvLen)
-      printf ("- decode alloc error\n");
     printf ("- decode %p %d:%dx%d - out %d of %d chunks %d\n",
             mOutYuvBuf, mHandle.mChromaSampling, mHandle.mWidth, mHandle.mHeight,
             mOutTotalLen, mOutYuvLen, mOutTotalChunks);

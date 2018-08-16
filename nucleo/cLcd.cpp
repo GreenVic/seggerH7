@@ -588,47 +588,6 @@ void cLcd::jpegYuvTo565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t y
   xSemaphoreGive (mLockSem);
   }
 //}}}
-//{{{
-void cLcd::jpegYuvTo565int (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling) {
-
-  uint32_t cssMode = DMA2D_CSS_420;
-  uint32_t inputLineOffset = 0;
-
-  if (chromaSampling == JPEG_420_SUBSAMPLING) {
-    cssMode = DMA2D_CSS_420;
-    inputLineOffset = xsize % 16;
-    if (inputLineOffset != 0)
-      inputLineOffset = 16 - inputLineOffset;
-    }
-  else if (chromaSampling == JPEG_444_SUBSAMPLING) {
-    cssMode = DMA2D_NO_CSS;
-    inputLineOffset = xsize % 8;
-    if (inputLineOffset != 0)
-      inputLineOffset = 8 - inputLineOffset;
-    }
-  else if (chromaSampling == JPEG_422_SUBSAMPLING) {
-    cssMode = DMA2D_CSS_422;
-    inputLineOffset = xsize % 16;
-    if (inputLineOffset != 0)
-      inputLineOffset = 16 - inputLineOffset;
-    }
-
-  DMA2D->FGPFCCR = DMA2D_INPUT_YCBCR | (cssMode << POSITION_VAL(DMA2D_FGPFCCR_CSS));
-  DMA2D->FGMAR = (uint32_t)src;
-  DMA2D->FGOR = inputLineOffset;
-
-  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
-  DMA2D->OMAR = (uint32_t)dst;
-  DMA2D->OOR = 0;
-
-  DMA2D->NLR = (xsize << 16) | ysize;
-  DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START;
-
-  int count = 0;
-  while (!(DMA2D->ISR & DMA2D_FLAG_TC)) { count++; }
-  DMA2D->IFCR = DMA2D_FLAG_TC;
-  }
-//}}}
 
 //{{{
 void cLcd::start() {
