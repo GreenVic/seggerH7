@@ -174,7 +174,8 @@ void cLcd::rect (uint16_t colour, const cRect& r) {
 //__IO uint32_t OOR     Output Offset Register,         Address offset: 0x40
 //__IO uint32_t NLR     Number of Line Register,        Address offset: 0x44
 
-  xSemaphoreTake (mLockSem, 1000);
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
 
   rectRegs[1] = colour;
   rectRegs[2] = uint32_t (mBuffer[mDrawBuffer] + r.top * getWidth() + r.left);
@@ -304,7 +305,8 @@ void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r) {
 //  DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE | DMA2D_CR_START;
 //}}}
 
-  xSemaphoreTake (mLockSem, 1000);
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
 
   stampRegs[0] = (uint32_t)src;
   stampRegs[2] = uint32_t(mBuffer[mDrawBuffer] + r.top * getWidth() + r.left);
@@ -384,7 +386,8 @@ int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string str, cRe
 //{{{
 void cLcd::copy (cTile* srcTile, cPoint p) {
 
-  xSemaphoreTake (mLockSem, 1000);
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
 
   uint16_t width = p.x + srcTile->mWidth > getWidth() ? getWidth() - p.x : srcTile->mWidth;
   uint16_t height = p.y + srcTile->mHeight > getHeight() ? getHeight() - p.y : srcTile->mHeight;
@@ -409,7 +412,8 @@ void cLcd::copy (cTile* srcTile, cPoint p) {
 //{{{
 void cLcd::copy90 (cTile* srcTile, cPoint p) {
 
-  xSemaphoreTake (mLockSem, 1000);
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
 
   uint32_t src = (uint32_t)srcTile->mPiccy;
   uint32_t dst = (uint32_t)mBuffer[mDrawBuffer];
@@ -438,7 +442,8 @@ void cLcd::copy90 (cTile* srcTile, cPoint p) {
 //{{{
 void cLcd::size (cTile* srcTile, const cRect& r) {
 
-  xSemaphoreTake (mLockSem, 1000);
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
 
   uint32_t xStep16 = ((srcTile->mWidth - 1) << 16) / (r.getWidth() - 1);
   uint32_t yStep16 = ((srcTile->mHeight - 1) << 16) / (r.getHeight() - 1);
@@ -525,7 +530,8 @@ void cLcd::ellipseOutline (uint16_t colour, cPoint centre, cPoint radius) {
 //{{{
 void cLcd::rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize) {
 
-  xSemaphoreTake (mLockSem, 1000);
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
 
   DMA2D->FGPFCCR = DMA2D_INPUT_RGB888;
   DMA2D->FGMAR = uint32_t(src);
@@ -569,7 +575,8 @@ void cLcd::jpegYuvTo565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t y
       inputLineOffset = 16 - inputLineOffset;
     }
 
-  xSemaphoreTake (mLockSem, 1000);
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
 
   DMA2D->FGPFCCR = DMA2D_INPUT_YCBCR | (cssMode << POSITION_VAL(DMA2D_FGPFCCR_CSS));
   DMA2D->FGMAR = (uint32_t)src;
@@ -638,7 +645,8 @@ void cLcd::present() {
   mShowBuffer = (uint32_t)mBuffer[mDrawBuffer];
   LTDC->IER = LTDC_IT_TE | LTDC_IT_FU | LTDC_IT_LI;
 
-  xSemaphoreTake (mFrameSem, 1000);
+  if (!xSemaphoreTake (mFrameSem, 100))
+    printf ("cLcd present take fail\n");
   mWaitTime = HAL_GetTick() - mStartTime;
 
   mNumPresents++;
@@ -817,7 +825,8 @@ void cLcd::ready() {
     DMA2D->IFCR = DMA2D_FLAG_TC;
     }
   else if (mDma2dWait == eWaitIrq)
-    xSemaphoreTake (mDma2dSem, 100);
+    if (!xSemaphoreTake (mDma2dSem, 5000))
+      printf ("cLcd ready take fail\n");
 
   mDma2dWait = eWaitNone;
   }

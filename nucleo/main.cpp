@@ -140,7 +140,7 @@ void uiThread (void* arg) {
           lcd->copy ((cTile*)showTile[show], cPoint ((lcd->getWidth() - showTile[show]->mWidth) / 2,
                                                (lcd->getHeight() - showTile[show]->mHeight) / 2));
         else
-          lcd->size ((cTile*)showTile[show], cRect (0,0, lcd->getWidth(), lcd->getHeight()));
+          lcd->size ((cTile*)showTile[show], cRect (16,16, lcd->getWidth()-16, lcd->getHeight()-16));
         }
 
       //{{{  draw clock
