@@ -623,9 +623,10 @@ void cLcd::jpegYuvTo565int (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_
 
   DMA2D->NLR = (xsize << 16) | ysize;
   DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START;
-  mDma2dWait = eWaitDone;
 
-  ready();
+  while (!(DMA2D->ISR & DMA2D_FLAG_TC))
+    taskYIELD();
+  DMA2D->IFCR = DMA2D_FLAG_TC;
   }
 //}}}
 

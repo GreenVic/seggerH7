@@ -179,7 +179,7 @@ void uiThread (void* arg) {
 //{{{
 void appThread (void* arg) {
 
-  bool hwJpeg = BSP_PB_GetState (BUTTON_KEY) != 0;
+  bool hwJpeg = BSP_PB_GetState (BUTTON_KEY) == 0;
 
   char sdPath[4];
   if (FATFS_LinkDriver (&SD_Driver, sdPath) != 0) {
