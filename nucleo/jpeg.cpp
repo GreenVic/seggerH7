@@ -208,8 +208,7 @@ uint32_t mOutTotalChunks = 0;
 //{{{
 void outputData (uint32_t len) {
 
-  //printf ("outputData %x %d\n", data, len);
-  //lcd->info (COL_GREEN, "outputData " + hex(uint32_t(mHandle.OutBuffPtr)) + ":" + hex(len));
+  //printf ("outputData %x %d\n", len);
   mHandle.OutBuffPtr += len;
   mHandle.OutLen = kOutChunkSize;
   mOutTotalLen += len;
@@ -523,17 +522,18 @@ extern "C" { void JPEG_IRQHandler() {
     __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_IT_HPD);
     __HAL_JPEG_CLEAR_FLAG (&mHandle, JPEG_FLAG_HPDF);
 
-    mOutYuvLen = ((mHandle.mWidth + 15) & ~16) * ((mHandle.mHeight + 7) & ~8) * 3;
     if (mHandle.mChromaSampling == JPEG_444_SUBSAMPLING) {
-      mOutYuvLen = ((mHandle.mWidth + 7) & ~8) * ((mHandle.mHeight + 7) & ~8) * 3;
+      mOutYuvLen = mHandle.mWidth * mHandle.mHeight * 3;
       printf ("- header 422 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
       }
     else if (mHandle.mChromaSampling == JPEG_420_SUBSAMPLING) {
-      mOutYuvLen = ((mHandle.mWidth +15) & ~16) * ((mHandle.mHeight + 7) & ~8) * 2;
+      mOutYuvLen = (mHandle.mWidth * mHandle.mHeight * 2) / 3;
       printf ("- header 420 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
       }
-    else if (mHandle.mChromaSampling == JPEG_422_SUBSAMPLING)
+    else if (mHandle.mChromaSampling == JPEG_422_SUBSAMPLING) {
+      mOutYuvLen = mHandle.mWidth * mHandle.mHeight * 2;
       printf ("- header 422 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
+      }
     else
       printf ("unrecognised chroma sampling %d\n", mHandle.mChromaSampling);
 
