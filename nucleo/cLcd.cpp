@@ -420,6 +420,7 @@ void cLcd::copy90 (cTile* srcTile, cPoint p) {
 
   DMA2D->FGPFCCR = srcTile->mFormat;
   DMA2D->FGOR = 0;
+
   DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
   DMA2D->OOR = getWidth() - 1;
   DMA2D->NLR = 0x10000 | (srcTile->mWidth);

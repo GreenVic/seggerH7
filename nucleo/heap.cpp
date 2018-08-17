@@ -28,11 +28,11 @@ public:
 
     // Ensure the heap starts on a correctly aligned boundary
     size_t uxAddress = (size_t)start;
-    size_t xTotalHeapSize = size;
+    mSize = size;
     if ((uxAddress & mAlignmentMask) != 0) {
       uxAddress += (mAlignment - 1);
       uxAddress &= ~((size_t)mAlignmentMask);
-      xTotalHeapSize -= uxAddress - (size_t)start;
+      mSize -= uxAddress - (size_t)start;
       }
 
     pucAlignedHeap = (uint8_t*)uxAddress;
@@ -42,7 +42,7 @@ public:
     mStart.mBlockSize = (size_t)0;
 
     // mEnd is used to mark the end of the list of free blocks and is inserted at the end of the heap space. */
-    uxAddress = ((size_t)pucAlignedHeap) + xTotalHeapSize;
+    uxAddress = ((size_t)pucAlignedHeap) + mSize;
     uxAddress -= kHeapStructSize;
     uxAddress &= ~((size_t) mAlignmentMask );
     mEnd = (tLink_t*)uxAddress;
@@ -61,9 +61,9 @@ public:
   //}}}
 
   //{{{
-  void* allocInt (size_t size) {
+  uint8_t* allocInt (size_t size) {
 
-    void* allocAddress = NULL;
+    uint8_t* allocAddress = NULL;
     size_t largestBlock = 0;
 
       {
@@ -91,7 +91,7 @@ public:
       // If the end marker was reached then a block of adequate size was not found
       if (block != mEnd) {
         // Return the memory space pointed to - jumping over the tLink_t structure at its start
-        allocAddress = (void*)(((uint8_t*)prevBlock->mNextFreeBlock) + kHeapStructSize);
+        allocAddress = ((uint8_t*)prevBlock->mNextFreeBlock) + kHeapStructSize;
 
         //This block is being returned for use so must be taken out of the list of free blocks
         prevBlock->mNextFreeBlock = block->mNextFreeBlock;
@@ -124,12 +124,12 @@ public:
     }
   //}}}
   //{{{
-  void* alloc (size_t size) {
+  uint8_t* alloc (size_t size) {
 
     size_t largestBlock = 0;
 
     vTaskSuspendAll();
-    void* allocAddress = allocInt (size);
+    uint8_t* allocAddress = allocInt (size);
     xTaskResumeAll();
 
     if (allocAddress) {
@@ -236,6 +236,7 @@ private:
 
   tLink_t mStart;
   tLink_t* mEnd = NULL;
+  size_t mSize = 0;
   size_t mFreeBytesRemaining = 0;
   size_t mMinFreeBytesRemaining = 0;
   };
@@ -287,8 +288,8 @@ void vPortFree (void* pv) {
 cHeap mSdRamHeap;
 
 void sdRamInit (uint32_t start, size_t size) { mSdRamHeap.init (start, size); }
-void* sdRamAlloc (size_t size) {return mSdRamHeap.alloc (size); }
-void* sdRamAllocInt (size_t size) { return mSdRamHeap.allocInt (size); }
+uint8_t* sdRamAlloc (size_t size) {return mSdRamHeap.alloc (size); }
+uint8_t* sdRamAllocInt (size_t size) { return mSdRamHeap.allocInt (size); }
 void sdRamFree (void* p) { mSdRamHeap.free (p); }
 size_t getSdRamFreeSize() { return mSdRamHeap.getFreeHeapSize(); }
 size_t getSdRamMinFreeSize() { return mSdRamHeap.getMinHeapSize(); }
