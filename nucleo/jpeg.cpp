@@ -200,7 +200,6 @@ tHandle mHandle;
 tBufs mInBuf[2] = { { false, nullptr, 0 }, { false, nullptr, 0 } };
 
 const uint32_t kOutChunkSize = 85 * 768; // MCU align max output
-
 uint32_t mOutYuvLen = 0;
 uint8_t* mOutYuvBuf = nullptr;
 uint16_t* mOutRgb565Buf = nullptr;
@@ -544,10 +543,14 @@ extern "C" { void JPEG_IRQHandler() {
       printf ("JPEG unrecognised chroma sampling %d\n", mHandle.mChromaSampling);
 
     mOutYuvBuf = (uint8_t*)sdRamAllocInt (mOutYuvLen);
+    if (!mOutYuvBuf)
+      printf ("JPEG mOutYuvBuf alloc fail\n");
     mHandle.OutBuffPtr = mOutYuvBuf;
     mHandle.OutLen = kOutChunkSize;
 
     mOutRgb565Buf = (uint16_t*)sdRamAllocInt (mHandle.mWidth * mHandle.mHeight * 2);
+    if (!mOutRgb565Buf)
+      printf ("JPEG mOutRgb565Buf alloc fail\n");
 
     // if the MDMA Out is triggred with JPEG Out FIFO Threshold flag then MDMA out buffer size is 32 bytes
     // else (MDMA Out is triggred with JPEG Out FIFO not empty flag then MDMA buffer size is 4 bytes

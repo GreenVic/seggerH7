@@ -140,7 +140,7 @@ void uiThread (void* arg) {
           lcd->copy ((cTile*)showTile[show], cPoint ((lcd->getWidth() - showTile[show]->mWidth) / 2,
                                                (lcd->getHeight() - showTile[show]->mHeight) / 2));
         else
-          lcd->size ((cTile*)showTile[show], cRect (16,16, lcd->getWidth()-16, lcd->getHeight()-16));
+          lcd->size ((cTile*)showTile[show], cRect (10,22, lcd->getWidth()-10,lcd->getHeight()-22));
         }
 
       //{{{  draw clock
@@ -221,7 +221,7 @@ void appThread (void* arg) {
 
       if (showTile[show]) {
         printf ("APP decoded - show:%d - took %d\n", show, HAL_GetTick() - startTime);
-        lcd->setTitle (dec (count++) + " " +
+        lcd->setTitle (dec (count++) + " of " + dec(mFileVec.size()) + " " +
                        fileName + " " +
                        dec (showTile[show]->mWidth) + "x" + dec (showTile[show]->mHeight) + " " +
                        dec ((int)(filInfo.fsize)/1000) + "k " +
