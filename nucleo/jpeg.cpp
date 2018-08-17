@@ -363,6 +363,7 @@ void yuvMcuTo565sw (uint8_t* src, uint8_t* dst, uint32_t BlockIndex, uint32_t Da
 //}}}
 //}}}
 
+#define INBUF_SIZE 16384
 tBufs mInBuf[2] = { { false, nullptr, 0 }, { false, nullptr, 0 } };
 
 const uint32_t kOutChunkSize = 85 * 768; // MCU align max output
@@ -778,17 +779,17 @@ cTile* hwJpegDecode (const string& fileName) {
   mHandle.Instance = JPEG;
   init();
 
-  mInBuf[0].mBuf = (uint8_t*)pvPortMalloc (4096);
-  mInBuf[1].mBuf = (uint8_t*)pvPortMalloc (4096);
+  mInBuf[0].mBuf = (uint8_t*)pvPortMalloc (INBUF_SIZE);
+  mInBuf[1].mBuf = (uint8_t*)pvPortMalloc (INBUF_SIZE);
   mOutYuvBuf = nullptr;
   mOutRgb565Buf = nullptr;
 
   cTile* tile = nullptr;
   FIL file;
   if (f_open (&file, fileName.c_str(), FA_READ) == FR_OK) {
-    if (f_read (&file, mInBuf[0].mBuf, 4096, &mInBuf[0].mSize) == FR_OK)
+    if (f_read (&file, mInBuf[0].mBuf, INBUF_SIZE, &mInBuf[0].mSize) == FR_OK)
       mInBuf[0].mFull = true;
-    if (f_read (&file, mInBuf[1].mBuf, 4096, &mInBuf[1].mSize) == FR_OK)
+    if (f_read (&file, mInBuf[1].mBuf, INBUF_SIZE, &mInBuf[1].mSize) == FR_OK)
       mInBuf[1].mFull = true;
 
     mHandle.mReadIndex = 0;
@@ -802,7 +803,7 @@ cTile* hwJpegDecode (const string& fileName) {
         }
       else {
         // fill next buffer
-        if (f_read (&file, mInBuf[mHandle.mWriteIndex].mBuf, 4096, &mInBuf[mHandle.mWriteIndex].mSize) == FR_OK)
+        if (f_read (&file, mInBuf[mHandle.mWriteIndex].mBuf, INBUF_SIZE, &mInBuf[mHandle.mWriteIndex].mSize) == FR_OK)
           mInBuf[mHandle.mWriteIndex].mFull = true;
 
         if (((mHandle.Context & JPEG_CONTEXT_PAUSE_INPUT) != 0) && (mHandle.mWriteIndex == mHandle.mReadIndex)) {
