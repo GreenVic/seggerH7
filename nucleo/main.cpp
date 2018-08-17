@@ -136,9 +136,10 @@ void uiThread (void* arg) {
       lcd->clear (COL_BLACK);
 
       if (showTile[show]) {
+        //lcd->copy ((cTile*)showTile[show], cPoint ());
         if (showTile[show]->mWidth <= lcd->getWidth() &&  showTile[show]->mHeight <=lcd->getHeight())
           lcd->copy ((cTile*)showTile[show], cPoint ((lcd->getWidth() - showTile[show]->mWidth) / 2,
-                                               (lcd->getHeight() - showTile[show]->mHeight) / 2));
+                                                     (lcd->getHeight() - showTile[show]->mHeight) / 2));
         else
           lcd->size ((cTile*)showTile[show], cRect (10,22, lcd->getWidth()-10,lcd->getHeight()-22));
         }

@@ -397,8 +397,8 @@ void cLcd::copy (cTile* srcTile, cPoint p) {
   DMA2D->FGOR = srcTile->mPitch - width;
 
   DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
-  DMA2D->OMAR = uint32_t(mBuffer[mDrawBuffer] + p.y * getWidth() + p.x);
-  DMA2D->OOR = getWidth() - srcTile->mWidth;
+  DMA2D->OMAR = uint32_t(mBuffer[mDrawBuffer] + (p.y * getWidth()) + p.x);
+  DMA2D->OOR = getWidth() > srcTile->mWidth ? getWidth() - srcTile->mWidth : 0;
 
   DMA2D->NLR = (width << 16) | height;
   DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
