@@ -205,13 +205,14 @@ void appThread (void* arg) {
 
     int count = 1;
     for (auto fileName : mFileVec) {
-      auto startTime = HAL_GetTick();
       FILINFO filInfo;
       if (f_stat (fileName.c_str(), &filInfo))
-        printf ("swJpegDecode fstat fail\n");
+        printf ("APP fstat fail\n");
 
       printf ("APP decode %s\n", fileName.c_str());
       delete showTile[!show];
+
+      auto startTime = HAL_GetTick();
       if (hwJpeg)
         showTile[!show] = hwJpegDecode (fileName);
       else

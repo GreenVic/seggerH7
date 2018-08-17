@@ -199,20 +199,23 @@ tHandle mHandle;
 
 tBufs mInBuf[2] = { { false, nullptr, 0 }, { false, nullptr, 0 } };
 
-const uint32_t kOutChunkSize = 0x10000;
-uint8_t* mOutYuvBuf = nullptr;
+const uint32_t kOutChunkSize = 85 * 768; // MCU align max output
+
 uint32_t mOutYuvLen = 0;
+uint8_t* mOutYuvBuf = nullptr;
+uint16_t* mOutRgb565Buf = nullptr;
 uint32_t mOutTotalLen = 0;
 uint32_t mOutTotalChunks = 0;
 
 //{{{
 void outputData (uint32_t len) {
 
+  mOutTotalLen += len;
+  mOutTotalChunks++;
+
   //printf ("outputData %x %d\n", len);
   mHandle.OutBuffPtr += len;
   mHandle.OutLen = kOutChunkSize;
-  mOutTotalLen += len;
-  mOutTotalChunks++;
   }
 //}}}
 //{{{
@@ -227,6 +230,9 @@ void dmaDecode (uint8_t* inBuff, uint32_t inLen) {
   mHandle.OutBuffPtr = nullptr;
   mHandle.OutLen = 0;
   mHandle.OutCount = 0;
+
+  mOutTotalLen = 0;
+  mOutTotalChunks = 0;
 
   // set JPEG Codec to decode
   JPEG->CONFR1 |= JPEG_CONFR1_DE;
@@ -524,22 +530,24 @@ extern "C" { void JPEG_IRQHandler() {
 
     if (mHandle.mChromaSampling == JPEG_444_SUBSAMPLING) {
       mOutYuvLen = mHandle.mWidth * mHandle.mHeight * 3;
-      printf ("- header 422 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
+      printf ("- JPEG header 422 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
       }
     else if (mHandle.mChromaSampling == JPEG_420_SUBSAMPLING) {
       mOutYuvLen = (mHandle.mWidth * mHandle.mHeight * 2) / 3;
-      printf ("- header 420 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
+      printf ("- JPEG header 420 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
       }
     else if (mHandle.mChromaSampling == JPEG_422_SUBSAMPLING) {
       mOutYuvLen = mHandle.mWidth * mHandle.mHeight * 2;
-      printf ("- header 422 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
+      printf ("- JPEG header 422 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
       }
     else
-      printf ("unrecognised chroma sampling %d\n", mHandle.mChromaSampling);
+      printf ("JPEG unrecognised chroma sampling %d\n", mHandle.mChromaSampling);
 
     mOutYuvBuf = (uint8_t*)sdRamAllocInt (mOutYuvLen);
     mHandle.OutBuffPtr = mOutYuvBuf;
     mHandle.OutLen = kOutChunkSize;
+
+    mOutRgb565Buf = (uint16_t*)sdRamAllocInt (mHandle.mWidth * mHandle.mHeight * 2);
 
     // if the MDMA Out is triggred with JPEG Out FIFO Threshold flag then MDMA out buffer size is 32 bytes
     // else (MDMA Out is triggred with JPEG Out FIFO not empty flag then MDMA buffer size is 4 bytes
@@ -600,8 +608,8 @@ cTile* hwJpegDecode (const string& fileName) {
 
   mInBuf[0].mBuf = (uint8_t*)pvPortMalloc (4096);
   mInBuf[1].mBuf = (uint8_t*)pvPortMalloc (4096);
-  mOutTotalLen = 0;
-  mOutTotalChunks = 0;
+  mOutYuvBuf = nullptr;
+  mOutRgb565Buf = nullptr;
 
   cTile* tile = nullptr;
   FIL file;
@@ -611,7 +619,6 @@ cTile* hwJpegDecode (const string& fileName) {
     if (f_read (&file, mInBuf[1].mBuf, 4096, &mInBuf[1].mSize) == FR_OK)
       mInBuf[1].mFull = true;
 
-    mOutYuvBuf = nullptr;
     mHandle.mReadIndex = 0;
     mHandle.mWriteIndex = 0;
     mHandle.mDecodeDone = false;
@@ -644,15 +651,12 @@ cTile* hwJpegDecode (const string& fileName) {
       }
     f_close (&file);
 
-    printf ("- decode %p %d:%dx%d - out %d of %d chunks %d\n",
+    printf ("- JPEG decode %p %d:%dx%d - out %d of %d chunks %d\n",
             mOutYuvBuf, mHandle.mChromaSampling, mHandle.mWidth, mHandle.mHeight,
             mOutTotalLen, mOutYuvLen, mOutTotalChunks);
 
-    auto rgb565pic = (uint16_t*)sdRamAlloc (mHandle.mWidth * mHandle.mHeight * 2);
-    if (rgb565pic) {
-      cLcd::jpegYuvTo565 (mOutYuvBuf, rgb565pic, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
-      tile = new cTile ((uint8_t*)rgb565pic, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
-      }
+    cLcd::jpegYuvTo565 (mOutYuvBuf, mOutRgb565Buf, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
+    tile = new cTile ((uint8_t*)mOutRgb565Buf, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
     }
 
   vPortFree (mInBuf[0].mBuf);
@@ -672,7 +676,7 @@ cTile* swJpegDecode (const string& fileName, int scale) {
   if (f_open (&file, fileName.c_str(), FA_READ))
     printf ("swJpegDecode %s open fail\n", fileName.c_str());
   else {
-    printf ("swJpegDecode start decoding %s\n", fileName.c_str());
+    printf ("swJpegDecode %s start decoding\n", fileName.c_str());
 
     struct jpeg_error_mgr jerr;
     struct jpeg_decompress_struct mCinfo;
