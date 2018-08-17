@@ -551,7 +551,7 @@ void cLcd::rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ys
   }
 //}}}
 //{{{
-void cLcd::jpegYuvTo565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling) {
+void cLcd::jpegYuvTo565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling) {
 
   uint32_t cssMode = DMA2D_CSS_420;
   uint32_t inputLineOffset = 0;
