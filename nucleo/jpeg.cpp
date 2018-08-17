@@ -717,7 +717,7 @@ extern "C" { void JPEG_IRQHandler() {
     mHandle.OutLen = kOutChunkSize;
 
     // alloc rgb
-    mOutRgb565Buf = (uint8_t*)sdRamAllocInt (mHandle.mWidth * mHandle.mHeight * 2);
+    mOutRgb565Buf = (uint8_t*)sdRamAllocInt (mHandle.mWidth * mHandle.mHeight * 3);
     if (!mOutRgb565Buf)
       printf ("JPEG mOutRgb565Buf alloc fail\n");
 
@@ -828,9 +828,9 @@ cTile* hwJpegDecode (const string& fileName) {
             mOutYuvBuf, mHandle.mChromaSampling, mHandle.mWidth, mHandle.mHeight,
             mOutTotalLen, mOutYuvLen, mOutTotalChunks);
 
-    cLcd::yuvMcuToRgb565 (mOutYuvBuf, mOutRgb565Buf, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
+    cLcd::yuvMcuToRgb888 (mOutYuvBuf, mOutRgb565Buf, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
     //yuvMcuTo565sw (mOutYuvBuf, mOutRgb565Buf, 0, mOutYuvLen);
-    tile = new cTile (mOutRgb565Buf, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
+    tile = new cTile (mOutRgb565Buf, 3, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
     }
 
   vPortFree (mInBuf[0].mBuf);
