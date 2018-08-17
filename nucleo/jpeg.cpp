@@ -278,7 +278,7 @@ static const uint8_t CLAMP_LUT[] = {
 };
 //}}}
 //{{{
-void initColorTables() {
+void yuv422toRGB565 (uint8_t* src, uint8_t* dst, uint32_t BlockIndex, uint32_t DataCount) {
 
   for (int32_t i = 0; i <= 255; i++) {
     int32_t index = (i * 2) - 256;
@@ -287,10 +287,6 @@ void initColorTables() {
     CR_GREEN_LUT[i] = (-((int32_t) ((0.71414 / 2) * (1L << 16)))) * index;
     CB_GREEN_LUT[i] = (-((int32_t) ((0.34414 / 2) * (1L << 16)))) * index;
     }
-  }
-//}}}
-//{{{
-void yuv422toRGB565 (uint8_t* src, uint8_t* dst, uint32_t BlockIndex, uint32_t DataCount) {
 
   uint32_t ImageWidth = mHandle.mWidth;
   uint32_t ImageHeight = mHandle.mHeight;
@@ -828,9 +824,8 @@ cTile* hwJpegDecode (const string& fileName) {
             mOutYuvBuf, mHandle.mChromaSampling, mHandle.mWidth, mHandle.mHeight,
             mOutTotalLen, mOutYuvLen, mOutTotalChunks);
 
-    //cLcd::jpegYuvTo565 (mOutYuvBuf, mOutRgb565Buf, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
-    initColorTables();
-    yuv422toRGB565 (mOutYuvBuf, mOutRgb565Buf, 0, mOutYuvLen);
+    cLcd::jpegYuvTo565 (mOutYuvBuf, mOutRgb565Buf, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
+    //yuv422toRGB565 (mOutYuvBuf, mOutRgb565Buf, 0, mOutYuvLen);
     tile = new cTile (mOutRgb565Buf, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
     }
 
