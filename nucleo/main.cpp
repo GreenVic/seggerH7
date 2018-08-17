@@ -209,7 +209,8 @@ void appThread (void* arg) {
       if (f_stat (fileName.c_str(), &filInfo))
         printf ("APP fstat fail\n");
 
-      printf ("APP decode %s\n", fileName.c_str());
+      printf ("APP decode %s size:%d time:%d date:%d\n",
+              fileName.c_str(), int(filInfo.fsize), filInfo.ftime, filInfo.fdate);
       delete showTile[!show];
 
       auto startTime = HAL_GetTick();
@@ -224,7 +225,7 @@ void appThread (void* arg) {
         lcd->setTitle (dec (count++) + " of " + dec(mFileVec.size()) + " " +
                        fileName + " " +
                        dec (showTile[show]->mWidth) + "x" + dec (showTile[show]->mHeight) + " " +
-                       dec ((int)(filInfo.fsize)/1000) + "k " +
+                       dec ((int)(filInfo.fsize) / 1000) + "k " +
                        dec (filInfo.ftime >> 11) + ":" + dec ((filInfo.ftime >> 5) & 63) + " " +
                        dec (filInfo.fdate & 31) + ":" + dec ((filInfo.fdate >> 5) & 15) + ":" + dec ((filInfo.fdate >> 9) + 1980));
         }

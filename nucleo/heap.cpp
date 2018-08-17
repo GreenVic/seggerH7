@@ -55,7 +55,7 @@ public:
     pxFirstFreeBlock->mNextFreeBlock = mEnd;
 
     // Only one block exists - and it covers the entire usable heap space
-    mMinimumEverFreeBytesRemaining = pxFirstFreeBlock->mBlockSize;
+    mMinFreeBytesRemaining = pxFirstFreeBlock->mBlockSize;
     mFreeBytesRemaining = pxFirstFreeBlock->mBlockSize;
     }
   //}}}
@@ -111,8 +111,8 @@ public:
           }
 
         mFreeBytesRemaining -= block->mBlockSize;
-        if (mFreeBytesRemaining < mMinimumEverFreeBytesRemaining )
-          mMinimumEverFreeBytesRemaining = mFreeBytesRemaining;
+        if (mFreeBytesRemaining < mMinFreeBytesRemaining )
+          mMinFreeBytesRemaining = mFreeBytesRemaining;
 
         // The block is being returned - it is allocated and owned by the application and has no "next" block. */
         block->mBlockSize |= kBlockAllocatedBit;
@@ -134,11 +134,11 @@ public:
 
     if (allocAddress) {
       //printf ("heap alloc %p size:%d free:%d minFree:%d\n",
-      //        allocAddress, size, mFreeBytesRemaining,mMinimumEverFreeBytesRemaining);
+      //        allocAddress, size, mFreeBytesRemaining,mMinFreeBytesRemaining);
       }
     else {
       printf ("***heap alloc fail size:%d free:%d minFree:%d largest:%d\n",
-              size, mFreeBytesRemaining,mMinimumEverFreeBytesRemaining, largestBlock);
+              size, mFreeBytesRemaining,mMinFreeBytesRemaining, largestBlock);
 
       tLink_t* block = mStart.mNextFreeBlock;
       while (block) {
@@ -182,7 +182,7 @@ public:
   //}}}
 
   size_t getFreeHeapSize() { return mFreeBytesRemaining; }
-  size_t getMinEverHeapSize() { return mMinimumEverFreeBytesRemaining; }
+  size_t getMinHeapSize() { return mMinFreeBytesRemaining; }
 
 private:
   //{{{  struct tLink_t
@@ -237,7 +237,7 @@ private:
   tLink_t mStart;
   tLink_t* mEnd = NULL;
   size_t mFreeBytesRemaining = 0;
-  size_t mMinimumEverFreeBytesRemaining = 0;
+  size_t mMinFreeBytesRemaining = 0;
   };
 //}}}
 
@@ -257,6 +257,8 @@ void sram123Init (uint32_t start, size_t size) { mSram123Heap.init (start, size)
 uint8_t* sram123Alloc (size_t size) { return (uint8_t*)mSram123Heap.alloc (size); }
 uint8_t* sram123AllocInt (size_t size) { return (uint8_t*)mSram123Heap.allocInt (size); }
 void sram123Free (void* p) { mSram123Heap.free (p); }
+size_t getSram123FreeSize() { return mSram123Heap.getFreeHeapSize(); }
+size_t getSram123MinFreeSize() { return mSram123Heap.getMinHeapSize(); }
 
 //{{{
 void* pvPortMalloc (size_t size) {
@@ -288,5 +290,5 @@ void sdRamInit (uint32_t start, size_t size) { mSdRamHeap.init (start, size); }
 void* sdRamAlloc (size_t size) {return mSdRamHeap.alloc (size); }
 void* sdRamAllocInt (size_t size) { return mSdRamHeap.allocInt (size); }
 void sdRamFree (void* p) { mSdRamHeap.free (p); }
-size_t getSdRamFreeHeapSize() { return mSdRamHeap.getFreeHeapSize(); }
-size_t getSdRamGetMinEverHeapSize() { return mSdRamHeap.getMinEverHeapSize(); }
+size_t getSdRamFreeSize() { return mSdRamHeap.getFreeHeapSize(); }
+size_t getSdRamMinFreeSize() { return mSdRamHeap.getMinHeapSize(); }

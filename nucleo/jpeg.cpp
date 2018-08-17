@@ -197,10 +197,12 @@ const uint8_t ZIGZAG_ORDER[JPEG_QUANT_TABLE_SIZE] = {
 // vars
 tHandle mHandle;
 
+//{{{  yuvMcuTo565sw
+//{{{  yuvMcuTo565sw defines
 // YCbCr 4:2:0 : Each MCU is composed of 4 Y 8x8 blocks + 1 Cb 8x8 block + Cr 8x8 block
 // YCbCr 4:2:2 : Each MCU is composed of 2 Y 8x8 blocks + 1 Cb 8x8 block + Cr 8x8 block
 // YCbCr 4:4:4 : Each MCU is composed of 1 Y 8x8 block + 1 Cb 8x8 block + Cr 8x8 block
-//{{{  defines
+
 #define YCBCR_420_BLOCK_SIZE     384     /* YCbCr 4:2:0 MCU : 4 8x8 blocks of Y + 1 8x8 block of Cb + 1 8x8 block of Cr   */
 #define YCBCR_422_BLOCK_SIZE     256     /* YCbCr 4:2:2 MCU : 2 8x8 blocks of Y + 1 8x8 block of Cb + 1 8x8 block of Cr   */
 #define YCBCR_444_BLOCK_SIZE     192     /* YCbCr 4:4:4 MCU : 1 8x8 block of Y + 1 8x8 block of Cb + 1 8x8 block of Cr   */
@@ -216,11 +218,12 @@ tHandle mHandle;
 
 #define CLAMP(value) CLAMP_LUT[(value) + 0x100] /* Range limitting macro */
 //}}}
+//{{{  yuvMcuTo565sw statics
 static int32_t CR_RED_LUT[256];           /* Cr to Red color conversion Look Up Table  */
 static int32_t CB_BLUE_LUT[256];          /* Cb to Blue color conversion Look Up Table */
 static int32_t CR_GREEN_LUT[256];         /* Cr to Green color conversion Look Up Table*/
 static int32_t CB_GREEN_LUT[256];         /* Cb to Green color conversion Look Up Table*/
-//{{{
+
 static const uint8_t CLAMP_LUT[] = {
 /* clamp range 0xffffffff to 0xffffff00 */
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -278,7 +281,7 @@ static const uint8_t CLAMP_LUT[] = {
 };
 //}}}
 //{{{
-void yuv422toRGB565 (uint8_t* src, uint8_t* dst, uint32_t BlockIndex, uint32_t DataCount) {
+void yuvMcuTo565sw (uint8_t* src, uint8_t* dst, uint32_t BlockIndex, uint32_t DataCount) {
 
   for (int32_t i = 0; i <= 255; i++) {
     int32_t index = (i * 2) - 256;
@@ -357,6 +360,7 @@ void yuv422toRGB565 (uint8_t* src, uint8_t* dst, uint32_t BlockIndex, uint32_t D
     src += YCBCR_422_BLOCK_SIZE;
     }
   }
+//}}}
 //}}}
 
 tBufs mInBuf[2] = { { false, nullptr, 0 }, { false, nullptr, 0 } };
@@ -824,8 +828,8 @@ cTile* hwJpegDecode (const string& fileName) {
             mOutYuvBuf, mHandle.mChromaSampling, mHandle.mWidth, mHandle.mHeight,
             mOutTotalLen, mOutYuvLen, mOutTotalChunks);
 
-    cLcd::jpegYuvTo565 (mOutYuvBuf, mOutRgb565Buf, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
-    //yuv422toRGB565 (mOutYuvBuf, mOutRgb565Buf, 0, mOutYuvLen);
+    cLcd::yuvMcuTo565 (mOutYuvBuf, mOutRgb565Buf, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
+    //yuvMcuTo565sw (mOutYuvBuf, mOutRgb565Buf, 0, mOutYuvLen);
     tile = new cTile (mOutRgb565Buf, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
     }
 
