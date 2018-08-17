@@ -625,7 +625,11 @@ cTile* hwJpegDecode (const string& fileName) {
     dmaDecode (mInBuf[0].mBuf, mInBuf[0].mSize);
 
     while (!mHandle.mDecodeDone) {
-      if (!mInBuf[mHandle.mWriteIndex].mFull) {
+      if (mInBuf[mHandle.mWriteIndex].mFull) {
+        taskYIELD();
+        }
+      else {
+        // fill next buffer
         if (f_read (&file, mInBuf[mHandle.mWriteIndex].mBuf, 4096, &mInBuf[mHandle.mWriteIndex].mSize) == FR_OK)
           mInBuf[mHandle.mWriteIndex].mFull = true;
 
@@ -643,11 +647,8 @@ cTile* hwJpegDecode (const string& fileName) {
           if (mHandle.InLen > 0) // Start DMA FIFO In transfer
             HAL_MDMA_Start_IT (&mHandle.hmdmaIn, (uint32_t)mHandle.InBuffPtr, (uint32_t)&JPEG->DIR, mHandle.InLen, 1);
           }
-
         mHandle.mWriteIndex = mHandle.mWriteIndex ? 0 : 1;
         }
-      else
-        vTaskDelay (1);
       }
     f_close (&file);
 
