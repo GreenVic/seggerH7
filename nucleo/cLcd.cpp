@@ -487,6 +487,34 @@ void cLcd::pixel (uint16_t colour, cPoint p) {
   }
 //}}}
 //{{{
+void cLcd::grad (uint16_t colour1, uint16_t colour2, const cRect& r, uint8_t dir) {
+
+  uint8_t r1 = colour1 >> 11;
+  uint8_t r2 = colour2 >> 11;
+  uint8_t g1 = (colour1 & 0x07E0) >> 5;
+  uint8_t g2 = (colour2 & 0x07E0) >> 5;
+  uint8_t b1 = colour1 & 0x001F;
+  uint8_t b2 = colour2 & 0x001F;
+
+  int32_t rGrad16 = ((r2-r1) * 0x10000) / r.getWidth();
+  int32_t gGrad16 = ((g2-g1) * 0x10000) / r.getWidth();
+  int32_t bGrad16 = ((b2-b1) * 0x10000) / r.getWidth();
+
+  for (uint16_t y = r.top; y < r.bottom; y++) {
+    uint32_t r16 = r1 << 16;
+    uint32_t g16 = g1 << 16;
+    uint32_t b16 = b1 << 16;
+    for (uint16_t x = r.left; x < r.right; x++) {
+      uint16_t colour = (b16 >> 16) | ((g16 >> 11) & 0x07E0) | ((r16 >> 5) & 0xF800);
+      *(mBuffer[mDrawBuffer] + y * getWidth() + x) = colour;
+      r16 += rGrad16;
+      g16 += gGrad16;
+      b16 += bGrad16;
+      }
+    }
+  }
+//}}}
+//{{{
 void cLcd::line (uint16_t colour, cPoint p1, cPoint p2) {
 
   int16_t deltax = abs(p2.x - p1.x); // The difference between the x's
