@@ -548,7 +548,7 @@ void cLcd::ellipseOutline (uint16_t colour, cPoint centre, cPoint radius) {
 //}}}
 
 //{{{
-void cLcd::rgb888toRgb565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize) {
+void cLcd::rgb888toRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize) {
 
   if (!xSemaphoreTake (mLockSem, 5000))
     printf ("cLcd take fail\n");

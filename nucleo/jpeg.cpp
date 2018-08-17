@@ -866,20 +866,21 @@ cTile* swJpegDecode (const string& fileName, int scale) {
     mCinfo.scale_denom = scale;
     jpeg_start_decompress (&mCinfo);
 
-    auto rgb565pic = (uint16_t*)sdRamAlloc (mCinfo.output_width * mCinfo.output_height*2);
-    if (!rgb565pic)
+    auto rgb565Pic = sdRamAlloc (mCinfo.output_width * mCinfo.output_height*2);
+    if (!rgb565Pic)
       printf ("swJpegDecode %s rgb565pic alloc fail\n", fileName.c_str());
     else {
-      auto rgbLine = (uint8_t*)sram123Alloc (mCinfo.output_width * 3);
-      if (!rgbLine)
+      auto rgb888Line = (uint8_t*)sram123Alloc (mCinfo.output_width * 3);
+      if (!rgb888Line)
         printf ("swJpegDecode %s rgbLine alloc fail\n", fileName.c_str());
       else {
-        tile = new cTile ((uint8_t*)rgb565pic, 2, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
+        tile = new cTile (rgb565Pic, 2, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
         while (mCinfo.output_scanline < mCinfo.output_height) {
-          jpeg_read_scanlines (&mCinfo, &rgbLine, 1);
-          cLcd::rgb888toRgb565 (rgbLine, rgb565pic + (mCinfo.output_scanline-1) * mCinfo.output_width, mCinfo.output_width, 1);
+          jpeg_read_scanlines (&mCinfo, &rgb888Line, 1);
+          cLcd::rgb888toRgb565 (rgb888Line, rgb565Pic, mCinfo.output_width, 1);
+          rgb565Pic += mCinfo.output_width * 2;
           }
-        sram123Free (rgbLine);
+        sram123Free (rgb888Line);
         }
       }
     jpeg_finish_decompress (&mCinfo);

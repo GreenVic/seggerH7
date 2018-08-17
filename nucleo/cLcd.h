@@ -148,7 +148,7 @@ public:
   void line (uint16_t colour, cPoint p1, cPoint p2);
   void ellipseOutline (uint16_t colour, cPoint centre, cPoint radius);
 
-  static void rgb888toRgb565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize);
+  static void rgb888toRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize);
   static void yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
   static void yuvMcuToRgb888 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
 
