@@ -828,7 +828,7 @@ cTile* hwJpegDecode (const string& fileName) {
             mOutYuvBuf, mHandle.mChromaSampling, mHandle.mWidth, mHandle.mHeight,
             mOutTotalLen, mOutYuvLen, mOutTotalChunks);
 
-    cLcd::yuvMcuTo565 (mOutYuvBuf, mOutRgb565Buf, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
+    cLcd::yuvMcuToRgb565 (mOutYuvBuf, mOutRgb565Buf, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
     //yuvMcuTo565sw (mOutYuvBuf, mOutRgb565Buf, 0, mOutYuvLen);
     tile = new cTile (mOutRgb565Buf, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
     }
@@ -877,7 +877,7 @@ cTile* swJpegDecode (const string& fileName, int scale) {
         tile = new cTile ((uint8_t*)rgb565pic, 2, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
         while (mCinfo.output_scanline < mCinfo.output_height) {
           jpeg_read_scanlines (&mCinfo, &rgbLine, 1);
-          cLcd::rgb888to565 (rgbLine, rgb565pic + (mCinfo.output_scanline-1) * mCinfo.output_width, mCinfo.output_width, 1);
+          cLcd::rgb888toRgb565 (rgbLine, rgb565pic + (mCinfo.output_scanline-1) * mCinfo.output_width, mCinfo.output_width, 1);
           }
         sram123Free (rgbLine);
         }

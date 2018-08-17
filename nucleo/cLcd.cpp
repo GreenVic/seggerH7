@@ -529,7 +529,7 @@ void cLcd::ellipseOutline (uint16_t colour, cPoint centre, cPoint radius) {
 //}}}
 
 //{{{
-void cLcd::rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize) {
+void cLcd::rgb888toRgb565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ysize) {
 
   if (!xSemaphoreTake (mLockSem, 5000))
     printf ("cLcd take fail\n");
@@ -552,7 +552,7 @@ void cLcd::rgb888to565 (uint8_t* src, uint16_t* dst, uint16_t xsize, uint16_t ys
   }
 //}}}
 //{{{
-void cLcd::yuvMcuTo565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling) {
+void cLcd::yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling) {
 
   uint32_t cssMode = DMA2D_CSS_420;
   uint32_t inputLineOffset = 0;
@@ -584,6 +584,51 @@ void cLcd::yuvMcuTo565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysi
   DMA2D->FGOR = inputLineOffset;
 
   DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
+  DMA2D->OMAR = (uint32_t)dst;
+  DMA2D->OOR = 0;
+
+  DMA2D->NLR = (xsize << 16) | ysize;
+  DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
+  mDma2dWait = eWaitIrq;
+
+  ready();
+
+  xSemaphoreGive (mLockSem);
+  }
+//}}}
+//{{{
+void cLcd::yuvMcuToRgb888 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling) {
+
+  uint32_t cssMode = DMA2D_CSS_420;
+  uint32_t inputLineOffset = 0;
+
+  if (chromaSampling == JPEG_420_SUBSAMPLING) {
+    cssMode = DMA2D_CSS_420;
+    inputLineOffset = xsize % 16;
+    if (inputLineOffset != 0)
+      inputLineOffset = 16 - inputLineOffset;
+    }
+  else if (chromaSampling == JPEG_444_SUBSAMPLING) {
+    cssMode = DMA2D_NO_CSS;
+    inputLineOffset = xsize % 8;
+    if (inputLineOffset != 0)
+      inputLineOffset = 8 - inputLineOffset;
+    }
+  else if (chromaSampling == JPEG_422_SUBSAMPLING) {
+    cssMode = DMA2D_CSS_422;
+    inputLineOffset = xsize % 16;
+    if (inputLineOffset != 0)
+      inputLineOffset = 16 - inputLineOffset;
+    }
+
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
+
+  DMA2D->FGPFCCR = DMA2D_INPUT_YCBCR | (cssMode << POSITION_VAL(DMA2D_FGPFCCR_CSS));
+  DMA2D->FGMAR = (uint32_t)src;
+  DMA2D->FGOR = inputLineOffset;
+
+  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB888;
   DMA2D->OMAR = (uint32_t)dst;
   DMA2D->OOR = 0;
 
