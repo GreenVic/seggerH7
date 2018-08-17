@@ -468,9 +468,10 @@ void cLcd::size (cTile* srcTile, const cRect& r) {
       auto src11 = srcBase + (y16 >> 16) * srcTile->mPitch * 3;
       for (uint32_t x16 = srcTile->mX << 16; x16 < (srcTile->mX + r.getWidth()) * xStep16; x16 += xStep16) {
         auto srcPtr = src11 + (x16 >> 16) * 3;
-        uint16_t pix = (*srcPtr++) >> 3;
-        pix |= (*srcPtr++ & 0xFC) << 3;;
-        *dstPtr++ = pix | ((*srcPtr & 0xF8) << 8);
+        uint16_t pix = (*srcPtr) >> 3;
+        pix |= (*((srcPtr+1)) & 0xFC) << 3;;
+        *dstPtr++ = pix | (((*(srcPtr+2)) & 0xF8) << 8);
+        srcPtr += 3;
         }
       dstPtr += getWidth() - r.getWidth();
       }
