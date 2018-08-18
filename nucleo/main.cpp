@@ -206,12 +206,12 @@ void appThread (void* arg) {
     char label[20] = { 0 };
     DWORD volumeSerialNumber = 0;
     f_getlabel ("", label, &volumeSerialNumber);
-    printf ("sdCard mounted label %s\n", label);
-    lcd->info ("sdCard mounted label:" + string (label));
+    printf ("mounted label %s\n", label);
+    lcd->info ("mounted " + string (label));
 
     findFiles ("", ".jpg");
-    printf ("found %d piccies\n", mFileVec.size());
-    lcd->info (COL_WHITE, "found " + dec(mFileVec.size()) + " piccies");
+    printf ("%d piccies\n", mFileVec.size());
+    lcd->info (COL_YELLOW, dec (mFileVec.size()) + " piccies");
 
     int count = 1;
     for (auto fileName : mFileVec) {
@@ -236,8 +236,12 @@ void appThread (void* arg) {
                        fileName + " " +
                        dec (showTile[show]->mWidth) + "x" + dec (showTile[show]->mHeight) + " " +
                        dec ((int)(filInfo.fsize) / 1000) + "k " +
-                       dec (filInfo.ftime >> 11) + ":" + dec ((filInfo.ftime >> 5) & 63) + " " +
-                       dec (filInfo.fdate & 31) + ":" + dec ((filInfo.fdate >> 5) & 15) + ":" + dec ((filInfo.fdate >> 9) + 1980) +
+                       dec (filInfo.ftime >> 11, 2, '0') + ":" +
+                       dec ((filInfo.ftime >> 5) & 0x3F, 2, '0') + ":" +
+                       dec ((filInfo.ftime & 0x1F) * 2, 2, '0') + " " +
+                       dec (filInfo.fdate & 0x1F) + "." +
+                       dec ((filInfo.fdate >> 5) & 0xF) + "." +
+                       dec ((filInfo.fdate >> 9) + 1980) +
                        " took " + dec(HAL_GetTick() - startTime) + "ms");
         vTaskDelay (200);
         }
@@ -249,13 +253,13 @@ void appThread (void* arg) {
       }
     }
 
-  uint32_t offset = 0;
-  while (true)
-    for (int j = 4; j <= 0x3F; j++) {
-      offset += HAL_GetTick();
-      sdRamTest (uint16_t(offset++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00200000)), 0x00200000);
-      vTaskDelay (200);
-      }
+  //uint32_t offset = 0;
+  //while (true)
+  //  for (int j = 4; j <= 0x3F; j++) {
+  //    offset += HAL_GetTick();
+  //    sdRamTest (uint16_t(offset++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00200000)), 0x00200000);
+  //    vTaskDelay (200);
+  //    }
 
   while (true)
     vTaskDelay (1000);
