@@ -320,16 +320,16 @@ void vPortFree (void* pv) {
 
 //{{{
 void* operator new (size_t size) {
+
   void* allocAddress = malloc (size);
   printf ("new %p %d\n", allocAddress, size);
-  //return sramAlloc (size);
   return allocAddress;
   }
 //}}}
 //{{{
 void  operator delete (void* ptr) {
+
   printf ("free %p\n", ptr);
-  //sramFree (ptr);
   free (ptr);
   }
 //}}}
