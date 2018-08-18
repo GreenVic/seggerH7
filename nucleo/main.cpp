@@ -211,7 +211,7 @@ void appThread (void* arg) {
 
     findFiles ("", ".jpg");
     printf ("%d piccies\n", mFileVec.size());
-    lcd->info (COL_YELLOW, dec (mFileVec.size()) + " piccies");
+    lcd->setTitle (dec (mFileVec.size()) + " piccies");
 
     int count = 1;
     for (auto fileName : mFileVec) {
@@ -241,8 +241,8 @@ void appThread (void* arg) {
                        dec ((filInfo.ftime & 0x1F) * 2, 2, '0') + " " +
                        dec (filInfo.fdate & 0x1F) + "." +
                        dec ((filInfo.fdate >> 5) & 0xF) + "." +
-                       dec ((filInfo.fdate >> 9) + 1980) +
-                       " took " + dec(HAL_GetTick() - startTime) + "ms");
+                       dec ((filInfo.fdate >> 9) + 1980) + " " +
+                       dec (HAL_GetTick() - startTime) + "ms");
         vTaskDelay (200);
         }
       else {

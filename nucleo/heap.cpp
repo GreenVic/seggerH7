@@ -58,6 +58,9 @@ public:
     }
   //}}}
 
+  size_t getFreeHeapSize() { return mFreeBytesRemaining; }
+  size_t getMinHeapSize() { return mMinFreeBytesRemaining; }
+
   //{{{
   uint8_t* allocInt (size_t size) {
 
@@ -179,9 +182,6 @@ public:
     }
   //}}}
 
-  size_t getFreeHeapSize() { return mFreeBytesRemaining; }
-  size_t getMinHeapSize() { return mMinFreeBytesRemaining; }
-
 private:
   //{{{  struct tLink_t
   typedef struct A_BLOCK_LINK {
@@ -189,12 +189,6 @@ private:
     size_t mBlockSize;                   // The size of the free block
     } tLink_t;
   //}}}
-
-  const uint32_t mAlignment = 8;
-  const uint32_t mAlignmentMask = 7;
-  const size_t kHeapStructSize = 8;
-  const size_t kHeapMinimumBlockSize = kHeapStructSize << 1;
-  const size_t kBlockAllocatedBit = 0x80000000;
 
   //{{{
   void insertBlockIntoFreeList (tLink_t* insertBlock) {
@@ -232,6 +226,12 @@ private:
     }
   //}}}
 
+  const uint32_t mAlignment = 8;
+  const uint32_t mAlignmentMask = 7;
+  const size_t kHeapStructSize = 8;
+  const size_t kHeapMinimumBlockSize = kHeapStructSize << 1;
+  const size_t kBlockAllocatedBit = 0x80000000;
+
   tLink_t mStart;
   tLink_t* mEnd = NULL;
   size_t mSize = 0;
@@ -243,10 +243,9 @@ private:
 //#define DTCM_ADDR 0x20000000
 //#define DTCM_SIZE 0x00020000
 cHeap mDtcmHeap;
-
 void dtcmInit (uint32_t start, size_t size) { mDtcmHeap.init (start, size); }
 uint8_t* dtcmAlloc (size_t size) { return (uint8_t*)mDtcmHeap.alloc (size); }
-void dtcmFree (void* p) { mDtcmHeap.free (p); }
+void dtcmFree (void* ptr) { mDtcmHeap.free (ptr); }
 
 //#define SRAM123_ADDR 0x30000000
 //#define SRAM123_SIZE 0x00048000
@@ -258,7 +257,7 @@ uint8_t* sram123Alloc (size_t size) {
   return (uint8_t*)mSram123Heap.alloc (size);
   }
 //}}}
-void sram123Free (void* p) { mSram123Heap.free (p); }
+void sram123Free (void* ptr) { mSram123Heap.free (ptr); }
 size_t getSram123FreeSize() { return mSram123Heap.getFreeHeapSize(); }
 size_t getSram123MinFreeSize() { return mSram123Heap.getMinHeapSize(); }
 
@@ -281,7 +280,7 @@ uint8_t* sdRamAlloc (size_t size) {
   return mSdRamHeap.alloc (size);
   }
 //}}}
-void sdRamFree (void* p) { mSdRamHeap.free (p); }
+void sdRamFree (void* ptr) { mSdRamHeap.free (ptr); }
 size_t getSdRamFreeSize() { return mSdRamHeap.getFreeHeapSize(); }
 size_t getSdRamMinFreeSize() { return mSdRamHeap.getMinHeapSize(); }
 
@@ -321,7 +320,7 @@ void* operator new (size_t size) {
   }
 //}}}
 //{{{
-void  operator delete (void* ptr) {
+void operator delete (void* ptr) {
 
   printf ("free %p\n", ptr);
   free (ptr);

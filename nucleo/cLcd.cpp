@@ -693,20 +693,22 @@ void cLcd::drawInfo() {
   const int kSmallGap = 2;
 
   // draw title
-  grad (COL_RED, COL_BLACK, COL_GREEN, COL_GREY, cRect(0, 0, getWidth(), kTitleHeight+kGap));
-  text (COL_YELLOW, kTitleHeight, mTitle, cRect(0, 0, getWidth(), kTitleHeight+kGap));
-
-  // draw footer
-  auto y = getHeight() - kFooterHeight - kGap;
-  text (COL_WHITE, kFooterHeight,
-        dec(mNumPresents) + ":" + dec (mDrawTime) + ":" + dec (mWaitTime) + "ms " +
-        dec (osGetCPUUsage()) + "% " +
-        dec (mBrightness) +
-        "% sram123:" + dec (getSram123FreeSize()/1000) + "k sdram:" +
-        dec (getSdRamFreeSize()/1000) + "k:" + dec (getSdRamMinFreeSize()/1000) + "k",
-        cRect(0, y, getWidth(), kTitleHeight+kGap));
+  const cRect titleRect (0,0, getWidth(), kTitleHeight+kGap);
+  grad (COL_BLUE, COL_GREY, COL_GREY, COL_BLACK, titleRect);
+  text (COL_YELLOW, kTitleHeight, mTitle, titleRect);
 
   if (mShowInfo) {
+    // draw footer
+    auto y = getHeight() - kFooterHeight - kGap;
+    text (COL_WHITE, kFooterHeight,
+          dec(mNumPresents) + ":" + dec (mDrawTime) + ":" + dec (mWaitTime) + "ms " +
+          dec (osGetCPUUsage()) + "% " +
+          dec (mBrightness) +
+          "% sram123:" + dec (getSram123FreeSize()/1000) + "k sdram:" +
+          dec (getSdRamFreeSize()/1000) + "k:" + dec (getSdRamMinFreeSize()/1000) + "k",
+          cRect(0, y, getWidth(), kTitleHeight+kGap));
+
+    // draw log
     y -= kTitleHeight - kGap;
     auto line = mCurLine - 1;
     while ((y > kTitleHeight) && (line >= 0)) {
