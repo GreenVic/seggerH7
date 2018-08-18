@@ -284,10 +284,10 @@ uint8_t* sdRamAllocInt (size_t size) {
   }
 //}}}
 //{{{
-uint8_t* sdRamAlloc (size_t size) { 
+uint8_t* sdRamAlloc (size_t size) {
   if (!mSdRamHeap.getInited())
     mSdRamHeap.init (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
-  return mSdRamHeap.alloc (size); 
+  return mSdRamHeap.alloc (size);
   }
 //}}}
 void sdRamFree (void* p) { mSdRamHeap.free (p); }
@@ -319,17 +319,17 @@ void vPortFree (void* pv) {
 //}}}
 
 //{{{
-
-//void* operator new (size_t size) {
-  //printf ("new %d\n", size);
-  ////return sramAlloc (size);
-  //return malloc (size);
-  //}
+void* operator new (size_t size) {
+  void* allocAddress = malloc (size);
+  printf ("new %p %d\n", allocAddress, size);
+  //return sramAlloc (size);
+  return allocAddress;
+  }
 //}}}
 //{{{
-//void  operator delete (void* ptr) {
-  //printf ("free %p\n", ptr);
-  ////sramFree (ptr);
-  //free (ptr);
-  //}
+void  operator delete (void* ptr) {
+  printf ("free %p\n", ptr);
+  //sramFree (ptr);
+  free (ptr);
+  }
 //}}}
