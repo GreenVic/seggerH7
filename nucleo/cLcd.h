@@ -145,7 +145,7 @@ public:
   void size (cTile* srcTile, const cRect& r);
 
   void pixel (uint16_t colour, cPoint p);
-  void grad (uint16_t colourTL, uint16_t colourTR, uint16_t colourBL, uint16_t colourBR, const cRect& r);
+  void grad (uint16_t colTL, uint16_t colTR, uint16_t colBL, uint16_t colBR, const cRect& r);
   void line (uint16_t colour, cPoint p1, cPoint p2);
   void ellipseOutline (uint16_t colour, cPoint centre, cPoint radius);
 

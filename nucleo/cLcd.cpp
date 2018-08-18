@@ -487,22 +487,22 @@ void cLcd::pixel (uint16_t colour, cPoint p) {
   }
 //}}}
 //{{{
-void cLcd::grad (uint16_t colourTL, uint16_t colourTR, uint16_t colourBL, uint16_t colourBR, const cRect& r) {
+void cLcd::grad (uint16_t colTL, uint16_t colTR, uint16_t colBL, uint16_t colBR, const cRect& r) {
 
-  int32_t rTL = (colourTL & 0xF800) << 5;
-  int32_t rTR = (colourTR & 0xF800) << 5;
-  int32_t rBL = (colourBL & 0xF800) << 5;
-  int32_t rBR = (colourBR & 0xF800) << 5;
+  int32_t rTL = (colTL & 0xF800) << 5;
+  int32_t rTR = (colTR & 0xF800) << 5;
+  int32_t rBL = (colBL & 0xF800) << 5;
+  int32_t rBR = (colBR & 0xF800) << 5;
 
-  int32_t gTL = (colourTL & 0x07E0) << 11;
-  int32_t gTR = (colourTR & 0x07E0) << 11;
-  int32_t gBL = (colourBL & 0x07E0) << 11;
-  int32_t gBR = (colourBR & 0x07E0) << 11;
+  int32_t gTL = (colTL & 0x07E0) << 11;
+  int32_t gTR = (colTR & 0x07E0) << 11;
+  int32_t gBL = (colBL & 0x07E0) << 11;
+  int32_t gBR = (colBR & 0x07E0) << 11;
 
-  int32_t bTL = (colourTL & 0x001F) << 16;
-  int32_t bTR = (colourTR & 0x001F) << 16;
-  int32_t bBL = (colourBL & 0x001F) << 16;
-  int32_t bBR = (colourBR & 0x001F) << 16;
+  int32_t bTL = (colTL & 0x001F) << 16;
+  int32_t bTR = (colTR & 0x001F) << 16;
+  int32_t bBL = (colBL & 0x001F) << 16;
+  int32_t bBR = (colBR & 0x001F) << 16;
 
   int32_t rl16 = rTL;
   int32_t gl16 = gTL;

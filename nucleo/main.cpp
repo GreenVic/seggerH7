@@ -136,12 +136,21 @@ void uiThread (void* arg) {
       lcd->clear (COL_BLACK);
 
       if (showTile[show]) {
-        //lcd->copy ((cTile*)showTile[show], cPoint ());
-        if (showTile[show]->mWidth <= lcd->getWidth() &&  showTile[show]->mHeight <=lcd->getHeight())
+        if (showTile[show]->mWidth > lcd->getWidth() || showTile[show]->mHeight > lcd->getHeight()) {
+          uint16_t lcdWidth = lcd->getWidth() - 20;
+          uint16_t lcdHeight = lcd->getHeight() - 44;
+          float xscale = (float)showTile[show]->mWidth / lcdWidth;
+          float yscale = (float)showTile[show]->mHeight / lcdHeight;
+          if (xscale > yscale)
+            lcdHeight = int (lcdHeight * yscale / xscale);
+          else
+            lcdWidth = int (lcdWidth * xscale / yscale);
+         cPoint p ((lcd->getWidth() - lcdWidth) / 2, (lcd->getHeight() - lcdHeight) / 2);
+         lcd->size ((cTile*)showTile[show], cRect (p.x, p.y, p.x + lcdWidth, p.y + lcdHeight));
+          }
+        else
           lcd->copy ((cTile*)showTile[show], cPoint ((lcd->getWidth() - showTile[show]->mWidth) / 2,
                                                      (lcd->getHeight() - showTile[show]->mHeight) / 2));
-        else
-          lcd->size ((cTile*)showTile[show], cRect (10,22, lcd->getWidth()-10,lcd->getHeight()-22));
         }
 
       //{{{  draw clock
@@ -228,13 +237,15 @@ void appThread (void* arg) {
                        dec (showTile[show]->mWidth) + "x" + dec (showTile[show]->mHeight) + " " +
                        dec ((int)(filInfo.fsize) / 1000) + "k " +
                        dec (filInfo.ftime >> 11) + ":" + dec ((filInfo.ftime >> 5) & 63) + " " +
-                       dec (filInfo.fdate & 31) + ":" + dec ((filInfo.fdate >> 5) & 15) + ":" + dec ((filInfo.fdate >> 9) + 1980));
+                       dec (filInfo.fdate & 31) + ":" + dec ((filInfo.fdate >> 5) & 15) + ":" + dec ((filInfo.fdate >> 9) + 1980) +
+                       " took " + dec(HAL_GetTick() - startTime) + "ms");
+        vTaskDelay (200);
         }
       else {
         printf ("decode %s tile error\n", fileName.c_str());
         lcd->info ("decode load error " + fileName);
+        vTaskDelay (500);
         }
-      vTaskDelay (500);
       }
     }
 
