@@ -144,12 +144,12 @@ void uiThread (void* arg) {
           lcd->size ((cTile*)showTile[show], cRect (10,22, lcd->getWidth()-10,lcd->getHeight()-22));
         }
 
-      lcd->grad (COL_RED, COL_BLACK, cRect (100, 100, 356, 300), 0);
-      lcd->grad (COL_GREEN, COL_BLACK, cRect (360, 100, 616, 300), 0);
-      lcd->grad (COL_BLUE, COL_BLACK, cRect (620, 100, 875, 300), 0);
-      lcd->grad (COL_YELLOW, COL_BLACK, cRect (100, 310, 356, 500), 0);
-      lcd->grad (COL_CYAN, COL_BLACK, cRect (360, 310, 616, 500), 0);
-      lcd->grad (COL_MAGENTA, COL_BLACK, cRect (620, 310, 875, 500), 0);
+      //lcd->grad (COL_RED, COL_BLACK, cRect (100, 100, 356, 300), 0);
+      //lcd->grad (COL_GREEN, COL_BLACK, cRect (360, 100, 616, 300), 0);
+      //lcd->grad (COL_BLUE, COL_BLACK, cRect (620, 100, 875, 300), 0);
+      //lcd->grad (COL_YELLOW, COL_BLACK, cRect (100, 310, 356, 500), 0);
+      //lcd->grad (COL_CYAN, COL_BLACK, cRect (360, 310, 616, 500), 0);
+      //lcd->grad (COL_MAGENTA, COL_BLACK, cRect (620, 310, 875, 500), 0);
 
       //{{{  draw clock
       float hourAngle;

@@ -369,7 +369,6 @@ tBufs mInBuf[2] = { { false, nullptr, 0 }, { false, nullptr, 0 } };
 const uint32_t kOutChunkSize = 85 * 768; // MCU align max output
 uint32_t mOutYuvLen = 0;
 uint8_t* mOutYuvBuf = nullptr;
-uint8_t* mOutRgb565Buf = nullptr;
 uint32_t mOutTotalLen = 0;
 uint32_t mOutTotalChunks = 0;
 
@@ -717,11 +716,6 @@ extern "C" { void JPEG_IRQHandler() {
     mHandle.OutBuffPtr = mOutYuvBuf;
     mHandle.OutLen = kOutChunkSize;
 
-    // alloc rgb
-    mOutRgb565Buf = sdRamAllocInt (mHandle.mWidth * mHandle.mHeight * 3);
-    if (!mOutRgb565Buf)
-      printf ("JPEG mOutRgb565Buf alloc fail\n");
-
     // if the MDMA Out is triggred with JPEG Out FIFO Threshold flag then MDMA out buffer size is 32 bytes
     // else (MDMA Out is triggred with JPEG Out FIFO not empty flag then MDMA buffer size is 4 bytes
     // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)
@@ -782,7 +776,6 @@ cTile* hwJpegDecode (const string& fileName) {
   mInBuf[0].mBuf = (uint8_t*)pvPortMalloc (INBUF_SIZE);
   mInBuf[1].mBuf = (uint8_t*)pvPortMalloc (INBUF_SIZE);
   mOutYuvBuf = nullptr;
-  mOutRgb565Buf = nullptr;
 
   cTile* tile = nullptr;
   FIL file;
@@ -829,9 +822,14 @@ cTile* hwJpegDecode (const string& fileName) {
             mOutYuvBuf, mHandle.mChromaSampling, mHandle.mWidth, mHandle.mHeight,
             mOutTotalLen, mOutYuvLen, mOutTotalChunks);
 
-    cLcd::yuvMcuToRgb888 (mOutYuvBuf, mOutRgb565Buf, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
-    //yuvMcuTo565sw (mOutYuvBuf, mOutRgb565Buf, 0, mOutYuvLen);
-    tile = new cTile (mOutRgb565Buf, 3, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
+    // alloc rgb
+    auto rgb565 = sdRamAllocInt (mHandle.mWidth * mHandle.mHeight * 2);
+    if (!rgb565)
+      printf ("JPEG rgb565 alloc fail\n");
+    else {
+      cLcd::yuvMcuToRgb565 (mOutYuvBuf, rgb565, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
+      tile = new cTile (rgb565, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
+      }
     }
 
   vPortFree (mInBuf[0].mBuf);

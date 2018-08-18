@@ -766,9 +766,9 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   //  R2 <-> PC.10
   //  B2 <-> PD.06
   //                 G2 <-> PA.06
-  //  R3 <-> PB.00   G3 <-> PG.10   B3 <-> PG.11
-  //  R4 <-> PA.11   G4 <-> PB.10   B4 <-> PG.12
-  //  R5 <-> PA.12   G5 <-> PB.11   B5 <-> PA.03
+  //  R3 <-> PB.00   G3 <-> PG.10   B3 <-> PA.08
+  //  R4 <-> PA.05   G4 <-> PB.10   B4 <-> PA.10
+  //  R5 <-> PA.09   G5 <-> PB.11   B5 <-> PA.03
   //  R6 <-> PB.01   G6 <-> PC.07   B6 <-> PB.08
   //  R7 <-> PG.06   G7 <-> PD.03   B7 <-> PB.09
   //
@@ -783,13 +783,32 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
-  // gpioA - AF14
+  // gpioB - AF9
   GPIO_InitTypeDef GPIO_InitStructure;
-  GPIO_InitStructure.Alternate = GPIO_AF14_LTDC;
   GPIO_InitStructure.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStructure.Pull = GPIO_NOPULL;
   GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_HIGH;
-  GPIO_InitStructure.Pin = GPIO_PIN_3 | GPIO_PIN_6 | GPIO_PIN_11 | GPIO_PIN_12; // GPIO_PIN_4
+  GPIO_InitStructure.Alternate = GPIO_AF9_LTDC;
+  GPIO_InitStructure.Pin = GPIO_PIN_0 | GPIO_PIN_1;
+  HAL_GPIO_Init (GPIOB, &GPIO_InitStructure);
+
+  // gpioG - AF9
+  GPIO_InitStructure.Pin = GPIO_PIN_10 | GPIO_PIN_12;
+  HAL_GPIO_Init (GPIOG, &GPIO_InitStructure);
+
+  // gpioA - AF12
+  GPIO_InitStructure.Alternate = GPIO_AF12_LTDC;
+  GPIO_InitStructure.Pin = GPIO_PIN_10;
+  HAL_GPIO_Init (GPIOA, &GPIO_InitStructure);
+
+  // gpioA - AF12
+  GPIO_InitStructure.Alternate = GPIO_AF13_LTDC;
+  GPIO_InitStructure.Pin = GPIO_PIN_8;
+  HAL_GPIO_Init (GPIOA, &GPIO_InitStructure);
+
+  // AF14 gpioA
+  GPIO_InitStructure.Alternate = GPIO_AF14_LTDC;
+  GPIO_InitStructure.Pin = GPIO_PIN_3 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_9 ;
   HAL_GPIO_Init (GPIOA, &GPIO_InitStructure);
 
   // gpioB
@@ -812,14 +831,7 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   GPIO_InitStructure.Pin = GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_11;
   HAL_GPIO_Init (GPIOG, &GPIO_InitStructure);
 
-  // gpioB - AF9
-  GPIO_InitStructure.Alternate = GPIO_AF9_LTDC;
-  GPIO_InitStructure.Pin = GPIO_PIN_0 | GPIO_PIN_1;
-  HAL_GPIO_Init (GPIOB, &GPIO_InitStructure);
 
-  // gpioG - AF9
-  GPIO_InitStructure.Pin = GPIO_PIN_10 | GPIO_PIN_12;
-  HAL_GPIO_Init (GPIOG, &GPIO_InitStructure);
   //}}}
   //{{{  adj PWM - PD13
   __HAL_RCC_TIM4_CLK_ENABLE();
