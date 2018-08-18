@@ -646,31 +646,31 @@ void cLcd::size (cTile* srcTile, const cRect& r) {
   uint32_t xStep16 = ((srcTile->mWidth - 1) << 16) / (r.getWidth() - 1);
   uint32_t yStep16 = ((srcTile->mHeight - 1) << 16) / (r.getHeight() - 1);
 
-  auto dstPtr = mBuffer[mDrawBuffer] + r.top * getWidth() + r.left;
+  auto dst = mBuffer[mDrawBuffer] + r.top * getWidth() + r.left;
 
   if (srcTile->mComponents == 2) {
     // src rgb565
     auto srcBase = (uint16_t*)(srcTile->mPiccy) + (srcTile->mY * srcTile->mPitch) + srcTile->mX;
     for (uint32_t y16 = (srcTile->mY << 16); y16 < ((srcTile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
-      auto src11 = srcBase + (y16 >> 16) * srcTile->mPitch;
+      auto src = srcBase + (y16 >> 16) * srcTile->mPitch;
       for (uint32_t x16 = srcTile->mX << 16; x16 < (srcTile->mX + r.getWidth()) * xStep16; x16 += xStep16)
-        *dstPtr++ = *(src11 + (x16 >> 16));
-      dstPtr += getWidth() - r.getWidth();
+        *dst++ = *(src + (x16 >> 16));
+      dst += getWidth() - r.getWidth();
       }
     }
   else {
     // src rgb888
     auto srcBase = (uint8_t*)(srcTile->mPiccy) + ((srcTile->mY * srcTile->mPitch) + srcTile->mX) * 3;
     for (uint32_t y16 = (srcTile->mY << 16); y16 < ((srcTile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
-      auto src11 = srcBase + (y16 >> 16) * srcTile->mPitch * 3;
+      auto src = srcBase + (y16 >> 16) * srcTile->mPitch * 3;
       for (uint32_t x16 = srcTile->mX << 16; x16 < (srcTile->mX + r.getWidth()) * xStep16; x16 += xStep16) {
-        auto srcPtr = src11 + (x16 >> 16) * 3;
+        auto srcPtr = src + (x16 >> 16) * 3;
         uint16_t pix = (*srcPtr) >> 3;
         pix |= (*((srcPtr+1)) & 0xFC) << 3;;
-        *dstPtr++ = pix | (((*(srcPtr+2)) & 0xF8) << 8);
+        *dst++ = pix | (((*(srcPtr+2)) & 0xF8) << 8);
         srcPtr += 3;
         }
-      dstPtr += getWidth() - r.getWidth();
+      dst += getWidth() - r.getWidth();
       }
     }
 
