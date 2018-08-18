@@ -14,7 +14,6 @@ uint8_t* dtcmAlloc (size_t bytes);
 void dtcmFree (void* p);
 
 uint8_t* sram123Alloc (size_t bytes);
-uint8_t* sram123AllocInt (size_t bytes);
 void sram123Free (void* p);
 size_t getSram123FreeSize();
 size_t getSram123MinFreeSize();

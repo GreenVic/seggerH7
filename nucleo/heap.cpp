@@ -251,14 +251,6 @@ void dtcmFree (void* p) { mDtcmHeap.free (p); }
 //#define SRAM123_ADDR 0x30000000
 //#define SRAM123_SIZE 0x00048000
 cHeap mSram123Heap;
-
-//{{{
-uint8_t* sram123AllocInt (size_t size) {
-  if (!mSram123Heap.getInited())
-    mSram123Heap.init (0x30000000, 0x00048000);
-  return (uint8_t*)mSram123Heap.allocInt (size);
-  }
-//}}}
 //{{{
 uint8_t* sram123Alloc (size_t size) {
   if (!mSram123Heap.getInited())
@@ -275,7 +267,6 @@ size_t getSram123MinFreeSize() { return mSram123Heap.getMinHeapSize(); }
 #define LCD_WIDTH        1024  // min 39Mhz typ 45Mhz max 51.42Mhz
 #define LCD_HEIGHT        600
 cHeap mSdRamHeap;
-
 //{{{
 uint8_t* sdRamAllocInt (size_t size) {
   if (!mSdRamHeap.getInited())
@@ -301,18 +292,21 @@ void* pvPortMalloc (size_t size) {
   void* allocAddress = malloc (size);
   xTaskResumeAll();
 
-  if (!allocAddress)
+  if (allocAddress)
+    printf ("pvPortMalloc %p %d\n", allocAddress, size);
+  else
     printf ("pvPortMalloc %d fail\n", size);
 
   return allocAddress;
   }
 //}}}
 //{{{
-void vPortFree (void* pv) {
+void vPortFree (void* ptr) {
 
-  if (pv != NULL) {
+  if (ptr != NULL) {
+    printf ("vPortFree %p\n", ptr);
     vTaskSuspendAll();
-    free (pv);
+    free (ptr);
     xTaskResumeAll();
     }
   }

@@ -686,36 +686,38 @@ void cLcd::start() {
 //{{{
 void cLcd::drawInfo() {
 
-  int titleHeight = 20;
-  int gap = 4;
-  int infoHeight = 12;
-  int smallGap = 2;
+  const int kTitleHeight = 20;
+  const int kFooterHeight = 18;
+  const int kInfoHeight = 12;
+  const int kGap = 4;
+  const int kSmallGap = 2;
 
   // draw title
-  grad (COL_RED, COL_BLACK, COL_GREEN, COL_GREY, cRect(0, 0, getWidth(), titleHeight+gap));
-  text (COL_YELLOW, titleHeight, mTitle, cRect(0, 0, getWidth(), titleHeight+gap));
+  grad (COL_RED, COL_BLACK, COL_GREEN, COL_GREY, cRect(0, 0, getWidth(), kTitleHeight+kGap));
+  text (COL_YELLOW, kTitleHeight, mTitle, cRect(0, 0, getWidth(), kTitleHeight+kGap));
 
   // draw footer
-  auto y = getHeight() - titleHeight-4;
-  text (COL_WHITE, titleHeight,
+  auto y = getHeight() - kFooterHeight - kGap;
+  text (COL_WHITE, kFooterHeight,
         dec(mNumPresents) + ":" + dec (mDrawTime) + ":" + dec (mWaitTime) + "ms " +
         dec (osGetCPUUsage()) + "% " +
-        dec (mBrightness) + " " +
-        dec (getSram123FreeSize()) + ":" + dec (getSdRamFreeSize()) + ":" + dec (getSdRamMinFreeSize()),
-        cRect(0, y, getWidth(), titleHeight+gap));
+        dec (mBrightness) +
+        "% sram123:" + dec (getSram123FreeSize()/1000) + "k sdram:" +
+        dec (getSdRamFreeSize()/1000) + "k:" + dec (getSdRamMinFreeSize()/1000) + "k",
+        cRect(0, y, getWidth(), kTitleHeight+kGap));
 
   if (mShowInfo) {
-    y -= titleHeight - gap;
+    y -= kTitleHeight - kGap;
     auto line = mCurLine - 1;
-    while ((y > titleHeight) && (line >= 0)) {
+    while ((y > kTitleHeight) && (line >= 0)) {
       int lineIndex = line-- % kMaxLines;
-      auto x = text (COL_GREEN, infoHeight,
+      auto x = text (COL_GREEN, kInfoHeight,
                      dec ((mLines[lineIndex].mTime-mBaseTime) / 1000) + "." +
                      dec ((mLines[lineIndex].mTime-mBaseTime) % 1000, 3, '0'),
                      cRect(0, y, getWidth(), 20));
-      text (mLines[lineIndex].mColour, infoHeight, mLines[lineIndex].mString,
-            cRect (x + smallGap, y, getWidth(), 20));
-      y -= infoHeight + smallGap;
+      text (mLines[lineIndex].mColour, kInfoHeight, mLines[lineIndex].mString,
+            cRect (x + kSmallGap, y, getWidth(), 20));
+      y -= kInfoHeight + kSmallGap;
       }
     }
   }
