@@ -713,6 +713,7 @@ extern "C" { void JPEG_IRQHandler() {
     mOutYuvBuf = sdRamAllocInt (mOutYuvLen);
     if (!mOutYuvBuf)
       printf ("JPEG mOutYuvBuf alloc fail\n");
+
     mHandle.OutBuffPtr = mOutYuvBuf;
     mHandle.OutLen = kOutChunkSize;
 

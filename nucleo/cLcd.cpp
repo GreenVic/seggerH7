@@ -487,30 +487,60 @@ void cLcd::pixel (uint16_t colour, cPoint p) {
   }
 //}}}
 //{{{
-void cLcd::grad (uint16_t colour1, uint16_t colour2, const cRect& r, uint8_t dir) {
+void cLcd::grad (uint16_t colourTL, uint16_t colourTR, uint16_t colourBL, uint16_t colourBR, const cRect& r) {
 
-  uint8_t r1 = colour1 >> 11;
-  uint8_t r2 = colour2 >> 11;
-  uint8_t g1 = (colour1 & 0x07E0) >> 5;
-  uint8_t g2 = (colour2 & 0x07E0) >> 5;
-  uint8_t b1 = colour1 & 0x001F;
-  uint8_t b2 = colour2 & 0x001F;
+  int32_t rTL = (colourTL & 0xF800) << 5;
+  int32_t rTR = (colourTR & 0xF800) << 5;
+  int32_t rBL = (colourBL & 0xF800) << 5;
+  int32_t rBR = (colourBR & 0xF800) << 5;
 
-  int32_t rGrad16 = ((r2-r1) * 0x10000) / r.getWidth();
-  int32_t gGrad16 = ((g2-g1) * 0x10000) / r.getWidth();
-  int32_t bGrad16 = ((b2-b1) * 0x10000) / r.getWidth();
+  int32_t gTL = (colourTL & 0x07E0) << 11;
+  int32_t gTR = (colourTR & 0x07E0) << 11;
+  int32_t gBL = (colourBL & 0x07E0) << 11;
+  int32_t gBR = (colourBR & 0x07E0) << 11;
 
+  int32_t bTL = (colourTL & 0x001F) << 16;
+  int32_t bTR = (colourTR & 0x001F) << 16;
+  int32_t bBL = (colourBL & 0x001F) << 16;
+  int32_t bBR = (colourBR & 0x001F) << 16;
+
+  int32_t rl16 = rTL;
+  int32_t gl16 = gTL;
+  int32_t bl16 = bTL;
+  int32_t rGradl16 = (rBL - rTL) / r.getHeight();
+  int32_t gGradl16 = (gBL - gTL) / r.getHeight();
+  int32_t bGradl16 = (bBL - bTL) / r.getHeight();
+
+  int32_t rr16 = rTR;
+  int32_t gr16 = gTR;
+  int32_t br16 = bTR;
+  int32_t rGradr16 = (rBR - rTR) / r.getHeight();
+  int32_t gGradr16 = (gBR - gTR) / r.getHeight();
+  int32_t bGradr16 = (bBR - bTR) / r.getHeight();
+
+  auto dst = mBuffer[mDrawBuffer] + r.top * getWidth() + r.left;
   for (uint16_t y = r.top; y < r.bottom; y++) {
-    uint32_t r16 = r1 << 16;
-    uint32_t g16 = g1 << 16;
-    uint32_t b16 = b1 << 16;
+    int32_t rGradx16 = (rr16 - rl16) / r.getWidth();
+    int32_t gGradx16 = (gr16 - gl16) / r.getWidth();
+    int32_t bGradx16 = (br16 - bl16) / r.getWidth();
+
+    int32_t r16 = rl16;
+    int32_t g16 = gl16;
+    int32_t b16 = bl16;
     for (uint16_t x = r.left; x < r.right; x++) {
-      uint16_t colour = (b16 >> 16) | ((g16 >> 11) & 0x07E0) | ((r16 >> 5) & 0xF800);
-      *(mBuffer[mDrawBuffer] + y * getWidth() + x) = colour;
-      r16 += rGrad16;
-      g16 += gGrad16;
-      b16 += bGrad16;
+      *dst++ = (b16 >> 16) | ((g16 >> 11) & 0x07E0) | ((r16 >> 5) & 0xF800);
+      r16 += rGradx16;
+      g16 += gGradx16;
+      b16 += bGradx16;
       }
+
+    rl16 += rGradl16;
+    gl16 += gGradl16;
+    bl16 += bGradl16;
+
+    rr16 += rGradr16;
+    gr16 += gGradr16;
+    br16 += bGradr16;
     }
   }
 //}}}
@@ -703,6 +733,7 @@ void cLcd::drawInfo() {
   int smallGap = 2;
 
   // draw title
+  grad (COL_RED, COL_BLACK, COL_GREEN, COL_GREY, cRect(0, 0, getWidth(), titleHeight+gap));
   text (COL_YELLOW, titleHeight, mTitle, cRect(0, 0, getWidth(), titleHeight+gap));
 
   // draw footer
