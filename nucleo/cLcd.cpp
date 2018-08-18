@@ -146,6 +146,7 @@ void cLcd::init (const std::string& title) {
   }
 //}}}
 
+// logging
 //{{{
 void cLcd::setShowInfo (bool show) {
   if (show != mShowInfo) {
@@ -166,6 +167,7 @@ void cLcd::info (uint16_t colour, const std::string str) {
   }
 //}}}
 
+// dmma2d draw
 //{{{
 void cLcd::rect (uint16_t colour, const cRect& r) {
 //__IO uint32_t OPFCCR  Output PFC Control Register,    Address offset: 0x34
@@ -383,104 +385,7 @@ int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string str, cRe
   }
 //}}}
 
-//{{{
-void cLcd::copy (cTile* srcTile, cPoint p) {
-
-  if (!xSemaphoreTake (mLockSem, 5000))
-    printf ("cLcd take fail\n");
-
-  uint16_t width = p.x + srcTile->mWidth > getWidth() ? getWidth() - p.x : srcTile->mWidth;
-  uint16_t height = p.y + srcTile->mHeight > getHeight() ? getHeight() - p.y : srcTile->mHeight;
-
-  DMA2D->FGPFCCR = srcTile->mFormat;
-  DMA2D->FGMAR = (uint32_t)srcTile->mPiccy;
-  DMA2D->FGOR = srcTile->mPitch - width;
-
-  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
-  DMA2D->OMAR = uint32_t(mBuffer[mDrawBuffer] + (p.y * getWidth()) + p.x);
-  DMA2D->OOR = getWidth() > srcTile->mWidth ? getWidth() - srcTile->mWidth : 0;
-
-  DMA2D->NLR = (width << 16) | height;
-  DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
-  mDma2dWait = eWaitIrq;
-
-  ready();
-
-  xSemaphoreGive (mLockSem);
-  }
-//}}}
-//{{{
-void cLcd::copy90 (cTile* srcTile, cPoint p) {
-
-  if (!xSemaphoreTake (mLockSem, 5000))
-    printf ("cLcd take fail\n");
-
-  uint32_t src = (uint32_t)srcTile->mPiccy;
-  uint32_t dst = (uint32_t)mBuffer[mDrawBuffer];
-
-  DMA2D->FGPFCCR = srcTile->mFormat;
-  DMA2D->FGOR = 0;
-
-  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
-  DMA2D->OOR = getWidth() - 1;
-  DMA2D->NLR = 0x10000 | (srcTile->mWidth);
-
-  for (int line = 0; line < srcTile->mHeight; line++) {
-    DMA2D->FGMAR = src;
-    DMA2D->OMAR = dst;
-    DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
-    src += srcTile->mWidth * srcTile->mComponents;
-    dst += 2;
-
-    mDma2dWait = eWaitDone;
-    ready();
-    }
-
-  xSemaphoreGive (mLockSem);
-  }
-//}}}
-
-//{{{
-void cLcd::size (cTile* srcTile, const cRect& r) {
-
-  if (!xSemaphoreTake (mLockSem, 5000))
-    printf ("cLcd take fail\n");
-
-  uint32_t xStep16 = ((srcTile->mWidth - 1) << 16) / (r.getWidth() - 1);
-  uint32_t yStep16 = ((srcTile->mHeight - 1) << 16) / (r.getHeight() - 1);
-
-  auto dstPtr = mBuffer[mDrawBuffer] + r.top * getWidth() + r.left;
-
-  if (srcTile->mComponents == 2) {
-    // src rgb565
-    auto srcBase = (uint16_t*)(srcTile->mPiccy) + (srcTile->mY * srcTile->mPitch) + srcTile->mX;
-    for (uint32_t y16 = (srcTile->mY << 16); y16 < ((srcTile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
-      auto src11 = srcBase + (y16 >> 16) * srcTile->mPitch;
-      for (uint32_t x16 = srcTile->mX << 16; x16 < (srcTile->mX + r.getWidth()) * xStep16; x16 += xStep16)
-        *dstPtr++ = *(src11 + (x16 >> 16));
-      dstPtr += getWidth() - r.getWidth();
-      }
-    }
-  else {
-    // src rgb888
-    auto srcBase = (uint8_t*)(srcTile->mPiccy) + ((srcTile->mY * srcTile->mPitch) + srcTile->mX) * 3;
-    for (uint32_t y16 = (srcTile->mY << 16); y16 < ((srcTile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
-      auto src11 = srcBase + (y16 >> 16) * srcTile->mPitch * 3;
-      for (uint32_t x16 = srcTile->mX << 16; x16 < (srcTile->mX + r.getWidth()) * xStep16; x16 += xStep16) {
-        auto srcPtr = src11 + (x16 >> 16) * 3;
-        uint16_t pix = (*srcPtr) >> 3;
-        pix |= (*((srcPtr+1)) & 0xFC) << 3;;
-        *dstPtr++ = pix | (((*(srcPtr+2)) & 0xF8) << 8);
-        srcPtr += 3;
-        }
-      dstPtr += getWidth() - r.getWidth();
-      }
-    }
-
-  xSemaphoreGive (mLockSem);
-  }
-//}}}
-
+// cpu draw
 //{{{
 void cLcd::pixel (uint16_t colour, cPoint p) {
   *(mBuffer[mDrawBuffer] + p.y * getWidth() + p.x) = colour;
@@ -605,6 +510,7 @@ void cLcd::ellipseOutline (uint16_t colour, cPoint centre, cPoint radius) {
   }
 //}}}
 
+// statics
 //{{{
 void cLcd::rgb888toRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize) {
 
@@ -669,6 +575,104 @@ void cLcd::yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t 
   mDma2dWait = eWaitIrq;
 
   ready();
+
+  xSemaphoreGive (mLockSem);
+  }
+//}}}
+
+// cTile
+//{{{
+void cLcd::copy (cTile* srcTile, cPoint p) {
+
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
+
+  uint16_t width = p.x + srcTile->mWidth > getWidth() ? getWidth() - p.x : srcTile->mWidth;
+  uint16_t height = p.y + srcTile->mHeight > getHeight() ? getHeight() - p.y : srcTile->mHeight;
+
+  DMA2D->FGPFCCR = srcTile->mFormat;
+  DMA2D->FGMAR = (uint32_t)srcTile->mPiccy;
+  DMA2D->FGOR = srcTile->mPitch - width;
+
+  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
+  DMA2D->OMAR = uint32_t(mBuffer[mDrawBuffer] + (p.y * getWidth()) + p.x);
+  DMA2D->OOR = getWidth() > srcTile->mWidth ? getWidth() - srcTile->mWidth : 0;
+
+  DMA2D->NLR = (width << 16) | height;
+  DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
+  mDma2dWait = eWaitIrq;
+
+  ready();
+
+  xSemaphoreGive (mLockSem);
+  }
+//}}}
+//{{{
+void cLcd::copy90 (cTile* srcTile, cPoint p) {
+
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
+
+  uint32_t src = (uint32_t)srcTile->mPiccy;
+  uint32_t dst = (uint32_t)mBuffer[mDrawBuffer];
+
+  DMA2D->FGPFCCR = srcTile->mFormat;
+  DMA2D->FGOR = 0;
+
+  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
+  DMA2D->OOR = getWidth() - 1;
+  DMA2D->NLR = 0x10000 | (srcTile->mWidth);
+
+  for (int line = 0; line < srcTile->mHeight; line++) {
+    DMA2D->FGMAR = src;
+    DMA2D->OMAR = dst;
+    DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
+    src += srcTile->mWidth * srcTile->mComponents;
+    dst += 2;
+
+    mDma2dWait = eWaitDone;
+    ready();
+    }
+
+  xSemaphoreGive (mLockSem);
+  }
+//}}}
+//{{{
+void cLcd::size (cTile* srcTile, const cRect& r) {
+
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
+
+  uint32_t xStep16 = ((srcTile->mWidth - 1) << 16) / (r.getWidth() - 1);
+  uint32_t yStep16 = ((srcTile->mHeight - 1) << 16) / (r.getHeight() - 1);
+
+  auto dstPtr = mBuffer[mDrawBuffer] + r.top * getWidth() + r.left;
+
+  if (srcTile->mComponents == 2) {
+    // src rgb565
+    auto srcBase = (uint16_t*)(srcTile->mPiccy) + (srcTile->mY * srcTile->mPitch) + srcTile->mX;
+    for (uint32_t y16 = (srcTile->mY << 16); y16 < ((srcTile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
+      auto src11 = srcBase + (y16 >> 16) * srcTile->mPitch;
+      for (uint32_t x16 = srcTile->mX << 16; x16 < (srcTile->mX + r.getWidth()) * xStep16; x16 += xStep16)
+        *dstPtr++ = *(src11 + (x16 >> 16));
+      dstPtr += getWidth() - r.getWidth();
+      }
+    }
+  else {
+    // src rgb888
+    auto srcBase = (uint8_t*)(srcTile->mPiccy) + ((srcTile->mY * srcTile->mPitch) + srcTile->mX) * 3;
+    for (uint32_t y16 = (srcTile->mY << 16); y16 < ((srcTile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
+      auto src11 = srcBase + (y16 >> 16) * srcTile->mPitch * 3;
+      for (uint32_t x16 = srcTile->mX << 16; x16 < (srcTile->mX + r.getWidth()) * xStep16; x16 += xStep16) {
+        auto srcPtr = src11 + (x16 >> 16) * 3;
+        uint16_t pix = (*srcPtr) >> 3;
+        pix |= (*((srcPtr+1)) & 0xFC) << 3;;
+        *dstPtr++ = pix | (((*(srcPtr+2)) & 0xF8) << 8);
+        srcPtr += 3;
+        }
+      dstPtr += getWidth() - r.getWidth();
+      }
+    }
 
   xSemaphoreGive (mLockSem);
   }

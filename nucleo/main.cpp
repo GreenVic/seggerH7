@@ -126,11 +126,11 @@ void findFiles (const string& dirPath, const string& ext) {
 //{{{
 void uiThread (void* arg) {
 
-  lcd->display (50);
+  lcd->display (70);
 
   int count = 0;
   while (true) {
-    if (lcd->isChanged() || (count == 100000)) {
+    if (lcd->isChanged() || (count == 1000)) {
       count = 0;
       lcd->start();
       lcd->clear (COL_BLACK);
