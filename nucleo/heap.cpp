@@ -242,23 +242,13 @@ private:
 
 // sram AXI
 cHeap* mSramHeap = nullptr;
-
-//{{{
-uint8_t* sramAlloc (size_t size) {
-  if (!mSramHeap)
-    mSramHeap = new cHeap (0x24010000, 0x00070000);
-  return (uint8_t*)mSramHeap->alloc (size);
-  }
-//}}}
-void sramFree (void* ptr) { mSramHeap->free (ptr); }
-size_t getSramSize() { return mSramHeap->getSize(); }
-size_t getSramFreeSize() { return mSramHeap->getFreeSize(); }
-size_t getSramMinFreeSize() { return mSramHeap->getMinSize(); }
-
 //{{{
 void* pvPortMalloc (size_t size) {
 
-  void* allocAddress = sramAlloc (size);
+  if (!mSramHeap)
+    mSramHeap = new cHeap (0x24010000, 0x00070000);
+
+  void* allocAddress = mSramHeap->alloc (size);
   if (allocAddress) {
     //printf ("pvPortMalloc %p %d\n", allocAddress, size);
     }
@@ -272,9 +262,12 @@ void* pvPortMalloc (size_t size) {
 void vPortFree (void* ptr) {
 
   //printf ("vPortFree %p\n", ptr);
-  sramFree (ptr);
+   mSramHeap->free (ptr);
   }
 //}}}
+size_t getSramSize() { return mSramHeap->getSize(); }
+size_t getSramFreeSize() { return mSramHeap->getFreeSize(); }
+size_t getSramMinFreeSize() { return mSramHeap->getMinSize(); }
 
 //{{{
 //void* operator new (size_t size) {
