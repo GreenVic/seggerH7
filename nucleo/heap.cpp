@@ -1,4 +1,10 @@
 // heap.cpp
+// sram dtcm 128k  0x20000000 0x00020000
+// sram axi  512k  0x24000000 0x00080000
+// sram 1    128k  0x30000000 0x00020000
+// sram 2    128k  0x30020000 0x00020000
+// sram 3     32k  0x30040000 0x00008000
+// sram 4     64k  0x30080000 0x00010000
 //{{{  includes
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,16 +12,6 @@
 #include "task.h"
 #include "heap.h"
 //}}}
-
-// 0x20000000 0x00020000  sram DTCM 128k
-// .
-// 0x24000000 0x00080000  sram axi  512k
-// .
-// 0x30000000 0x00020000  sram1  128k
-// 0x30020000 0x00020000  sram2  128k
-// 0x30040000 0x00008000  sram3  32k
-// .
-// 0x30080000 0x00010000  sram4  64k
 
 //{{{
 class cHeap {
@@ -285,7 +281,7 @@ void operator delete (void* ptr) {
   }
 //}}}
 
-// DTCM
+// dtcm
 cHeap* mDtcmHeap = nullptr;
 //{{{
 uint8_t* dtcmAlloc (size_t size) {
