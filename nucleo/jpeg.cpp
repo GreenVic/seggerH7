@@ -792,10 +792,7 @@ cTile* hwJpegDecode (const string& fileName) {
     dmaDecode (mInBuf[0].mBuf, mInBuf[0].mSize);
 
     while (!mHandle.mDecodeDone) {
-      if (mInBuf[mHandle.mWriteIndex].mFull) {
-        taskYIELD();
-        }
-      else {
+      if (!mInBuf[mHandle.mWriteIndex].mFull) {
         // fill next buffer
         if (f_read (&file, mInBuf[mHandle.mWriteIndex].mBuf, INBUF_SIZE, &mInBuf[mHandle.mWriteIndex].mSize) == FR_OK)
           mInBuf[mHandle.mWriteIndex].mFull = true;
@@ -828,8 +825,8 @@ cTile* hwJpegDecode (const string& fileName) {
     if (!rgb565)
       printf ("JPEG rgb565 alloc fail\n");
     else {
-      cLcd::yuvMcuToRgb565 (mOutYuvBuf, rgb565, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
       tile = new cTile (rgb565, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
+      cLcd::yuvMcuToRgb565 (mOutYuvBuf, rgb565, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
       }
     }
 
