@@ -8,13 +8,13 @@
 //}}}
 
 // 0x20000000 0x00020000  sram DTCM 128k
-// ...
+// .
 // 0x24000000 0x00080000  sram axi  512k
-// ...
+// .
 // 0x30000000 0x00020000  sram1  128k
 // 0x30020000 0x00020000  sram2  128k
 // 0x30040000 0x00008000  sram3  32k
-// ....
+// .
 // 0x30080000 0x00010000  sram4  64k
 
 //{{{
@@ -240,6 +240,7 @@ private:
   };
 //}}}
 
+// sram AXI
 cHeap mSramHeap;
 //{{{
 uint8_t* sramAlloc (size_t size) {
@@ -290,15 +291,20 @@ void operator delete (void* ptr) {
   }
 //}}}
 
-//#define DTCM_ADDR 0x20000000
-//#define DTCM_SIZE 0x00020000
+// DTCM
 cHeap mDtcmHeap;
-void dtcmInit (uint32_t start, size_t size) { mDtcmHeap.init (start, size); }
-uint8_t* dtcmAlloc (size_t size) { return (uint8_t*)mDtcmHeap.alloc (size); }
+//{{{
+uint8_t* dtcmAlloc (size_t size) {
+  if (!mDtcmHeap.getInited())
+    mDtcmHeap.init (0x20000000, 0x00020000);
+  return (uint8_t*)mDtcmHeap.alloc (size);
+  }
+//}}}
 void dtcmFree (void* ptr) { mDtcmHeap.free (ptr); }
+size_t getDtcmFreeSize() { return mDtcmHeap.getFreeHeapSize(); }
+size_t getDtcmMinFreeSize() { return mDtcmHeap.getMinHeapSize(); }
 
-//#define SRAM123_ADDR 0x30000000
-//#define SRAM123_SIZE 0x00048000
+// sram 123
 cHeap mSram123Heap;
 //{{{
 uint8_t* sram123Alloc (size_t size) {
@@ -311,10 +317,11 @@ void sram123Free (void* ptr) { mSram123Heap.free (ptr); }
 size_t getSram123FreeSize() { return mSram123Heap.getFreeHeapSize(); }
 size_t getSram123MinFreeSize() { return mSram123Heap.getMinHeapSize(); }
 
+// sd ram
 #define SDRAM_DEVICE_ADDR 0xD0000000
 #define SDRAM_DEVICE_SIZE 0x08000000
-#define LCD_WIDTH        1024  // min 39Mhz typ 45Mhz max 51.42Mhz
-#define LCD_HEIGHT        600
+#define LCD_WIDTH  1024
+#define LCD_HEIGHT 600
 cHeap mSdRamHeap;
 //{{{
 uint8_t* sdRamAllocInt (size_t size) {

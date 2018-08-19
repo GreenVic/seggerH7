@@ -6,9 +6,10 @@
 #endif
 //}}}
 
-void dtcmInit (uint32_t start, uint32_t size);
 uint8_t* dtcmAlloc (size_t bytes);
 void dtcmFree (void* p);
+size_t getDtcmFreeSize();
+size_t getDtcmMinFreeSize();
 
 uint8_t* sramAlloc (size_t bytes);
 void sramFree (void* p);
