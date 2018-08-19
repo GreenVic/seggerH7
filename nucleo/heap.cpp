@@ -240,6 +240,56 @@ private:
   };
 //}}}
 
+cHeap mSramHeap;
+//{{{
+uint8_t* sramAlloc (size_t size) {
+  if (!mSramHeap.getInited())
+    mSramHeap.init (0x24040000, 0x00040000);
+  return (uint8_t*)mSramHeap.alloc (size);
+  }
+//}}}
+void sramFree (void* ptr) { mSramHeap.free (ptr); }
+size_t getSramFreeSize() { return mSramHeap.getFreeHeapSize(); }
+size_t getSramMinFreeSize() { return mSramHeap.getMinHeapSize(); }
+
+//{{{
+void* pvPortMalloc (size_t size) {
+
+  void* allocAddress = sramAlloc (size);
+  if (allocAddress)
+    printf ("pvPortMalloc %p %d\n", allocAddress, size);
+  else
+    printf ("pvPortMalloc %d fail\n", size);
+
+  return allocAddress;
+  }
+//}}}
+//{{{
+void vPortFree (void* ptr) {
+
+  if (ptr != NULL) {
+    //printf ("vPortFree %p\n", ptr);
+    sramFree (ptr);
+    }
+  }
+//}}}
+
+//{{{
+void* operator new (size_t size) {
+
+  void* allocAddress = malloc (size);
+  printf ("new %p %d\n", allocAddress, size);
+  return allocAddress;
+  }
+//}}}
+//{{{
+void operator delete (void* ptr) {
+
+  printf ("free %p\n", ptr);
+  free (ptr);
+  }
+//}}}
+
 //#define DTCM_ADDR 0x20000000
 //#define DTCM_SIZE 0x00020000
 cHeap mDtcmHeap;
@@ -283,46 +333,3 @@ uint8_t* sdRamAlloc (size_t size) {
 void sdRamFree (void* ptr) { mSdRamHeap.free (ptr); }
 size_t getSdRamFreeSize() { return mSdRamHeap.getFreeHeapSize(); }
 size_t getSdRamMinFreeSize() { return mSdRamHeap.getMinHeapSize(); }
-
-//{{{
-void* pvPortMalloc (size_t size) {
-
-  vTaskSuspendAll();
-  void* allocAddress = malloc (size);
-  xTaskResumeAll();
-
-  if (allocAddress)
-    printf ("pvPortMalloc %p %d\n", allocAddress, size);
-  else
-    printf ("pvPortMalloc %d fail\n", size);
-
-  return allocAddress;
-  }
-//}}}
-//{{{
-void vPortFree (void* ptr) {
-
-  if (ptr != NULL) {
-    printf ("vPortFree %p\n", ptr);
-    vTaskSuspendAll();
-    free (ptr);
-    xTaskResumeAll();
-    }
-  }
-//}}}
-
-//{{{
-void* operator new (size_t size) {
-
-  void* allocAddress = malloc (size);
-  printf ("new %p %d\n", allocAddress, size);
-  return allocAddress;
-  }
-//}}}
-//{{{
-void operator delete (void* ptr) {
-
-  printf ("free %p\n", ptr);
-  free (ptr);
-  }
-//}}}
