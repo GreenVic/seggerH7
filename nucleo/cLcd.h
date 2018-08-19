@@ -150,7 +150,7 @@ public:
   void copy90 (cTile* srcTile, cPoint p);
   void size (cTile* srcTile, const cRect& r);
 
-  void pixel (uint16_t colour, cPoint p);
+  inline void pixel (uint16_t colour, cPoint p) { *(mBuffer[mDrawBuffer] + p.y * getWidth() + p.x) = colour; }
   void grad (uint16_t colTL, uint16_t colTR, uint16_t colBL, uint16_t colBR, const cRect& r);
   void line (uint16_t colour, cPoint p1, cPoint p2);
   void ellipseOutline (uint16_t colour, cPoint centre, cPoint radius);

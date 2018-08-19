@@ -235,8 +235,7 @@ void appThread (void* arg) {
 
       if (showTile[show]) {
         printf ("APP decoded - show:%d - took %d\n", show, HAL_GetTick() - startTime);
-        lcd->setTitle (dec (gCount) + " of " + dec(mFileVec.size()) + " " +
-                       fileName + " " +
+        lcd->setTitle (fileName + " " +
                        dec (showTile[show]->mWidth) + "x" + dec (showTile[show]->mHeight) + " " +
                        dec ((int)(filInfo.fsize) / 1000) + "k " +
                        dec (filInfo.ftime >> 11, 2, '0') + ":" +

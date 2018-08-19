@@ -415,11 +415,6 @@ int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string& str, cR
 
 // cpu draw
 //{{{
-void cLcd::pixel (uint16_t colour, cPoint p) {
-  *(mBuffer[mDrawBuffer] + p.y * getWidth() + p.x) = colour;
-  }
-//}}}
-//{{{
 void cLcd::grad (uint16_t colTL, uint16_t colTR, uint16_t colBL, uint16_t colBR, const cRect& r) {
 
   int32_t rTL = (colTL & 0xF800) << 5;
