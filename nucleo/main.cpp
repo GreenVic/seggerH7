@@ -29,7 +29,6 @@ cRtc* mRtc;
 
 cLcd* lcd = nullptr;
 vector<string> mFileVec;
-static SemaphoreHandle_t mLockSem;
 
 __IO bool show = false;
 __IO cTile* showTile[2] = { nullptr, nullptr };
@@ -258,9 +257,10 @@ void appThread (void* arg) {
   //    sdRamTest (uint16_t(offset++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00200000)), 0x00200000);
   //    vTaskDelay (200);
   //    }
-
-  while (true)
+  while (true) {
     vTaskDelay (1000);
+    lcd->change();
+    }
   }
 //}}}
 
@@ -522,10 +522,10 @@ int main() {
 
   BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_GPIO);
 
+  printf ("%s\n", kHello.c_str());
+
   mRtc = new cRtc();
   mRtc->init();
-  printf ("%s\n", kHello.c_str());
-  mLockSem = xSemaphoreCreateMutex();
 
   lcd = new cLcd ((uint16_t*)0xD0000000, (uint16_t*)(0xD0000000 + LCD_WIDTH*LCD_HEIGHT*2));
   lcd->init (kHello);
