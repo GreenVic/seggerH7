@@ -70,6 +70,9 @@ public:
     mPiccy = nullptr;
     };
 
+  void* operator new (std::size_t size) { return pvPortMalloc (size); }
+  void operator delete (void* ptr) { vPortFree (ptr); }
+
   uint8_t* mPiccy = nullptr;
   uint16_t mComponents = 0;
   uint16_t mPitch = 0;
@@ -83,6 +86,9 @@ public:
 //{{{
 class cFontChar {
 public:
+  void* operator new (std::size_t size) { return pvPortMalloc (size); }
+  void operator delete (void* ptr) { vPortFree (ptr); }
+
   uint8_t* bitmap;
   int16_t left;
   int16_t top;
