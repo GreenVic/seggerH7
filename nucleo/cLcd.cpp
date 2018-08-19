@@ -360,6 +360,9 @@ void cLcd::stampClipped (uint16_t colour, uint8_t* src, cRect r) {
 //{{{
 int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string str, cRect r) {
 
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
+
   for (auto ch : str) {
     if ((ch >= 0x20) && (ch <= 0x7F)) {
       auto fontCharIt = mFontCharMap.find ((fontHeight << 8) | ch);
@@ -369,15 +372,42 @@ int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string str, cRe
       if (fontChar) {
         if (r.left + fontChar->left + fontChar->pitch >= r.right)
           break;
-        else if (fontChar->bitmap)
-          stampClipped (colour, fontChar->bitmap,
-                         cRect (r.left + fontChar->left, r.top + fontHeight - fontChar->top,
-                                r.left + fontChar->left + fontChar->pitch,
-                                r.top + fontHeight - fontChar->top + fontChar->rows));
+        else if (fontChar->bitmap) {
+          auto src = fontChar->bitmap;
+          cRect charRect (r.left + fontChar->left, r.top + fontHeight - fontChar->top,
+                          r.left + fontChar->left + fontChar->pitch,
+                          r.top + fontHeight - fontChar->top + fontChar->rows);
+
+          // simple clips
+          if (charRect.top < 0) {
+            src += -charRect.top * charRect.getWidth();
+            charRect.top = 0;
+            }
+          if (charRect.bottom > getHeight())
+            charRect.bottom = getHeight();
+
+          if ((charRect.left > 0) && (charRect.bottom > 0) && (charRect.top < getHeight())) {
+            ready();
+            stampRegs[0] = (uint32_t)src;
+            stampRegs[2] = uint32_t(mBuffer[mDrawBuffer] + charRect.top * getWidth() + charRect.left);
+            stampRegs[3] = getWidth() - charRect.getWidth();
+            stampRegs[4] = DMA2D_INPUT_A8;
+            stampRegs[5] = ((colour & 0xF800) << 8) | ((colour & 0x07E0) << 5) | ((colour & 0x001F) << 3);
+            stampRegs[12] = stampRegs[2];
+            stampRegs[13] = stampRegs[3];
+            stampRegs[14] = (charRect.getWidth() << 16) | charRect.getHeight();
+
+            memcpy ((void*)(&DMA2D->FGMAR), stampRegs, 15*4);
+            DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
+            mDma2dWait = eWaitIrq;
+            }
+          }
         r.left += fontChar->advance;
         }
       }
     }
+  ready();
+  xSemaphoreGive (mLockSem);
 
   return r.left;
   }
