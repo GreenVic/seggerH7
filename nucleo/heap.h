@@ -12,8 +12,6 @@ size_t getDtcmSize();
 size_t getDtcmFreeSize();
 size_t getDtcmMinFreeSize();
 
-uint8_t* sramAlloc (size_t bytes);
-void sramFree (void* p);
 size_t getSramSize();
 size_t getSramFreeSize();
 size_t getSramMinFreeSize();
