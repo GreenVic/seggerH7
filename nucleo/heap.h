@@ -1,8 +1,5 @@
 #pragma once
 
-#define DTCM_ADDR 0x20000000
-#define DTCM_SIZE 0x00020000
-
 //{{{
 #ifdef __cplusplus
  extern "C" {

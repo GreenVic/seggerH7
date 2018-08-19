@@ -268,7 +268,7 @@ void* pvPortMalloc (size_t size) {
 void vPortFree (void* ptr) {
 
   if (ptr != NULL) {
-    //printf ("vPortFree %p\n", ptr);
+    printf ("vPortFree %p\n", ptr);
     sramFree (ptr);
     }
   }
