@@ -29,6 +29,7 @@ cRtc* mRtc;
 
 cLcd* lcd = nullptr;
 vector<string> mFileVec;
+int gCount = 0;
 
 __IO bool show = false;
 __IO cTile* showTile[2] = { nullptr, nullptr };
@@ -132,6 +133,9 @@ void uiThread (void* arg) {
       lcd->start();
       lcd->clear (COL_BLACK);
 
+      const cRect titleRect (0,0, lcd->getWidth() * gCount / mFileVec.size(),22);
+      lcd->grad (COL_BLUE, COL_GREY, COL_GREY, COL_BLACK, titleRect);
+
       if (showTile[show]) {
         if (showTile[show]->mWidth > lcd->getWidth() || showTile[show]->mHeight > lcd->getHeight()) {
           uint16_t lcdWidth = lcd->getWidth() - 20;
@@ -149,6 +153,9 @@ void uiThread (void* arg) {
           lcd->copy ((cTile*)showTile[show], cPoint ((lcd->getWidth() - showTile[show]->mWidth) / 2,
                                                      (lcd->getHeight() - showTile[show]->mHeight) / 2));
         }
+
+      lcd->setShowInfo (BSP_PB_GetState (BUTTON_KEY) == 0);
+      lcd->drawInfo();
 
       //{{{  draw clock
       float hourAngle;
@@ -170,8 +177,7 @@ void uiThread (void* arg) {
 
       lcd->cLcd::text (COL_WHITE, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
       //}}}
-      lcd->setShowInfo (BSP_PB_GetState (BUTTON_KEY) == 0);
-      lcd->drawInfo();
+
       lcd->present();
       }
     else {
@@ -210,8 +216,8 @@ void appThread (void* arg) {
     printf ("%d piccies\n", mFileVec.size());
     lcd->setTitle (string(label) + " " + dec (mFileVec.size()) + " piccies");
 
-    int count = 1;
     for (auto fileName : mFileVec) {
+      gCount++;
       FILINFO filInfo;
       if (f_stat (fileName.c_str(), &filInfo))
         printf ("APP fstat fail\n");
@@ -229,7 +235,7 @@ void appThread (void* arg) {
 
       if (showTile[show]) {
         printf ("APP decoded - show:%d - took %d\n", show, HAL_GetTick() - startTime);
-        lcd->setTitle (dec (count++) + " of " + dec(mFileVec.size()) + " " +
+        lcd->setTitle (dec (gCount) + " of " + dec(mFileVec.size()) + " " +
                        fileName + " " +
                        dec (showTile[show]->mWidth) + "x" + dec (showTile[show]->mHeight) + " " +
                        dec ((int)(filInfo.fsize) / 1000) + "k " +

@@ -466,6 +466,7 @@ void cLcd::grad (uint16_t colTL, uint16_t colTR, uint16_t colBL, uint16_t colBR,
       g16 += gGradx16;
       b16 += bGradx16;
       }
+    dst += getWidth() - r.getWidth();
 
     rl16 += rGradl16;
     gl16 += gGradl16;
@@ -722,7 +723,6 @@ void cLcd::drawInfo() {
 
   // draw title
   const cRect titleRect (0,0, getWidth(), kTitleHeight+kGap);
-  grad (COL_BLUE, COL_GREY, COL_GREY, COL_BLACK, titleRect);
   text (COL_YELLOW, kTitleHeight, mTitle, titleRect);
 
   if (mShowInfo) {
