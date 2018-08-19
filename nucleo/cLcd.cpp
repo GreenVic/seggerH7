@@ -343,8 +343,6 @@ void cLcd::stampClipped (uint16_t colour, uint8_t* src, cRect r) {
     // top clip
     if (r.bottom <= 0)
       return;
-
-    r.bottom = getHeight();
     src += -r.top * r.getWidth();
     r.top = 0;
     }
