@@ -242,6 +242,7 @@ private:
 
 // sram AXI
 cHeap* mSramHeap = nullptr;
+
 //{{{
 uint8_t* sramAlloc (size_t size) {
   if (!mSramHeap)
