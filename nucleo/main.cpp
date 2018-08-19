@@ -227,10 +227,7 @@ void appThread (void* arg) {
       delete showTile[!show];
 
       auto startTime = HAL_GetTick();
-      if (hwJpeg)
-        showTile[!show] = hwJpegDecode (fileName);
-      else
-        showTile[!show] = swJpegDecode (fileName, SW_SCALE);
+      showTile[!show] = hwJpeg ? hwJpegDecode (fileName) : swJpegDecode (fileName, SW_SCALE);
       show = !show;
 
       if (showTile[show]) {
