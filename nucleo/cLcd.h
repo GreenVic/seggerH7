@@ -144,7 +144,7 @@ public:
 
   void stamp (uint16_t colour, uint8_t* src, const cRect& r);
   void stampClipped (uint16_t colour, uint8_t* src, cRect r);
-  int text (uint16_t colour, uint16_t fontHeight, const std::string str, cRect r);
+  int text (uint16_t colour, uint16_t fontHeight, const std::string& str, cRect r);
 
   void copy (cTile* srcTile, cPoint p);
   void copy90 (cTile* srcTile, cPoint p);

@@ -358,7 +358,7 @@ void cLcd::stampClipped (uint16_t colour, uint8_t* src, cRect r) {
   }
 //}}}
 //{{{
-int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string str, cRect r) {
+int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string& str, cRect r) {
 
   if (!xSemaphoreTake (mLockSem, 5000))
     printf ("cLcd take fail\n");
