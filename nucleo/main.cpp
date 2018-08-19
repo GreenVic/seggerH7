@@ -208,7 +208,7 @@ void appThread (void* arg) {
 
     findFiles ("", ".jpg");
     printf ("%d piccies\n", mFileVec.size());
-    lcd->setTitle (dec (mFileVec.size()) + " piccies");
+    lcd->setTitle (string(label) + " " + dec (mFileVec.size()) + " piccies");
 
     int count = 1;
     for (auto fileName : mFileVec) {
