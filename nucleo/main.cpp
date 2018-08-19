@@ -482,6 +482,7 @@ void mpuConfig() {
   mpuRegion.SubRegionDisable = 0x00;
   mpuRegion.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
 
+  // sram axi
   mpuRegion.Number = MPU_REGION_NUMBER0;
   mpuRegion.BaseAddress = 0x24000000;
   mpuRegion.Size = MPU_REGION_SIZE_512KB;
@@ -490,6 +491,7 @@ void mpuConfig() {
   mpuRegion.IsShareable = MPU_ACCESS_SHAREABLE;
   HAL_MPU_ConfigRegion (&mpuRegion);
 
+  // sdram
   mpuRegion.Number = MPU_REGION_NUMBER1;
   mpuRegion.BaseAddress = 0xD0000000;
   mpuRegion.Size = MPU_REGION_SIZE_128MB;
@@ -498,6 +500,7 @@ void mpuConfig() {
   mpuRegion.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
   HAL_MPU_ConfigRegion (&mpuRegion);
 
+  // sram123
   mpuRegion.Number = MPU_REGION_NUMBER2;
   mpuRegion.BaseAddress = 0x30000000;
   mpuRegion.Size = MPU_REGION_SIZE_512KB;
