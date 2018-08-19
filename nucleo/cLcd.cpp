@@ -386,7 +386,7 @@ int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string& str, cR
           if (charRect.bottom > getHeight())
             charRect.bottom = getHeight();
 
-          if ((charRect.left > 0) && (charRect.bottom > 0) && (charRect.top < getHeight())) {
+          if ((charRect.left >= 0) && (charRect.bottom > 0) && (charRect.top < getHeight())) {
             ready();
             stampRegs[0] = (uint32_t)src;
             stampRegs[2] = uint32_t(mBuffer[mDrawBuffer] + charRect.top * getWidth() + charRect.left);

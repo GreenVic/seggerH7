@@ -156,13 +156,13 @@ public:
     }
   //}}}
   //{{{
-  void free (void* p) {
+  void free (void* ptr) {
 
     //printf ("sdRamFree %p\n", p);
 
-    if (p) {
+    if (ptr) {
       // memory being freed will have an tLink_t structure immediately before it.
-      uint8_t* puc = (uint8_t*)p - kHeapStructSize;
+      uint8_t* puc = (uint8_t*)ptr - kHeapStructSize;
       tLink_t* link = (tLink_t*)puc;
 
       if ((link->mBlockSize & kBlockAllocatedBit ) != 0) {
@@ -259,8 +259,9 @@ size_t getSramMinFreeSize() { return mSramHeap.getMinSize(); }
 void* pvPortMalloc (size_t size) {
 
   void* allocAddress = sramAlloc (size);
-  if (allocAddress)
-    printf ("pvPortMalloc %p %d\n", allocAddress, size);
+  if (allocAddress) {
+    //printf ("pvPortMalloc %p %d\n", allocAddress, size);
+    }
   else
     printf ("pvPortMalloc %d fail\n", size);
 
@@ -270,27 +271,25 @@ void* pvPortMalloc (size_t size) {
 //{{{
 void vPortFree (void* ptr) {
 
-  if (ptr != NULL) {
-    printf ("vPortFree %p\n", ptr);
-    sramFree (ptr);
-    }
+  //printf ("vPortFree %p\n", ptr);
+  sramFree (ptr);
   }
 //}}}
 
 //{{{
-void* operator new (size_t size) {
+//void* operator new (size_t size) {
 
-  void* allocAddress = malloc (size);
-  printf ("new %p %d\n", allocAddress, size);
-  return allocAddress;
-  }
+  //void* allocAddress = malloc (size);
+  //printf ("new %p %d\n", allocAddress, size);
+  //return allocAddress;
+  //}
 //}}}
 //{{{
-void operator delete (void* ptr) {
+//void operator delete (void* ptr) {
 
-  printf ("free %p\n", ptr);
-  free (ptr);
-  }
+  //printf ("free %p\n", ptr);
+  //free (ptr);
+  //}
 //}}}
 
 // DTCM
