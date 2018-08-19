@@ -270,19 +270,19 @@ size_t getSramFreeSize() { return mSramHeap->getFreeSize(); }
 size_t getSramMinFreeSize() { return mSramHeap->getMinSize(); }
 
 //{{{
-//void* operator new (size_t size) {
+void* operator new (size_t size) {
 
-  //void* allocAddress = malloc (size);
-  //printf ("new %p %d\n", allocAddress, size);
-  //return allocAddress;
-  //}
+  void* allocAddress = malloc (size);
+  printf ("new %p %d\n", allocAddress, size);
+  return allocAddress;
+  }
 //}}}
 //{{{
-//void operator delete (void* ptr) {
+void operator delete (void* ptr) {
 
   //printf ("free %p\n", ptr);
-  //free (ptr);
-  //}
+  free (ptr);
+  }
 //}}}
 
 // DTCM
