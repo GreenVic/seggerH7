@@ -20,9 +20,8 @@
 //{{{
 class cHeap {
 public:
-  bool getInited() { return mSize != 0; }
   //{{{
-  void init (uint32_t start, size_t size) {
+  cHeap (uint32_t start, size_t size) {
 
     // Ensure the heap starts on a correctly aligned boundary
     size_t uxAddress = (size_t)start;
@@ -242,18 +241,18 @@ private:
 //}}}
 
 // sram AXI
-cHeap mSramHeap;
+cHeap* mSramHeap = nullptr;
 //{{{
 uint8_t* sramAlloc (size_t size) {
-  if (!mSramHeap.getInited())
-    mSramHeap.init (0x24010000, 0x00070000);
-  return (uint8_t*)mSramHeap.alloc (size);
+  if (!mSramHeap)
+    mSramHeap = new cHeap (0x24010000, 0x00070000);
+  return (uint8_t*)mSramHeap->alloc (size);
   }
 //}}}
-void sramFree (void* ptr) { mSramHeap.free (ptr); }
-size_t getSramSize() { return mSramHeap.getSize(); }
-size_t getSramFreeSize() { return mSramHeap.getFreeSize(); }
-size_t getSramMinFreeSize() { return mSramHeap.getMinSize(); }
+void sramFree (void* ptr) { mSramHeap->free (ptr); }
+size_t getSramSize() { return mSramHeap->getSize(); }
+size_t getSramFreeSize() { return mSramHeap->getFreeSize(); }
+size_t getSramMinFreeSize() { return mSramHeap->getMinSize(); }
 
 //{{{
 void* pvPortMalloc (size_t size) {
@@ -293,54 +292,54 @@ void vPortFree (void* ptr) {
 //}}}
 
 // DTCM
-cHeap mDtcmHeap;
+cHeap* mDtcmHeap = nullptr;
 //{{{
 uint8_t* dtcmAlloc (size_t size) {
-  if (!mDtcmHeap.getInited())
-    mDtcmHeap.init (0x20000000, 0x00020000);
-  return (uint8_t*)mDtcmHeap.alloc (size);
+  if (!mDtcmHeap)
+    mDtcmHeap = new cHeap (0x20000000, 0x00020000);
+  return (uint8_t*)mDtcmHeap->alloc (size);
   }
 //}}}
-void dtcmFree (void* ptr) { mDtcmHeap.free (ptr); }
-size_t getDtcmSize(){ return mDtcmHeap.getSize(); }
-size_t getDtcmFreeSize() { return mDtcmHeap.getFreeSize(); }
-size_t getDtcmMinFreeSize() { return mDtcmHeap.getMinSize(); }
+void dtcmFree (void* ptr) { mDtcmHeap->free (ptr); }
+size_t getDtcmSize(){ return mDtcmHeap->getSize(); }
+size_t getDtcmFreeSize() { return mDtcmHeap->getFreeSize(); }
+size_t getDtcmMinFreeSize() { return mDtcmHeap->getMinSize(); }
 
 // sram 123
-cHeap mSram123Heap;
+cHeap* mSram123Heap = nullptr;
 //{{{
 uint8_t* sram123Alloc (size_t size) {
-  if (!mSram123Heap.getInited())
-    mSram123Heap.init (0x30000000, 0x00048000);
-  return (uint8_t*)mSram123Heap.alloc (size);
+  if (!mSram123Heap)
+    mSram123Heap = new cHeap (0x30000000, 0x00048000);
+  return (uint8_t*)mSram123Heap->alloc (size);
   }
 //}}}
-void sram123Free (void* ptr) { mSram123Heap.free (ptr); }
-size_t getSram123Size(){ return mSram123Heap.getSize(); }
-size_t getSram123FreeSize() { return mSram123Heap.getFreeSize(); }
-size_t getSram123MinFreeSize() { return mSram123Heap.getMinSize(); }
+void sram123Free (void* ptr) { mSram123Heap->free (ptr); }
+size_t getSram123Size(){ return mSram123Heap->getSize(); }
+size_t getSram123FreeSize() { return mSram123Heap->getFreeSize(); }
+size_t getSram123MinFreeSize() { return mSram123Heap->getMinSize(); }
 
 // sd ram
 #define SDRAM_DEVICE_ADDR 0xD0000000
 #define SDRAM_DEVICE_SIZE 0x08000000
 #define LCD_WIDTH  1024
 #define LCD_HEIGHT 600
-cHeap mSdRamHeap;
+cHeap* mSdRamHeap = nullptr;
 //{{{
 uint8_t* sdRamAllocInt (size_t size) {
-  if (!mSdRamHeap.getInited())
-    mSdRamHeap.init (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
-  return mSdRamHeap.allocInt (size);
+  if (!mSdRamHeap)
+    mSdRamHeap = new cHeap (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
+  return mSdRamHeap->allocInt (size);
   }
 //}}}
 //{{{
 uint8_t* sdRamAlloc (size_t size) {
-  if (!mSdRamHeap.getInited())
-    mSdRamHeap.init (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
-  return mSdRamHeap.alloc (size);
+  if (!mSdRamHeap)
+    mSdRamHeap = new cHeap (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
+  return mSdRamHeap->alloc (size);
   }
 //}}}
-void sdRamFree (void* ptr) { mSdRamHeap.free (ptr); }
-size_t getSdRamSize() { return mSdRamHeap.getSize(); }
-size_t getSdRamFreeSize() { return mSdRamHeap.getFreeSize(); }
-size_t getSdRamMinFreeSize() { return mSdRamHeap.getMinSize(); }
+void sdRamFree (void* ptr) { mSdRamHeap->free (ptr); }
+size_t getSdRamSize() { return mSdRamHeap->getSize(); }
+size_t getSdRamFreeSize() { return mSdRamHeap->getFreeSize(); }
+size_t getSdRamMinFreeSize() { return mSdRamHeap->getMinSize(); }
