@@ -2,6 +2,7 @@
 #pragma once
 #include <stdint.h>
 #include <string>
+#include "cmsis_os.h"
 #include "stm32h7xx_nucleo_144.h"
 #include "../common/utils.h"
 
@@ -14,6 +15,9 @@ public:
   std::string getClockTimeString() { return mDateTime.getTimeString(); }
   std::string getClockTimeDateString() { return mDateTime.getTimeDateString(); }
   std::string getBuildTimeDateString() { return mBuildTime + " "  + mBuildDate; }
+
+  void* operator new (std::size_t size) { return pvPortMalloc (size); }
+  void operator delete (void* ptr) { vPortFree (ptr); }
 
 private:
   uint8_t getBcdFromByte (uint8_t byte) { return ((byte / 10) << 4) | (byte % 10); }

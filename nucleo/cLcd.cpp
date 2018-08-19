@@ -687,7 +687,7 @@ void cLcd::start() {
 void cLcd::drawInfo() {
 
   const int kTitleHeight = 20;
-  const int kFooterHeight = 16;
+  const int kFooterHeight = 14;
   const int kInfoHeight = 12;
   const int kGap = 4;
   const int kSmallGap = 2;
@@ -704,9 +704,14 @@ void cLcd::drawInfo() {
           dec(mNumPresents) + ":" + dec (mDrawTime) + ":" + dec (mWaitTime) + "ms " +
           dec (osGetCPUUsage()) + "% " +
           dec (mBrightness) + "% " +
-          "s:" + dec (getSramFreeSize()/1000) + "k " +
-          "sa:" + dec (getSramFreeSize()/1000) + "k:" + dec (getSramMinFreeSize()/1000) + "k " +
-          "sd:" + dec (getSdRamFreeSize()/1000) + "k:" + dec (getSdRamMinFreeSize()/1000) + "k",
+          "s:" + dec (getSram123FreeSize()/1000) + "k:" +
+          dec (getSram123Size()/1000) + "k " +
+          "sa:" + dec (getSramFreeSize()/1000) + "k:" +
+          dec (getSramMinFreeSize()/1000) + "k:" +
+          dec (getSramSize()/1000) + "k " +
+          "sd:" + dec (getSdRamFreeSize()/1000) + "k:" +
+          dec (getSdRamMinFreeSize()/1000) + "k:" +
+          dec (getSdRamSize()/1000) + "k",
           cRect(0, y, getWidth(), kTitleHeight+kGap));
 
     // draw log

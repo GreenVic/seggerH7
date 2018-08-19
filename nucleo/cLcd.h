@@ -165,6 +165,9 @@ public:
   static SemaphoreHandle_t mDma2dSem;
   static SemaphoreHandle_t mFrameSem;
 
+  void* operator new (std::size_t size) { return pvPortMalloc (size); }
+  void operator delete (void* ptr) { vPortFree (ptr); }
+
 private:
   void ltdcInit (uint16_t* frameBufferAddress);
   cFontChar* loadChar (uint16_t fontHeight, char ch);

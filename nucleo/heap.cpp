@@ -58,8 +58,9 @@ public:
     }
   //}}}
 
-  size_t getFreeHeapSize() { return mFreeBytesRemaining; }
-  size_t getMinHeapSize() { return mMinFreeBytesRemaining; }
+  size_t getSize() { return mSize; }
+  size_t getFreeSize() { return mFreeBytesRemaining; }
+  size_t getMinSize() { return mMinFreeBytesRemaining; }
 
   //{{{
   uint8_t* allocInt (size_t size) {
@@ -245,13 +246,14 @@ cHeap mSramHeap;
 //{{{
 uint8_t* sramAlloc (size_t size) {
   if (!mSramHeap.getInited())
-    mSramHeap.init (0x24040000, 0x00040000);
+    mSramHeap.init (0x24010000, 0x00070000);
   return (uint8_t*)mSramHeap.alloc (size);
   }
 //}}}
 void sramFree (void* ptr) { mSramHeap.free (ptr); }
-size_t getSramFreeSize() { return mSramHeap.getFreeHeapSize(); }
-size_t getSramMinFreeSize() { return mSramHeap.getMinHeapSize(); }
+size_t getSramSize() { return mSramHeap.getSize(); }
+size_t getSramFreeSize() { return mSramHeap.getFreeSize(); }
+size_t getSramMinFreeSize() { return mSramHeap.getMinSize(); }
 
 //{{{
 void* pvPortMalloc (size_t size) {
@@ -301,8 +303,9 @@ uint8_t* dtcmAlloc (size_t size) {
   }
 //}}}
 void dtcmFree (void* ptr) { mDtcmHeap.free (ptr); }
-size_t getDtcmFreeSize() { return mDtcmHeap.getFreeHeapSize(); }
-size_t getDtcmMinFreeSize() { return mDtcmHeap.getMinHeapSize(); }
+size_t getDtcmSize(){ return mDtcmHeap.getSize(); }
+size_t getDtcmFreeSize() { return mDtcmHeap.getFreeSize(); }
+size_t getDtcmMinFreeSize() { return mDtcmHeap.getMinSize(); }
 
 // sram 123
 cHeap mSram123Heap;
@@ -314,8 +317,9 @@ uint8_t* sram123Alloc (size_t size) {
   }
 //}}}
 void sram123Free (void* ptr) { mSram123Heap.free (ptr); }
-size_t getSram123FreeSize() { return mSram123Heap.getFreeHeapSize(); }
-size_t getSram123MinFreeSize() { return mSram123Heap.getMinHeapSize(); }
+size_t getSram123Size(){ return mSram123Heap.getSize(); }
+size_t getSram123FreeSize() { return mSram123Heap.getFreeSize(); }
+size_t getSram123MinFreeSize() { return mSram123Heap.getMinSize(); }
 
 // sd ram
 #define SDRAM_DEVICE_ADDR 0xD0000000
@@ -338,5 +342,6 @@ uint8_t* sdRamAlloc (size_t size) {
   }
 //}}}
 void sdRamFree (void* ptr) { mSdRamHeap.free (ptr); }
-size_t getSdRamFreeSize() { return mSdRamHeap.getFreeHeapSize(); }
-size_t getSdRamMinFreeSize() { return mSdRamHeap.getMinHeapSize(); }
+size_t getSdRamSize() { return mSdRamHeap.getSize(); }
+size_t getSdRamFreeSize() { return mSdRamHeap.getFreeSize(); }
+size_t getSdRamMinFreeSize() { return mSdRamHeap.getMinSize(); }

@@ -2,9 +2,7 @@
 //{{{  includes
 #include <algorithm>
 #include <string>
-//#include <stdio.h>
 #include <ctype.h>
-
 
 #include "cmsis_os.h"
 #include "stm32h7xx_nucleo_144.h"
@@ -27,7 +25,7 @@ const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DAT
 
 // vars
 FATFS fatFs;
-cRtc mRtc;
+cRtc* mRtc;
 
 cLcd* lcd = nullptr;
 vector<string> mFileVec;
@@ -158,7 +156,7 @@ void uiThread (void* arg) {
       float minuteAngle;
       float secondAngle;
       float subSecondAngle;
-      mRtc.getClockAngles (hourAngle, minuteAngle, secondAngle, subSecondAngle);
+      mRtc->getClockAngles (hourAngle, minuteAngle, secondAngle, subSecondAngle);
 
       int radius = 60;
       cPoint centre = cPoint (950, 490);
@@ -171,7 +169,7 @@ void uiThread (void* arg) {
       float secondRadius = radius * 0.9f;
       lcd->line (COL_RED, centre, centre + cPoint (int16_t(secondRadius * sin (secondAngle)), int16_t(secondRadius * cos (secondAngle))));
 
-      lcd->cLcd::text (COL_WHITE, 45, mRtc.getClockTimeDateString(), cRect (550,545, 1024,600));
+      lcd->cLcd::text (COL_WHITE, 45, mRtc->getClockTimeDateString(), cRect (565,545, 1024,600));
       //}}}
       lcd->setShowInfo (BSP_PB_GetState (BUTTON_KEY) == 0);
       lcd->drawInfo();
@@ -524,7 +522,8 @@ int main() {
 
   BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_GPIO);
 
-  mRtc.init();
+  mRtc = new cRtc();
+  mRtc->init();
   printf ("%s\n", kHello.c_str());
   mLockSem = xSemaphoreCreateMutex();
 
