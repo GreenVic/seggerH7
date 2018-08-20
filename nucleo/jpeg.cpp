@@ -481,7 +481,7 @@ cTile* hwJpegDecode (const string& fileName) {
   if (!mInBuf[1].mBuf)
     mInBuf[1].mBuf = (uint8_t*)pvPortMalloc (INBUF_SIZE);
   if (!mOutYuvBuf)
-    mOutYuvBuf = sdRamAlloc (6000*4000*2);
+    mOutYuvBuf = sdRamAlloc (4500*3000*2);
   //}}}
 
   cTile* tile = nullptr;
