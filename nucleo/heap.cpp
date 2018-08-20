@@ -68,12 +68,8 @@ public:
     uint8_t* allocAddress = allocBlock (size);
     xTaskResumeAll();
 
-    if (allocAddress) {
-      //printf ("heap alloc %p size:%d free:%d minFree:%d\n",
-      //        allocAddress, size, mFreeBytesRemaining,mMinFreeBytesRemaining);
-      }
-    else {
-      printf ("***cHeap::alloc fail size:%d free:%d minFree:%d largest:%d\n",
+    if (mDebug) {
+      printf ("cHeap::alloc size:%d free:%d minFree:%d largest:%d\n",
               size, mFreeBytesRemaining,mMinFreeBytesRemaining, largestBlock);
 
       tLink_t* block = mStart.mNextFreeBlock;
