@@ -19,7 +19,7 @@
 class cHeap {
 public:
   //{{{
-  cHeap (uint32_t start, size_t size, bool debug) : mDebug(debug) {
+  cHeap (uint32_t start, size_t size, bool debug) : mDebug (debug) {
 
     // Ensure the heap starts on a correctly aligned boundary
     size_t uxAddress = (size_t)start;
@@ -65,15 +65,12 @@ public:
     uint8_t* allocAddress = NULL;
     size_t largestBlock = 0;
 
-      {
-      // The wanted size is increased so it can contain a tLink_t structure in addition to the requested amount of bytes
-      size += kHeapStructSize;
-
-      // Ensure that blocks are always aligned to the required number of bytes
-      if ((size & mAlignmentMask) != 0x00)
-        // Byte alignment required. */
-        size += (mAlignment - (size & mAlignmentMask));
-      }
+    // The wanted size is increased so it can contain a tLink_t structure in addition to the requested amount of bytes
+    size += kHeapStructSize;
+    // Ensure that blocks are always aligned to the required number of bytes
+    if ((size & mAlignmentMask) != 0x00)
+      // Byte alignment required. */
+      size += (mAlignment - (size & mAlignmentMask));
 
     if ((size > 0) && (size <= mFreeBytesRemaining)) {
       // Traverse the list from the start (lowest address) block until one of adequate size is found
@@ -155,24 +152,22 @@ public:
   //{{{
   void free (void* ptr) {
 
-    //printf ("cHeap::free %p\n", p);
-
     if (ptr) {
       // memory being freed will have an tLink_t structure immediately before it.
       uint8_t* puc = (uint8_t*)ptr - kHeapStructSize;
       tLink_t* link = (tLink_t*)puc;
 
-      if ((link->mBlockSize & kBlockAllocatedBit ) != 0) {
+      if (mDebug)
+        printf ("cHeap::free %p %d\n", ptr, link->mBlockSize & (~kBlockAllocatedBit));
+
+      if (link->mBlockSize & kBlockAllocatedBit) {
         if (link->mNextFreeBlock == NULL) {
           // block is being returned to the heap - it is no longer allocated.
           link->mBlockSize &= ~kBlockAllocatedBit;
 
           vTaskSuspendAll();
-            {
-            // Add this block to the list of free blocks.
-            mFreeBytesRemaining += link->mBlockSize;
-            insertBlockIntoFreeList (link);
-            }
+          mFreeBytesRemaining += link->mBlockSize;
+          insertBlockIntoFreeList (link);
           xTaskResumeAll();
           }
         }
@@ -265,24 +260,24 @@ void vPortFree (void* ptr) {
    mSramHeap->free (ptr);
   }
 //}}}
-size_t getSramSize() { return mSramHeap->getSize(); }
-size_t getSramFreeSize() { return mSramHeap->getFreeSize(); }
-size_t getSramMinFreeSize() { return mSramHeap->getMinSize(); }
+size_t getSramSize() { return mSramHeap ? mSramHeap->getSize() : 0 ; }
+size_t getSramFreeSize() { return mSramHeap ? mSramHeap->getFreeSize() : 0 ; }
+size_t getSramMinFreeSize() { return mSramHeap ? mSramHeap->getMinSize() : 0 ; }
 
 //{{{
-void* operator new (size_t size) {
+//void* operator new (size_t size) {
 
-  void* allocAddress = malloc (size);
-  //printf ("new %p %d\n", allocAddress, size);
-  return allocAddress;
-  }
+  //void* allocAddress = malloc (size);
+  ////printf ("new %p %d\n", allocAddress, size);
+  //return allocAddress;
+  //}
 //}}}
 //{{{
-void operator delete (void* ptr) {
+//void operator delete (void* ptr) {
 
-  //printf ("free %p\n", ptr);
-  free (ptr);
-  }
+  ////printf ("free %p\n", ptr);
+  //free (ptr);
+  //}
 //}}}
 
 // dtcm
@@ -296,9 +291,9 @@ uint8_t* dtcmAlloc (size_t size) {
   }
 //}}}
 void dtcmFree (void* ptr) { mDtcmHeap->free (ptr); }
-size_t getDtcmSize(){ return mDtcmHeap->getSize(); }
-size_t getDtcmFreeSize() { return mDtcmHeap->getFreeSize(); }
-size_t getDtcmMinFreeSize() { return mDtcmHeap->getMinSize(); }
+size_t getDtcmSize(){ return mDtcmHeap ? mDtcmHeap->getSize() : 0 ; }
+size_t getDtcmFreeSize() { return mDtcmHeap ? mDtcmHeap->getFreeSize() : 0 ; }
+size_t getDtcmMinFreeSize() { return mDtcmHeap ? mDtcmHeap->getMinSize() : 0 ; }
 
 // sram 123
 cHeap* mSram123Heap = nullptr;
@@ -311,9 +306,9 @@ uint8_t* sram123Alloc (size_t size) {
   }
 //}}}
 void sram123Free (void* ptr) { mSram123Heap->free (ptr); }
-size_t getSram123Size(){ return mSram123Heap->getSize(); }
-size_t getSram123FreeSize() { return mSram123Heap->getFreeSize(); }
-size_t getSram123MinFreeSize() { return mSram123Heap->getMinSize(); }
+size_t getSram123Size(){ return mSram123Heap ? mSram123Heap->getSize() : 0 ; }
+size_t getSram123FreeSize() { return mSram123Heap ? mSram123Heap->getFreeSize() : 0 ; }
+size_t getSram123MinFreeSize() { return mSram123Heap ? mSram123Heap->getMinSize() : 0 ; }
 
 // sd ram
 #define SDRAM_DEVICE_ADDR 0xD0000000
@@ -339,6 +334,6 @@ uint8_t* sdRamAlloc (size_t size) {
   }
 //}}}
 void sdRamFree (void* ptr) { mSdRamHeap->free (ptr); }
-size_t getSdRamSize() { return mSdRamHeap->getSize(); }
-size_t getSdRamFreeSize() { return mSdRamHeap->getFreeSize(); }
-size_t getSdRamMinFreeSize() { return mSdRamHeap->getMinSize(); }
+size_t getSdRamSize() { return mSdRamHeap ? mSdRamHeap->getSize() : 0 ;}
+size_t getSdRamFreeSize() { return mSdRamHeap ? mSdRamHeap->getFreeSize() : 0; }
+size_t getSdRamMinFreeSize() { return mSdRamHeap ? mSdRamHeap->getMinSize() : 0; }

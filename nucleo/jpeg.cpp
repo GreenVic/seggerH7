@@ -737,6 +737,9 @@ cTile* hwJpegDecode (const string& fileName) {
       }
     }
 
+  sdRamFree (mOutYuvBuf);
+  mOutYuvBuf = nullptr;
+
   return tile;
   }
 //}}}
