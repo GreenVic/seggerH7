@@ -698,7 +698,7 @@ extern "C" { void JPEG_IRQHandler() {
       printf ("- JPEG header 422 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
       }
     else if (mHandle.mChromaSampling == JPEG_420_SUBSAMPLING) {
-      mOutYuvLen = (mHandle.mWidth * mHandle.mHeight * 2) / 3;
+      mOutYuvLen = (mHandle.mWidth * mHandle.mHeight * 3) / 2;
       printf ("- JPEG header 420 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
       }
     else if (mHandle.mChromaSampling == JPEG_422_SUBSAMPLING) {

@@ -269,7 +269,7 @@ size_t getSramMinFreeSize() { return mSramHeap->getMinSize(); }
 void* operator new (size_t size) {
 
   void* allocAddress = malloc (size);
-  printf ("new %p %d\n", allocAddress, size);
+  //printf ("new %p %d\n", allocAddress, size);
   return allocAddress;
   }
 //}}}
