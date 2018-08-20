@@ -366,7 +366,7 @@ void yuvMcuTo565sw (uint8_t* src, uint8_t* dst, uint32_t BlockIndex, uint32_t Da
 #define INBUF_SIZE 16384
 tBufs mInBuf[2] = { { false, nullptr, 0 }, { false, nullptr, 0 } };
 
-const uint32_t kOutChunkSize = 85 * 768; // MCU align max output
+uint32_t mOutChunkSize = 0;
 uint32_t mOutYuvLen = 0;
 uint8_t* mOutYuvBuf = nullptr;
 uint32_t mOutTotalLen = 0;
@@ -380,7 +380,7 @@ void outputData (uint32_t len) {
 
   //printf ("outputData %x %d\n", len);
   mHandle.OutBuffPtr += len;
-  mHandle.OutLen = kOutChunkSize;
+  mHandle.OutLen = mOutChunkSize;
   }
 //}}}
 //{{{
@@ -694,32 +694,36 @@ extern "C" { void JPEG_IRQHandler() {
 
     //{{{  calc mOutYuvLen from mHandle.mChromaSampling
     if (mHandle.mChromaSampling == JPEG_444_SUBSAMPLING) {
+      mOutChunkSize = (mHandle.mWidth / 8) * 192;
       mOutYuvLen = mHandle.mWidth * mHandle.mHeight * 3;
-      printf ("- JPEG header 422 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
+      printf ("- JPEG header 422 %dx%d %d chunk:%d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen,mOutChunkSize);
       }
+
     else if (mHandle.mChromaSampling == JPEG_420_SUBSAMPLING) {
+      mOutChunkSize = (mHandle.mWidth / 32) * 384;
       mOutYuvLen = (mHandle.mWidth * mHandle.mHeight * 3) / 2;
-      printf ("- JPEG header 420 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
+      printf ("- JPEG header 420 %dx%d %d chunk:%d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen, mOutChunkSize);
       }
+
     else if (mHandle.mChromaSampling == JPEG_422_SUBSAMPLING) {
+      mOutChunkSize = (mHandle.mWidth / 16) * 256;
       mOutYuvLen = mHandle.mWidth * mHandle.mHeight * 2;
-      printf ("- JPEG header 422 %dx%d %d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
+      printf ("- JPEG header 422 %dx%d %d chunk:%d\n", mHandle.mWidth, mHandle.mHeight, mOutYuvLen, mOutChunkSize);
       }
+
     else
       printf ("JPEG unrecognised chroma sampling %d\n", mHandle.mChromaSampling);
     //}}}
-
     // alloc yuv
     mOutYuvBuf = sdRamAllocInt (mOutYuvLen);
     if (!mOutYuvBuf)
       printf ("JPEG mOutYuvBuf alloc fail\n");
 
-    mHandle.OutBuffPtr = mOutYuvBuf;
-    mHandle.OutLen = kOutChunkSize;
-
     // if the MDMA Out is triggred with JPEG Out FIFO Threshold flag then MDMA out buffer size is 32 bytes
     // else (MDMA Out is triggred with JPEG Out FIFO not empty flag then MDMA buffer size is 4 bytes
     // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)
+    mHandle.OutBuffPtr = mOutYuvBuf;
+    mHandle.OutLen = mOutChunkSize;
     uint32_t outXfrSize = mHandle.hmdmaOut.Init.BufferTransferLength;
     mHandle.OutLen = mHandle.OutLen - (mHandle.OutLen % outXfrSize);
 
