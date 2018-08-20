@@ -8,8 +8,10 @@
 //{{{  includes
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "FreeRTOS.h"
 #include "task.h"
+
 #include "heap.h"
 //}}}
 
@@ -238,6 +240,7 @@ private:
 
 // sram AXI
 cHeap* mSramHeap = nullptr;
+
 //{{{
 void* pvPortMalloc (size_t size) {
 
@@ -283,6 +286,7 @@ void operator delete (void* ptr) {
 
 // dtcm
 cHeap* mDtcmHeap = nullptr;
+
 //{{{
 uint8_t* dtcmAlloc (size_t size) {
   if (!mDtcmHeap)
@@ -297,6 +301,7 @@ size_t getDtcmMinFreeSize() { return mDtcmHeap->getMinSize(); }
 
 // sram 123
 cHeap* mSram123Heap = nullptr;
+
 //{{{
 uint8_t* sram123Alloc (size_t size) {
   if (!mSram123Heap)
@@ -315,6 +320,7 @@ size_t getSram123MinFreeSize() { return mSram123Heap->getMinSize(); }
 #define LCD_WIDTH  1024
 #define LCD_HEIGHT 600
 cHeap* mSdRamHeap = nullptr;
+
 //{{{
 uint8_t* sdRamAllocInt (size_t size) {
   if (!mSdRamHeap)
