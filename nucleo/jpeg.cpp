@@ -427,7 +427,6 @@ void dmaErrorCallback (MDMA_HandleTypeDef* hmdma) {
   // Disable All Interrupts
   __HAL_JPEG_DISABLE_IT (&mHandle, JPEG_INTERRUPT_MASK);
   }
-
 //}}}
 
 //{{{
