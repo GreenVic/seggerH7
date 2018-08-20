@@ -19,7 +19,7 @@
 class cHeap {
 public:
   //{{{
-  cHeap (uint32_t start, size_t size) {
+  cHeap (uint32_t start, size_t size, bool debug) : mDebug(debug) {
 
     // Ensure the heap starts on a correctly aligned boundary
     size_t uxAddress = (size_t)start;
@@ -235,6 +235,7 @@ private:
   size_t mSize = 0;
   size_t mFreeBytesRemaining = 0;
   size_t mMinFreeBytesRemaining = 0;
+  bool mDebug = false;
   };
 //}}}
 
@@ -245,7 +246,7 @@ cHeap* mSramHeap = nullptr;
 void* pvPortMalloc (size_t size) {
 
   if (!mSramHeap)
-    mSramHeap = new cHeap (0x24010000, 0x00070000);
+    mSramHeap = new cHeap (0x24010000, 0x00070000, false);
 
   void* allocAddress = mSramHeap->alloc (size);
   if (allocAddress) {
@@ -290,7 +291,7 @@ cHeap* mDtcmHeap = nullptr;
 //{{{
 uint8_t* dtcmAlloc (size_t size) {
   if (!mDtcmHeap)
-    mDtcmHeap = new cHeap (0x20000000, 0x00020000);
+    mDtcmHeap = new cHeap (0x20000000, 0x00020000, false);
   return (uint8_t*)mDtcmHeap->alloc (size);
   }
 //}}}
@@ -305,7 +306,7 @@ cHeap* mSram123Heap = nullptr;
 //{{{
 uint8_t* sram123Alloc (size_t size) {
   if (!mSram123Heap)
-    mSram123Heap = new cHeap (0x30000000, 0x00048000);
+    mSram123Heap = new cHeap (0x30000000, 0x00048000, false);
   return (uint8_t*)mSram123Heap->alloc (size);
   }
 //}}}
@@ -324,21 +325,20 @@ cHeap* mSdRamHeap = nullptr;
 //{{{
 uint8_t* sdRamAllocInt (size_t size) {
   if (!mSdRamHeap)
-    mSdRamHeap = new cHeap (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
-  printf ("sdRam allocInt\n");
-
+    mSdRamHeap = new cHeap (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,
+                            SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4, true);
   return mSdRamHeap->allocInt (size);
   }
 //}}}
 //{{{
 uint8_t* sdRamAlloc (size_t size) {
   if (!mSdRamHeap)
-    mSdRamHeap = new cHeap (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
-  printf ("sdRam alloc\n");
+    mSdRamHeap = new cHeap (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,
+                            SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4, true);
   return mSdRamHeap->alloc (size);
   }
 //}}}
-void sdRamFree (void* ptr) { printf ("sdRam free\n"); mSdRamHeap->free (ptr); }
+void sdRamFree (void* ptr) { mSdRamHeap->free (ptr); }
 size_t getSdRamSize() { return mSdRamHeap->getSize(); }
 size_t getSdRamFreeSize() { return mSdRamHeap->getFreeSize(); }
 size_t getSdRamMinFreeSize() { return mSdRamHeap->getMinSize(); }
