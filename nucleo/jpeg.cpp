@@ -642,13 +642,14 @@ cTile* hwJpegDecode (const string& fileName) {
 
   mHandle.Instance = JPEG;
   init();
-
+  //{{{  alloc buffers
   if (!mInBuf[0].mBuf)
     mInBuf[0].mBuf = (uint8_t*)pvPortMalloc (INBUF_SIZE);
   if (!mInBuf[1].mBuf)
     mInBuf[1].mBuf = (uint8_t*)pvPortMalloc (INBUF_SIZE);
   if (!mOutYuvBuf)
     mOutYuvBuf = sdRamAllocInt (6000*4000*2);
+  //}}}
 
   cTile* tile = nullptr;
   FIL file;
@@ -658,6 +659,7 @@ cTile* hwJpegDecode (const string& fileName) {
     if (f_read (&file, mInBuf[1].mBuf, INBUF_SIZE, &mInBuf[1].mSize) == FR_OK)
       mInBuf[1].mFull = true;
 
+    //{{{  init stuff
     mHandle.mReadIndex = 0;
     mHandle.mDecodeDone = false;
 
@@ -670,8 +672,8 @@ cTile* hwJpegDecode (const string& fileName) {
     mHandle.OutBuffPtr = nullptr;
     mHandle.OutLen = 0;
     mHandle.OutCount = 0;
-
-    // set JPEG Codec to decode
+    //}}}
+    //{{{  start JPEG ecode
     JPEG->CONFR1 |= JPEG_CONFR1_DE;
 
     // stop JPEG processing
@@ -688,14 +690,13 @@ cTile* hwJpegDecode (const string& fileName) {
 
     // enable End Of Conversation, End Of Header interrupts
     __HAL_JPEG_ENABLE_IT (&mHandle, JPEG_IT_EOC | JPEG_IT_HPD);
+    //}}}
 
     // if the MDMA In is triggred with JPEG In FIFO Threshold flag then MDMA In buffer size is 32 bytes
     // else (MDMA In is triggred with JPEG In FIFO not full flag then MDMA In buffer size is 4 bytes
     // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)
     uint32_t inXfrSize = mHandle.hmdmaIn.Init.BufferTransferLength;
     mHandle.InLen = mHandle.InLen - (mHandle.InLen % inXfrSize);
-
-    // start DMA FIFO In transfer
     HAL_MDMA_Start_IT (&mHandle.hmdmaIn, (uint32_t)mHandle.InBuffPtr, (uint32_t)&JPEG->DIR, mHandle.InLen, 1);
 
     while (!mHandle.mDecodeDone) {
@@ -728,12 +729,12 @@ cTile* hwJpegDecode (const string& fileName) {
             mOutYuvBuf, mHandle.mChromaSampling, mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
 
     // alloc rgb
-    auto rgb565 = sdRamAllocInt (mHandle.mWidth * mHandle.mHeight * 2);
-    if (!rgb565)
+    auto rgb565Pic = sdRamAllocInt (mHandle.mWidth * mHandle.mHeight * 2);
+    if (!rgb565Pic)
       printf ("JPEG rgb565 alloc fail\n");
     else {
-      tile = new cTile (rgb565, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
-      cLcd::yuvMcuToRgb565 (mOutYuvBuf, rgb565, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
+      tile = new cTile (rgb565Pic, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
+      cLcd::yuvMcuToRgb565 (mOutYuvBuf, rgb565Pic, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
       }
     }
 
