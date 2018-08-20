@@ -318,14 +318,6 @@ size_t getSram123MinFreeSize() { return mSram123Heap ? mSram123Heap->getMinSize(
 cHeap* mSdRamHeap = nullptr;
 
 //{{{
-uint8_t* sdRamAllocInt (size_t size) {
-  if (!mSdRamHeap)
-    mSdRamHeap = new cHeap (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,
-                            SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4, true);
-  return mSdRamHeap->allocInt (size);
-  }
-//}}}
-//{{{
 uint8_t* sdRamAlloc (size_t size) {
   if (!mSdRamHeap)
     mSdRamHeap = new cHeap (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,

@@ -23,7 +23,6 @@ size_t getSram123FreeSize();
 size_t getSram123MinFreeSize();
 
 uint8_t* sdRamAlloc (size_t size);
-uint8_t* sdRamAllocInt (size_t size);
 void sdRamFree (void* p);
 size_t getSdRamSize();
 size_t getSdRamFreeSize();
