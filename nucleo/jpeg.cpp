@@ -573,11 +573,6 @@ extern "C" { void JPEG_IRQHandler() {
     else
       printf ("JPEG unrecognised chroma sampling %d\n", mHandle.mChromaSampling);
     //}}}
-    // alloc yuv
-    mOutYuvBuf = sdRamAllocInt (mOutYuvLen);
-    if (!mOutYuvBuf)
-      printf ("JPEG mOutYuvBuf alloc fail\n");
-
     // if the MDMA Out is triggred with JPEG Out FIFO Threshold flag then MDMA out buffer size is 32 bytes
     // else (MDMA Out is triggred with JPEG Out FIFO not empty flag then MDMA buffer size is 4 bytes
     // MDMA transfer size (BNDTR) must be a multiple of MDMA buffer size (TLEN)
@@ -648,9 +643,12 @@ cTile* hwJpegDecode (const string& fileName) {
   mHandle.Instance = JPEG;
   init();
 
-  mInBuf[0].mBuf = (uint8_t*)pvPortMalloc (INBUF_SIZE);
-  mInBuf[1].mBuf = (uint8_t*)pvPortMalloc (INBUF_SIZE);
-  mOutYuvBuf = nullptr;
+  if (!mInBuf[0].mBuf)
+    mInBuf[0].mBuf = (uint8_t*)pvPortMalloc (INBUF_SIZE);
+  if (!mInBuf[1].mBuf)
+    mInBuf[1].mBuf = (uint8_t*)pvPortMalloc (INBUF_SIZE);
+  if (!mOutYuvBuf)
+    mOutYuvBuf = sdRamAllocInt (6000*4000*2);
 
   cTile* tile = nullptr;
   FIL file;
@@ -738,10 +736,6 @@ cTile* hwJpegDecode (const string& fileName) {
       cLcd::yuvMcuToRgb565 (mOutYuvBuf, rgb565, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
       }
     }
-
-  vPortFree (mInBuf[0].mBuf);
-  vPortFree (mInBuf[1].mBuf);
-  sdRamFree (mOutYuvBuf);
 
   return tile;
   }

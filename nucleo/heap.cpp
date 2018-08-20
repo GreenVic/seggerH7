@@ -136,7 +136,7 @@ public:
       //        allocAddress, size, mFreeBytesRemaining,mMinFreeBytesRemaining);
       }
     else {
-      printf ("***heap alloc fail size:%d free:%d minFree:%d largest:%d\n",
+      printf ("***cHeap::alloc fail size:%d free:%d minFree:%d largest:%d\n",
               size, mFreeBytesRemaining,mMinFreeBytesRemaining, largestBlock);
 
       tLink_t* block = mStart.mNextFreeBlock;
@@ -155,7 +155,7 @@ public:
   //{{{
   void free (void* ptr) {
 
-    //printf ("sdRamFree %p\n", p);
+    //printf ("cHeap::free %p\n", p);
 
     if (ptr) {
       // memory being freed will have an tLink_t structure immediately before it.
@@ -325,6 +325,8 @@ cHeap* mSdRamHeap = nullptr;
 uint8_t* sdRamAllocInt (size_t size) {
   if (!mSdRamHeap)
     mSdRamHeap = new cHeap (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
+  printf ("sdRam allocInt\n");
+
   return mSdRamHeap->allocInt (size);
   }
 //}}}
@@ -332,10 +334,11 @@ uint8_t* sdRamAllocInt (size_t size) {
 uint8_t* sdRamAlloc (size_t size) {
   if (!mSdRamHeap)
     mSdRamHeap = new cHeap (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,  SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
+  printf ("sdRam alloc\n");
   return mSdRamHeap->alloc (size);
   }
 //}}}
-void sdRamFree (void* ptr) { mSdRamHeap->free (ptr); }
+void sdRamFree (void* ptr) { printf ("sdRam free\n"); mSdRamHeap->free (ptr); }
 size_t getSdRamSize() { return mSdRamHeap->getSize(); }
 size_t getSdRamFreeSize() { return mSdRamHeap->getFreeSize(); }
 size_t getSdRamMinFreeSize() { return mSdRamHeap->getMinSize(); }

@@ -243,7 +243,7 @@ void appThread (void* arg) {
                        dec ((filInfo.fdate >> 5) & 0xF) + "." +
                        dec ((filInfo.fdate >> 9) + 1980) + " " +
                        dec (HAL_GetTick() - startTime) + "ms");
-        vTaskDelay (200);
+        vTaskDelay (80);
         }
       else {
         printf ("decode %s tile error\n", fileName.c_str());
