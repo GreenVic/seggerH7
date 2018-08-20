@@ -20,6 +20,7 @@ using namespace std;
 
 #define SW_JPEG
 #define SW_SCALE 4
+#define FMC_PERIOD  FMC_SDRAM_CLOCK_PERIOD_2
 
 const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
 
@@ -431,7 +432,7 @@ void sdRamConfig() {
   SDRAM_HandleTypeDef sdramHandle;
   sdramHandle.Instance = FMC_SDRAM_DEVICE;
   sdramHandle.Init.SDBank             = FMC_SDRAM_BANK2;
-  sdramHandle.Init.SDClockPeriod      = FMC_SDRAM_CLOCK_PERIOD_3;
+  sdramHandle.Init.SDClockPeriod      = FMC_PERIOD;
   sdramHandle.Init.ReadBurst          = FMC_SDRAM_RBURST_ENABLE;
   sdramHandle.Init.CASLatency         = FMC_SDRAM_CAS_LATENCY_2;
   sdramHandle.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_11; //9
