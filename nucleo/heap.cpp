@@ -60,7 +60,71 @@ public:
   size_t getMinSize() { return mMinFreeBytesRemaining; }
 
   //{{{
-  uint8_t* allocInt (size_t size) {
+  uint8_t* alloc (size_t size) {
+
+    size_t largestBlock = 0;
+
+    vTaskSuspendAll();
+    uint8_t* allocAddress = allocBlock (size);
+    xTaskResumeAll();
+
+    if (allocAddress) {
+      //printf ("heap alloc %p size:%d free:%d minFree:%d\n",
+      //        allocAddress, size, mFreeBytesRemaining,mMinFreeBytesRemaining);
+      }
+    else {
+      printf ("***cHeap::alloc fail size:%d free:%d minFree:%d largest:%d\n",
+              size, mFreeBytesRemaining,mMinFreeBytesRemaining, largestBlock);
+
+      tLink_t* block = mStart.mNextFreeBlock;
+      while (block) {
+        if ((block->mBlockSize & kBlockAllocatedBit) == 0)
+          printf (" - alloc %p size:%d\n", block, block->mBlockSize);
+        else
+          printf (" -  free %p size:%d\n", block, block->mBlockSize);
+        block = block->mNextFreeBlock;
+        }
+      }
+
+    return allocAddress;
+    }
+  //}}}
+  //{{{
+  void free (void* ptr) {
+
+    if (ptr) {
+      // memory being freed will have an tLink_t structure immediately before it.
+      uint8_t* puc = (uint8_t*)ptr - kHeapStructSize;
+      tLink_t* link = (tLink_t*)puc;
+
+      if (mDebug)
+        printf ("cHeap::free %p %d\n", ptr, link->mBlockSize & (~kBlockAllocatedBit));
+
+      if (link->mBlockSize & kBlockAllocatedBit) {
+        if (link->mNextFreeBlock == NULL) {
+          // block is being returned to the heap - it is no longer allocated.
+          link->mBlockSize &= ~kBlockAllocatedBit;
+
+          vTaskSuspendAll();
+          mFreeBytesRemaining += link->mBlockSize;
+          insertBlockIntoFreeList (link);
+          xTaskResumeAll();
+          }
+        }
+      }
+    }
+  //}}}
+
+private:
+  //{{{  struct tLink_t
+  typedef struct A_BLOCK_LINK {
+    struct A_BLOCK_LINK* mNextFreeBlock; // The next free block in the list
+    size_t mBlockSize;                   // The size of the free block
+    } tLink_t;
+  //}}}
+
+  //{{{
+  uint8_t* allocBlock (size_t size) {
 
     uint8_t* allocAddress = NULL;
     size_t largestBlock = 0;
@@ -119,70 +183,6 @@ public:
     return allocAddress;
     }
   //}}}
-  //{{{
-  uint8_t* alloc (size_t size) {
-
-    size_t largestBlock = 0;
-
-    vTaskSuspendAll();
-    uint8_t* allocAddress = allocInt (size);
-    xTaskResumeAll();
-
-    if (allocAddress) {
-      //printf ("heap alloc %p size:%d free:%d minFree:%d\n",
-      //        allocAddress, size, mFreeBytesRemaining,mMinFreeBytesRemaining);
-      }
-    else {
-      printf ("***cHeap::alloc fail size:%d free:%d minFree:%d largest:%d\n",
-              size, mFreeBytesRemaining,mMinFreeBytesRemaining, largestBlock);
-
-      tLink_t* block = mStart.mNextFreeBlock;
-      while (block) {
-        if ((block->mBlockSize & kBlockAllocatedBit) == 0)
-          printf (" - alloc %p size:%d\n", block, block->mBlockSize);
-        else
-          printf (" -  free %p size:%d\n", block, block->mBlockSize);
-        block = block->mNextFreeBlock;
-        }
-      }
-
-    return allocAddress;
-    }
-  //}}}
-  //{{{
-  void free (void* ptr) {
-
-    if (ptr) {
-      // memory being freed will have an tLink_t structure immediately before it.
-      uint8_t* puc = (uint8_t*)ptr - kHeapStructSize;
-      tLink_t* link = (tLink_t*)puc;
-
-      if (mDebug)
-        printf ("cHeap::free %p %d\n", ptr, link->mBlockSize & (~kBlockAllocatedBit));
-
-      if (link->mBlockSize & kBlockAllocatedBit) {
-        if (link->mNextFreeBlock == NULL) {
-          // block is being returned to the heap - it is no longer allocated.
-          link->mBlockSize &= ~kBlockAllocatedBit;
-
-          vTaskSuspendAll();
-          mFreeBytesRemaining += link->mBlockSize;
-          insertBlockIntoFreeList (link);
-          xTaskResumeAll();
-          }
-        }
-      }
-    }
-  //}}}
-
-private:
-  //{{{  struct tLink_t
-  typedef struct A_BLOCK_LINK {
-    struct A_BLOCK_LINK* mNextFreeBlock; // The next free block in the list
-    size_t mBlockSize;                   // The size of the free block
-    } tLink_t;
-  //}}}
-
   //{{{
   void insertBlockIntoFreeList (tLink_t* insertBlock) {
 
