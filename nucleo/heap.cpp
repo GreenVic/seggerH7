@@ -5,6 +5,7 @@
 // sram 2    128k  0x30020000 0x00020000
 // sram 3     32k  0x30040000 0x00008000
 // sram 4     64k  0x30080000 0x00010000
+// sdRam     128m  0xD0000000 0x08000000
 //{{{  includes
 #include <stdio.h>
 #include <stdlib.h>
@@ -265,7 +266,7 @@ public:
         if ((!block.second->mAllocated) && (size <= block.second->mSize)) {
           block.second->mAllocated = true;
           if (size < block.second->mSize) {
-            printf ("---- split block %x:%x\n", size, block.second->mSize);
+            printf ("cSdRamHeap::alloc - split block %x:%x\n", size, block.second->mSize);
             auto blockit = mBlockMap.insert (
               std::map<uint8_t*,cBlock*>::value_type (
                 block.second->mAddress+size, new cBlock (block.second->mAddress+size,
@@ -273,7 +274,7 @@ public:
             block.second->mSize = size;
             }
           else
-            printf ("---- reallocate free block %x\n", size);
+            printf ("cSdRamHeap::alloc - reallocate free block %x\n", size);
 
           mFreeSize -= size;
           if (mFreeSize < mMinFreeSize)
@@ -285,10 +286,13 @@ public:
         }
       }
 
-    list();
+    if (mDebug) {
+      printf ("cSdRamHeap::alloc %p %x\n", allocAddress, size);
+      list();
+      }
+
     xTaskResumeAll();
 
-    printf ("-----> alloc %p %x\n", allocAddress, size);
     return allocAddress;
     }
   //}}}
@@ -296,21 +300,25 @@ public:
   void free (void* ptr) {
 
     if (ptr) {
-      printf ("-----> free %p\n", ptr);
+      if (mDebug)
+        printf ("cSdRamHeap::free %p\n", ptr);
 
       vTaskSuspendAll();
       auto blockIt = mBlockMap.find ((uint8_t*)ptr);
       if (blockIt == mBlockMap.end())
-        printf ("**** free block not found\n");
+        printf ("cSdRamHeap::free **** free block not found\n");
       else if (!blockIt->second->mAllocated)
-        printf ("**** deallocating free blcok\n");
+        printf ("cSdRamHeap::free **** deallocating free blcok\n");
       else {
-        printf ("---- free block found\n");
+        if (mDebug)
+          printf ("cSdRamHeap::free block found\n");
         blockIt->second->mAllocated = false;
         mFreeSize += blockIt->second->mSize;
         }
 
-      list();
+      if (mDebug)
+        list();
+
       xTaskResumeAll();
       }
     }
@@ -330,7 +338,6 @@ private:
   //}}}
   //{{{
   void list() {
-    printf ("-------------------------\n");
     for (auto block : mBlockMap)
       printf ("block %p %p %x %d\n",
               block.first, block.second->mAddress, block.second->mSize, block.second->mAllocated);
@@ -349,7 +356,6 @@ private:
 
 // dtcm
 cHeap* mDtcmHeap = nullptr;
-
 //{{{
 uint8_t* dtcmAlloc (size_t size) {
   if (!mDtcmHeap)
@@ -364,7 +370,6 @@ size_t getDtcmMinFree() { return mDtcmHeap ? mDtcmHeap->getMinSize() : 0 ; }
 
 // sram AXI
 cHeap* mSramHeap = nullptr;
-
 //{{{
 void* pvPortMalloc (size_t size) {
 
@@ -410,7 +415,6 @@ size_t getSramMinFree() { return mSramHeap ? mSramHeap->getMinSize() : 0 ; }
 
 // sram 123
 cHeap* mSram123Heap = nullptr;
-
 //{{{
 uint8_t* sram123Alloc (size_t size) {
   if (!mSram123Heap)
@@ -424,16 +428,12 @@ size_t getSram123Free() { return mSram123Heap ? mSram123Heap->getFree() : 0 ; }
 size_t getSram123MinFree() { return mSram123Heap ? mSram123Heap->getMinSize() : 0 ; }
 
 // sd ram
-#define SDRAM_DEVICE_ADDR 0xD0000000
-#define SDRAM_DEVICE_SIZE 0x08000000
-
 cSdRamHeap* mSdramHeap = nullptr;
-
 //{{{
 uint8_t* sdRamAlloc (size_t size) {
 
   if (!mSdramHeap)
-    mSdramHeap = new cSdRamHeap ((uint8_t*)(SDRAM_DEVICE_ADDR), SDRAM_DEVICE_SIZE, true);
+    mSdramHeap = new cSdRamHeap ((uint8_t*)0xD0000000, 0x08000000, true);
 
   return mSdramHeap->alloc (size);
   }
