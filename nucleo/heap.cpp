@@ -348,7 +348,7 @@ private:
     }
   //}}}
 
-  std::map<uint8_t*, cBlock*> mBlockMap;
+  std::map <uint8_t*, cBlock*> mBlockMap;
   uint8_t* mStart = nullptr;
   size_t mSize = 0;
   size_t mFreeSize = 0;

@@ -699,7 +699,8 @@ void cLcd::drawInfo() {
 
   // draw title
   const cRect titleRect (0,0, getWidth(), kTitleHeight+kGap);
-  text (COL_YELLOW, kTitleHeight, mTitle, titleRect);
+  text (COL_BLACK, kTitleHeight, mTitle, titleRect);
+  text (COL_YELLOW, kTitleHeight, mTitle, titleRect + cPoint(-2,-2));
 
   if (mShowInfo) {
     // draw footer
