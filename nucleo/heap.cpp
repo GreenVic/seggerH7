@@ -18,410 +18,6 @@
 #include "heap.h"
 //}}}
 
-#define MIN_ALLOC_SZ 4
-#define BIN_COUNT 9
-#define BIN_MAX_IDX (BIN_COUNT - 1)
-
-typedef unsigned int uint;
-class cSimpleHeap {
-public:
-  //{{{
-  class cBlock {
-  public:
-    cBlock (uint8_t* address, uint32_t size, bool allocated) :
-      mAddress(address), mSize(size), mAllocated(allocated) {}
-
-    uint8_t* mAddress = nullptr;
-    uint32_t mSize = 0;
-    bool mAllocated = false;
-    };
-  //}}}
-
-  //{{{
-  cSimpleHeap (uint8_t* start, size_t size, bool debug) : mStart(start), mSize(size), mDebug(debug) {
-    mFreeSize = mSize;
-    mMinFreeSize = mSize;
-    }
-  //}}}
-
-  size_t getSize() { return mSize; }
-  size_t getFree() { return mFreeSize; }
-  size_t getMinFree() { return mMinFreeSize; }
-
-  void list() {
-    printf ("-------------------------\n");
-    for (auto block : mBlockMap)
-      printf ("block %p %p %x %d\n",
-              block.first, block.second->mAddress, block.second->mSize, block.second->mAllocated);
-    printf ("-------------------------\n");
-    }
-  //{{{
-  uint8_t* alloc (size_t size) {
-
-    uint8_t* allocAddress = nullptr;
-
-    vTaskSuspendAll();
-
-    if (mBlockMap.empty()) {
-      // empty
-      mBlockMap.insert (std::map<uint8_t*,cBlock*>::value_type (mStart, new cBlock (mStart, size, true)));
-      mBlockMap.insert (std::map<uint8_t*,cBlock*>::value_type (mStart+size, new cBlock (mStart+size, mSize-size, false)));
-      mFreeSize += size;
-      allocAddress = mStart;
-      }
-    else {
-      for (auto block : mBlockMap) {
-        if ((!block.second->mAllocated) && (size <= block.second->mSize)) {
-          block.second->mAllocated = true;
-          if (size < block.second->mSize) {
-            printf ("---- split block %x:%x\n", size, block.second->mSize);
-            auto blockit = mBlockMap.insert (
-              std::map<uint8_t*,cBlock*>::value_type (
-                block.second->mAddress+size, new cBlock (block.second->mAddress+size,
-                block.second->mSize-size, false)));
-            block.second->mSize = size;
-            }
-          else
-            printf ("---- reallocate free block %x\n", size);
-          allocAddress = block.second->mAddress;
-          break;
-          }
-        }
-      }
-
-    list();
-    xTaskResumeAll();
-
-    printf ("-----> alloc %p %x\n", allocAddress, size);
-    return allocAddress;
-    }
-  //}}}
-  //{{{
-  void free (void* ptr) {
-
-    if (ptr) {
-      printf ("-----> free %p\n", ptr);
-
-      vTaskSuspendAll();
-      auto blockIt = mBlockMap.find ((uint8_t*)ptr);
-      if (blockIt == mBlockMap.end())
-        printf ("**** free block not found\n");
-      else if (!blockIt->second->mAllocated)
-        printf ("**** deallocating free blcok\n");
-      else {
-        printf ("---- free block found\n");
-        blockIt->second->mAllocated = false;
-        mFreeSize -= blockIt->second->mSize;
-        }
-
-      list();
-      xTaskResumeAll();
-      }
-    }
-  //}}}
-
-  std::map<uint8_t*, cBlock*> mBlockMap;
-
-  uint8_t* mStart = nullptr;
-  size_t mSize = 0;
-  size_t mFreeSize = 0;
-  size_t mMinFreeSize = 0;
-  bool mDebug = false;
-  };
-
-//{{{  c style heap
-//{{{  struct node_t
-typedef struct node_t {
-  bool hole;
-  uint size;
-  struct node_t* next;
-  struct node_t* prev;
-  } node_t;
-//}}}
-//{{{  struct footer_t
-typedef struct {
-  node_t* header;
-  } footer_t;
-//}}}
-//{{{  struct bin_t
-typedef struct {
-  node_t* head;
-  } bin_t;
-//}}}
-//{{{  struct heap_t
-typedef struct {
-  long start;
-  long end;
-  long size;
-  long free;
-  long minFree;
-  bin_t* bins[BIN_COUNT];
-  } heap_t;
-//}}}
-
-//{{{
-node_t* get_best_fit (bin_t* bin, size_t size) {
-
-  if (bin->head == NULL)
-    return NULL; // empty list!
-
-  node_t *temp = bin->head;
-  while (temp != NULL) {
-    if (temp->size >= size)
-      return temp; // found a fit!
-    temp = temp->next;
-    }
-
-  return NULL; // no fit!
-  }
-//}}}
-//{{{
-node_t* get_last_node (bin_t* bin) {
-
-  node_t* temp = bin->head;
-  while (temp->next != NULL)
-    temp = temp->next;
-  return temp;
-  }
-//}}}
-
-footer_t* get_foot (node_t* node) { return (footer_t*)((char*)node + sizeof(node_t) + node->size); }
-//{{{
-void createFooter (node_t* head) {
-  footer_t* footer = get_foot (head);
-  footer->header = head;
-  }
-//}}}
-
-//{{{
-int get_bin_index (size_t sz) {
-
-  int index = 0;
-  sz = sz < 4 ? 4 : sz;
-
-  while (sz >>= 1)
-    index++;
-  index -= 2;
-
-  if (index > BIN_MAX_IDX)
-    index = BIN_MAX_IDX;
-  return index;
-  }
-//}}}
-
-//{{{
-void addNode (bin_t* bin, node_t* node) {
-
-  node->next = NULL;
-  node->prev = NULL;
-
-  node_t* temp = bin->head;
-
-  if (bin->head == NULL) {
-    bin->head = node;
-    return;
-    }
-
-  // we need to save next and prev while we iterate
-  node_t* current = bin->head;
-  node_t* previous = NULL;
-
-  // iterate until we get the the end of the list or we find a
-  // node whose size is
-  while (current != NULL && current->size <= node->size) {
-    previous = current;
-    current = current->next;
-    }
-
-  if (current == NULL) { // we reached the end of the list
-    previous->next = node;
-    node->prev = previous;
-    }
-
-  else {
-    if (previous != NULL) { // middle of list, connect all links!
-      node->next = current;
-      previous->next = node;
-      node->prev = previous;
-      current->prev = node;
-      }
-    else { // head is the only element
-      node->next = bin->head;
-      bin->head->prev = node;
-      bin->head = node;
-      }
-    }
-  }
-//}}}
-//{{{
-void removeNode (bin_t* bin, node_t* node) {
-
-  if (bin->head == NULL)
-    return;
-
-  if (bin->head == node) {
-    bin->head = bin->head->next;
-    return;
-    }
-
-  node_t* temp = bin->head->next;
-  while (temp != NULL) {
-    if (temp == node) { // found the node
-      if (temp->next == NULL) { // last item
-        temp->prev->next = NULL;
-        }
-      else { // middle item
-        temp->prev->next = temp->next;
-        temp->next->prev = temp->prev;
-        }
-      // we dont worry about deleting the head here because we already checked that
-      return;
-      }
-    temp = temp->next;
-    }
-  }
-//}}}
-
-//{{{
-void heapInit (heap_t* heap, int start, int size) {
-
-  for (int i = 0; i < BIN_COUNT; i++) {
-    heap->bins[i] = (bin_t*)malloc (sizeof(bin_t));
-    memset (heap->bins[i], 0, sizeof(bin_t));
-    }
-
-  heap->start = start;
-  heap->end = start + size;
-  heap->size = size;
-  heap->free = size;
-  heap->minFree = size;
-
-  // first we create the initial node, heap starts as one big chunk of memory hole
-  node_t* initNode = (node_t*)start;
-  initNode->hole = true;
-  initNode->size = size - sizeof(node_t) - sizeof(footer_t);
-
-  // create a foot (size must be defined)
-  createFooter (initNode);
-
-  // now we add the initNode to the correct bin and setup the heap struct
-  addNode (heap->bins[get_bin_index (initNode->size)], initNode);
-  }
-//}}}
-//{{{
-void* heapAlloc (heap_t* heap, size_t size) {
-
-  vTaskSuspendAll();
-
-  // first get the bin index that this chunk size should be in
-  int index = get_bin_index (size);
-
-  // now use this bin to try and find a good fitting chunk!
-  bin_t* temp = (bin_t*)heap->bins[index];
-  node_t* found = get_best_fit (temp, size);
-
-  // while no chunk if found advance through the bins until we find a chunk or get to the wilderness
-  while (found == NULL) {
-    temp = heap->bins[++index];
-    found = get_best_fit (temp, size);
-    }
-
-  // if the differnce between the found chunk and the requested chunk is bigger than
-  // overhead (metadata size) + the min alloc size then split chunk, otherwise just return the chunk
-  if ((found->size - size) > (sizeof(footer_t) + sizeof(node_t) + MIN_ALLOC_SZ)) {
-    // do the math to get where to split at, then set its metadata
-    node_t* split = (node_t*)(((char*)found + sizeof(footer_t) + sizeof(node_t)) + size);
-    split->size = found->size - size - (sizeof(footer_t) + sizeof(node_t));
-    split->hole = true;
-
-    createFooter (split); // create a footer for the split
-
-    // now we need to get the new index for this split chunk place it in the correct bin
-    int new_idx = get_bin_index (split->size);
-    addNode (heap->bins[new_idx], split);
-
-    found->size = size; // set the found chunks size
-    createFooter (found); // since size changed, remake foot
-    }
-
-  found->hole = false; // not a hole anymore
-  removeNode (heap->bins[index], found); // remove it from its bin
-
-  // since we don't need the prev and next fields when the chunk
-  // is in use by the user, we can clear these and return the address of the next field
-  found->prev = NULL;
-  found->next = NULL;
-  heap->free -= size;
-  if (heap->free < heap->minFree)
-    heap->minFree = heap->free;
-
-  xTaskResumeAll();
-
-  return &found->next;
-  }
-                                                                             //}}}
-//{{{
-void heapFree (heap_t* heap, void* ptr) {
-
-  vTaskSuspendAll();
-
-  // actual head of node is not ptr, it is ptr minus size of fields that precede "next"  in the node
-  // if node being freed is start of heap no need to coalesce, just put it in right list
-  node_t* head = (node_t*)((char*)ptr - (sizeof(int) * 2));
-  heap->free += head->size;
-
-  if ((long)head != heap->start) {
-    // these are the next and previous nodes in the heap, not the prev and next
-    // in a bin. to find prev we just get subtract from the start of the head node
-    // to get the footer of the previous node (which gives us the header pointer).
-    // to get the next node we simply get the footer and add the sizeof(footer_t).
-    node_t* next = (node_t*)((char*) get_foot (head) + sizeof (footer_t));
-    node_t* prev = (node_t*)*((int*)((char*)head - sizeof (footer_t)));
-
-    // if the previous node is a hole we can coalese!
-    if (prev->hole) {
-      // remove the previous node from its bin
-      bin_t* list = heap->bins[get_bin_index(prev->size)];
-      removeNode (list, prev);
-
-      // re-calculate the size of thie node and recreate a footer
-      prev->size += sizeof(footer_t) + sizeof(node_t) + head->size;
-      createFooter (prev);
-
-      // previous is now the node we are working with, we head to prev
-      // because the next if statement will coalesce with the next node
-      // and we want that statement to work even when we coalesce with prev
-      head = prev;
-      }
-
-    // if the next node is free coalesce!
-    if (next->hole) {
-      // remove it from its bin
-      bin_t* list = heap->bins[get_bin_index(next->size)];
-      removeNode (list, next);
-
-      // re-calculate the new size of head
-      head->size += sizeof(footer_t) + sizeof(node_t) + next->size;
-
-      // clear out the old metadata from next
-      footer_t* oldFooter = get_foot (next);
-      oldFooter->header = 0;
-      next->size = 0;
-      next->hole = false;
-
-      // make the new footer!
-      createFooter (head);
-      }
-     }
-
-  // chunk is now a hole, put in right bin!
-  head->hole = true;
-  addNode (heap->bins[get_bin_index (head->size)], head);
-
-  xTaskResumeAll();
-  }
-//}}}
-//}}}
 //{{{
 class cHeap {
 public:
@@ -636,6 +232,120 @@ private:
   bool mDebug = false;
   };
 //}}}
+//{{{
+class cSdRamHeap {
+public:
+  //{{{
+  cSdRamHeap (uint8_t* start, size_t size, bool debug)
+    : mStart(start), mSize(size), mFreeSize(mSize), mMinFreeSize(mSize), mDebug(debug) {}
+  //}}}
+
+  size_t getSize() { return mSize; }
+  size_t getFree() { return mFreeSize; }
+  size_t getMinFree() { return mMinFreeSize; }
+
+  //{{{
+  uint8_t* alloc (size_t size) {
+
+    uint8_t* allocAddress = nullptr;
+
+    vTaskSuspendAll();
+
+    if (mBlockMap.empty()) {
+      mBlockMap.insert (std::map<uint8_t*,cBlock*>::value_type (mStart, new cBlock (mStart, size, true)));
+      mBlockMap.insert (std::map<uint8_t*,cBlock*>::value_type (mStart+size, new cBlock (mStart+size, mSize-size, false)));
+      mFreeSize -= size;
+      mFreeSize -= size;
+      if (mFreeSize < mMinFreeSize)
+        mMinFreeSize = mFreeSize;
+      allocAddress = mStart;
+      }
+    else {
+      for (auto block : mBlockMap) {
+        if ((!block.second->mAllocated) && (size <= block.second->mSize)) {
+          block.second->mAllocated = true;
+          if (size < block.second->mSize) {
+            printf ("---- split block %x:%x\n", size, block.second->mSize);
+            auto blockit = mBlockMap.insert (
+              std::map<uint8_t*,cBlock*>::value_type (
+                block.second->mAddress+size, new cBlock (block.second->mAddress+size,
+                block.second->mSize-size, false)));
+            block.second->mSize = size;
+            }
+          else
+            printf ("---- reallocate free block %x\n", size);
+
+          mFreeSize -= size;
+          if (mFreeSize < mMinFreeSize)
+            mMinFreeSize = mFreeSize;
+
+          allocAddress = block.second->mAddress;
+          break;
+          }
+        }
+      }
+
+    list();
+    xTaskResumeAll();
+
+    printf ("-----> alloc %p %x\n", allocAddress, size);
+    return allocAddress;
+    }
+  //}}}
+  //{{{
+  void free (void* ptr) {
+
+    if (ptr) {
+      printf ("-----> free %p\n", ptr);
+
+      vTaskSuspendAll();
+      auto blockIt = mBlockMap.find ((uint8_t*)ptr);
+      if (blockIt == mBlockMap.end())
+        printf ("**** free block not found\n");
+      else if (!blockIt->second->mAllocated)
+        printf ("**** deallocating free blcok\n");
+      else {
+        printf ("---- free block found\n");
+        blockIt->second->mAllocated = false;
+        mFreeSize += blockIt->second->mSize;
+        }
+
+      list();
+      xTaskResumeAll();
+      }
+    }
+  //}}}
+
+private:
+  //{{{
+  class cBlock {
+  public:
+    cBlock (uint8_t* address, uint32_t size, bool allocated) :
+      mAddress(address), mSize(size), mAllocated(allocated) {}
+
+    uint8_t* mAddress = nullptr;
+    uint32_t mSize = 0;
+    bool mAllocated = false;
+    };
+  //}}}
+  //{{{
+  void list() {
+    printf ("-------------------------\n");
+    for (auto block : mBlockMap)
+      printf ("block %p %p %x %d\n",
+              block.first, block.second->mAddress, block.second->mSize, block.second->mAllocated);
+    printf ("-------------------------\n");
+    }
+  //}}}
+
+  std::map<uint8_t*, cBlock*> mBlockMap;
+  uint8_t* mStart = nullptr;
+  size_t mSize = 0;
+  size_t mFreeSize = 0;
+  size_t mMinFreeSize = 0;
+  bool mDebug = false;
+  };
+//}}}
 
 // dtcm
 cHeap* mDtcmHeap = nullptr;
@@ -717,13 +427,13 @@ size_t getSram123MinFree() { return mSram123Heap ? mSram123Heap->getMinSize() : 
 #define SDRAM_DEVICE_ADDR 0xD0000000
 #define SDRAM_DEVICE_SIZE 0x08000000
 
-cSimpleHeap* mSdramHeap = nullptr;
+cSdRamHeap* mSdramHeap = nullptr;
 
 //{{{
 uint8_t* sdRamAlloc (size_t size) {
 
   if (!mSdramHeap)
-    mSdramHeap = new cSimpleHeap ((uint8_t*)(SDRAM_DEVICE_ADDR), SDRAM_DEVICE_SIZE, true);
+    mSdramHeap = new cSdRamHeap ((uint8_t*)(SDRAM_DEVICE_ADDR), SDRAM_DEVICE_SIZE, true);
 
   return mSdramHeap->alloc (size);
   }
