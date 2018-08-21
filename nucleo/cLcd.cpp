@@ -705,15 +705,17 @@ void cLcd::drawInfo() {
     // draw footer
     auto y = getHeight() - kFooterHeight - kGap;
     text (COL_WHITE, kFooterHeight,
-          dec(mNumPresents) + ":" + dec (mDrawTime) + ":" + dec (mWaitTime) + "ms " +
-          dec (osGetCPUUsage()) + "% " +
+          dec(mNumPresents) + ":" + dec (mDrawTime) + ":" + dec (mWaitTime) + " " +
+          dec (osGetCPUUsage()) + "%:" +
           dec (mBrightness) + "% " +
-          "s:" + dec (getSram123FreeSize()/1000) + "k:" +
+          "d" + dec (getDtcmFreeSize()/1000) + ":" +
+          dec (getDtcmSize()/1000) + "k " +
+          "s" + dec (getSram123FreeSize()/1000) + ":" +
           dec (getSram123Size()/1000) + "k " +
-          "sa:" + dec (getSramFreeSize()/1000) + "k:" +
+          "a" + dec (getSramFreeSize()/1000) + ":" +
           dec (getSramMinFreeSize()/1000) + "k:" +
           dec (getSramSize()/1000) + "k " +
-          "sd:" + dec (getSdRamFreeSize()/1000) + "k:" +
+          "e" + dec (getSdRamFreeSize()/1000) + ":" +
           dec (getSdRamMinFreeSize()/1000) + "k:" +
           dec (getSdRamSize()/1000) + "k",
           cRect(0, y, getWidth(), kTitleHeight+kGap));
