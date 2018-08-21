@@ -77,7 +77,7 @@ node_t* get_last_node (bin_t* bin) {
   return temp;
   }
 //}}}
-footer_t* get_foot (node_t *node) { return (footer_t*)((char*)node + sizeof(node_t) + node->size); }
+footer_t* get_foot (node_t* node) { return (footer_t*)((char*)node + sizeof(node_t) + node->size); }
 //{{{
 void createFoot (node_t *head) {
   footer_t* foot = get_foot (head);
@@ -254,9 +254,8 @@ void heapFree (heap_t* heap, void* ptr) {
 
   vTaskSuspendAll();
 
-  // the actual head of the node is not ptr, it is ptr minus the size of the fields that precede "next"
-  // in the node structure, if the node being free is the start of the heap then there is
-  // no need to coalesce so just put it in the right list
+  // actual head of node is not ptr, it is ptr minus size of fields that precede "next"  in the node
+  // if node being freed is start of heap no need to coalesce, just put it in right list
   node_t* head = (node_t*)((char*)ptr - (sizeof(int) * 2));
   heap->free += head->size;
 
@@ -304,7 +303,7 @@ void heapFree (heap_t* heap, void* ptr) {
       }
      }
 
-  // this chunk is now a hole, so put it in the right bin!
+  // chunk is now a hole, put in right bin!
   head->hole = true;
   addNode (heap->bins[get_bin_index (head->size)], head);
 
