@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <map>
+
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -21,6 +23,87 @@
 #define BIN_MAX_IDX (BIN_COUNT - 1)
 
 typedef unsigned int uint;
+class cSimpleHeap {
+public:
+  //{{{
+  class cBlock {
+  public:
+    cBlock (uint8_t* address, uint32_t size, bool allocated) :
+      mAddress(address), mSize(size), mAllocated(allocated) {}
+
+    uint8_t* mAddress = nullptr;
+    uint32_t mSize = 0;
+    bool mAllocated = false;
+    };
+  //}}}
+
+  //{{{
+  cSimpleHeap (uint8_t* start, size_t size, bool debug) : mStart(start), mSize(size), mDebug(debug) {
+    mFreeSize = mSize;
+    mMinFreeSize = mSize;
+    }
+  //}}}
+
+  size_t getSize() { return mSize; }
+  size_t getFree() { return mFreeSize; }
+  size_t getMinSize() { return mMinFreeSize; }
+
+  //{{{
+  uint8_t* alloc (size_t size) {
+
+    uint8_t* allocAddress = nullptr;
+
+    vTaskSuspendAll();
+
+    if (mBlockMap.empty()) {
+      // empty
+      auto blockit = mBlockMap.insert (
+        std::map<uint8_t*,cBlock*>::value_type (mStart, new cBlock (mStart, size, true)));
+      blockit = mBlockMap.insert (
+        std::map<uint8_t*,cBlock*>::value_type (mStart+size, new cBlock (mStart+size, mSize-size, false)));
+      mFreeSize += size;
+      allocAddress = mStart;
+      }
+    else {
+      for (auto block : mBlockMap) {
+        if (!block.second->mAllocated)
+          printf ("insert block here\n");
+        }
+      }
+
+    xTaskResumeAll();
+
+    return allocAddress;
+    }
+  //}}}
+  //{{{
+  void free (void* ptr) {
+
+    if (ptr) {
+      vTaskSuspendAll();
+      auto blockIt = mBlockMap.find ((uint8_t*)ptr);
+      if (blockIt == mBlockMap.end())
+        printf ("free block not found\n");
+      else if (!blockIt->second->mAllocated)
+        printf ("deallocating free blcok\n");
+      else {
+        blockIt->second->mAllocated = false;
+        mFreeSize -= blockIt->second->mSize;
+        }
+
+      xTaskResumeAll();
+      }
+    }
+  //}}}
+
+  std::map<uint8_t*, cBlock*> mBlockMap;
+
+  uint8_t* mStart = nullptr;
+  size_t mSize = 0;
+  size_t mFreeSize = 0;
+  size_t mMinFreeSize = 0;
+  bool mDebug = false;
+  };
 
 //{{{  c style heap
 //{{{  struct node_t
@@ -77,13 +160,15 @@ node_t* get_last_node (bin_t* bin) {
   return temp;
   }
 //}}}
+
 footer_t* get_foot (node_t* node) { return (footer_t*)((char*)node + sizeof(node_t) + node->size); }
 //{{{
-void createFoot (node_t* head) {
-  footer_t* foot = get_foot (head);
-  foot->header = head;
+void createFooter (node_t* head) {
+  footer_t* footer = get_foot (head);
+  footer->header = head;
   }
 //}}}
+
 //{{{
 int get_bin_index (size_t sz) {
 
@@ -99,6 +184,7 @@ int get_bin_index (size_t sz) {
   return index;
   }
 //}}}
+
 //{{{
 void addNode (bin_t* bin, node_t* node) {
 
@@ -192,7 +278,7 @@ void heapInit (heap_t* heap, int start, int size) {
   initNode->size = size - sizeof(node_t) - sizeof(footer_t);
 
   // create a foot (size must be defined)
-  createFoot (initNode);
+  createFooter (initNode);
 
   // now we add the initNode to the correct bin and setup the heap struct
   addNode (heap->bins[get_bin_index (initNode->size)], initNode);
@@ -224,14 +310,14 @@ void* heapAlloc (heap_t* heap, size_t size) {
     split->size = found->size - size - (sizeof(footer_t) + sizeof(node_t));
     split->hole = true;
 
-    createFoot (split); // create a footer for the split
+    createFooter (split); // create a footer for the split
 
     // now we need to get the new index for this split chunk place it in the correct bin
     int new_idx = get_bin_index (split->size);
     addNode (heap->bins[new_idx], split);
 
     found->size = size; // set the found chunks size
-    createFoot (found); // since size changed, remake foot
+    createFooter (found); // since size changed, remake foot
     }
 
   found->hole = false; // not a hole anymore
@@ -276,7 +362,7 @@ void heapFree (heap_t* heap, void* ptr) {
 
       // re-calculate the size of thie node and recreate a footer
       prev->size += sizeof(footer_t) + sizeof(node_t) + head->size;
-      createFoot (prev);
+      createFooter (prev);
 
       // previous is now the node we are working with, we head to prev
       // because the next if statement will coalesce with the next node
@@ -300,7 +386,7 @@ void heapFree (heap_t* heap, void* ptr) {
       next->hole = false;
 
       // make the new footer!
-      createFoot (head);
+      createFooter (head);
       }
      }
 
@@ -312,7 +398,6 @@ void heapFree (heap_t* heap, void* ptr) {
   }
 //}}}
 //}}}
-
 //{{{
 class cHeap {
 public:
@@ -611,16 +696,23 @@ size_t getSram123MinFree() { return mSram123Heap ? mSram123Heap->getMinSize() : 
 #define LCD_HEIGHT 600
 heap_t heap1 = { 0 };
 
-//{{{
+cSimpleHeap* mSdramHeap = nullptr;
+
 uint8_t* sdRamAlloc (size_t size) {
 
-  if (!heap1.start)
+  if (!heap1.start) {
     heapInit (&heap1, SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4, SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
+    mSdramHeap = new cSimpleHeap (
+      (uint8_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4), SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4, true);
+    }
 
+  mSdramHeap->alloc (size);
   return (uint8_t*)heapAlloc (&heap1, size);
   }
-//}}}
-void sdRamFree (void* ptr) { heapFree (&heap1, ptr); }
+void sdRamFree (void* ptr) { 
+  mSdramHeap->free (ptr);
+  heapFree (&heap1, ptr); 
+  }
 size_t getSdRamSize() { return heap1.size; }
 size_t getSdRamFree() { return heap1.free; }
 size_t getSdRamMinFree() { return heap1.minFree; }
