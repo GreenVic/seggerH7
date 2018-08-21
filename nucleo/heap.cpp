@@ -79,7 +79,7 @@ node_t* get_last_node (bin_t* bin) {
 //}}}
 footer_t* get_foot (node_t* node) { return (footer_t*)((char*)node + sizeof(node_t) + node->size); }
 //{{{
-void createFoot (node_t *head) {
+void createFoot (node_t* head) {
   footer_t* foot = get_foot (head);
   foot->header = head;
   }
@@ -180,21 +180,22 @@ void heapInit (heap_t* heap, int start, int size) {
     memset (heap->bins[i], 0, sizeof(bin_t));
     }
 
-  // first we create the initial region, this is the "wilderness" chunk, heap starts as one big chunk of memory
-  node_t* init_region = (node_t*)start;
-  init_region->hole = true;
-  init_region->size = (size) - sizeof(node_t) - sizeof(footer_t);
-
-  createFoot (init_region); // create a foot (size must be defined)
-
-  // now we add the region to the correct bin and setup the heap struct
-  addNode (heap->bins[get_bin_index (init_region->size)], init_region);
-
   heap->start = start;
   heap->end = start + size;
   heap->size = size;
   heap->free = size;
   heap->minFree = size;
+
+  // first we create the initial node, heap starts as one big chunk of memory hole
+  node_t* initNode = (node_t*)start;
+  initNode->hole = true;
+  initNode->size = size - sizeof(node_t) - sizeof(footer_t);
+
+  // create a foot (size must be defined)
+  createFoot (initNode);
+
+  // now we add the initNode to the correct bin and setup the heap struct
+  addNode (heap->bins[get_bin_index (initNode->size)], initNode);
   }
 //}}}
 //{{{

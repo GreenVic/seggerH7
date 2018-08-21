@@ -707,10 +707,10 @@ void cLcd::drawInfo() {
     text (COL_WHITE, kFooterHeight,
           dec(mNumPresents) + ":" + dec (mDrawTime) + ":" + dec (mWaitTime) + " " +
           dec (osGetCPUUsage()) + "%:" + dec (mBrightness) + "% " +
-          "d" + dec (getDtcmFree()/1000) + ":" + dec (getDtcmSize()/1000) + " " +
-          "s" + dec (getSram123Free()/1000) + ":" + dec (getSram123Size()/1000) + " " +
-          "a" + dec (getSramFree()/1000) + ":" + dec (getSramMinFree()/1000) + ":" + dec (getSramSize()/1000) + " " +
-          "e" + dec (getSdRamFree()/1000) + ":" + dec (getSdRamMinFree()/1000) + ":" + dec (getSdRamSize()/1000),
+          "dtcm" + dec (getDtcmFree()/1000) + ":" + dec (getDtcmSize()/1000) + " " +
+          "s123" + dec (getSram123Free()/1000) + ":" + dec (getSram123Size()/1000) + " " +
+          "ax1" + dec (getSramFree()/1000) + ":" + dec (getSramMinFree()/1000) + ":" + dec (getSramSize()/1000) + " " +
+          "sd" + dec (getSdRamFree()/1000) + ":" + dec (getSdRamMinFree()/1000) + ":" + dec (getSdRamSize()/1000),
           cRect(0, y, getWidth(), kTitleHeight+kGap));
 
     // draw log
