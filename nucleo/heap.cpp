@@ -609,21 +609,17 @@ size_t getSram123MinFree() { return mSram123Heap ? mSram123Heap->getMinSize() : 
 #define SDRAM_DEVICE_SIZE 0x08000000
 #define LCD_WIDTH  1024
 #define LCD_HEIGHT 600
-heap_t* heap1 = nullptr;
+heap_t heap1 = { 0 };
 
 //{{{
 uint8_t* sdRamAlloc (size_t size) {
-  if (!heap1) {
-    heap1 = (heap_t*)malloc (sizeof (heap_t));
-    memset (heap1, 0, sizeof (heap_t));
-    init_heap (heap1, SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4, SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
-    }
+  if (!heap1.start)
+    init_heap (&heap1, SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4, SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
 
-  return (uint8_t*)heap_alloc (heap1, size);
-  //return mSdRamHeap->alloc (size);
+  return (uint8_t*)heap_alloc (&heap1, size);
   }
 //}}}
-void sdRamFree (void* ptr) { heap_free (heap1, ptr); }
-size_t getSdRamSize() { return heap1->size; }
-size_t getSdRamFree() { return heap1->free; }
-size_t getSdRamMinFree() { return heap1->minFree; }
+void sdRamFree (void* ptr) { heap_free (&heap1, ptr); }
+size_t getSdRamSize() { return heap1.size; }
+size_t getSdRamFree() { return heap1.free; }
+size_t getSdRamMinFree() { return heap1.minFree; }
