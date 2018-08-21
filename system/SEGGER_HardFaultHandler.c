@@ -172,10 +172,9 @@ void HardFaultHandler(unsigned int* pStack) {
     NVIC_HFSR |=  (1u << 31);     // Reset Hard Fault status
     *(pStack + 6u) += 2u;         // PC is located on stack at SP + 24 bytes. Increment PC by 2 to skip break instruction.
     return;                       // Return to interrupted application
-  }
+    }
   //
   // Read NVIC registers
-  //
   HardFaultRegs.syshndctrl.byte = SYSHND_CTRL;  // System Handler Control and State Register
   HardFaultRegs.mfsr.byte       = NVIC_MFSR;    // Memory Fault Status Register
   HardFaultRegs.bfsr.byte       = NVIC_BFSR;    // Bus Fault Status Register
@@ -184,16 +183,10 @@ void HardFaultHandler(unsigned int* pStack) {
   HardFaultRegs.hfsr.byte       = NVIC_HFSR;    // Hard Fault Status Register
   HardFaultRegs.dfsr.byte       = NVIC_DFSR;    // Debug Fault Status Register
   HardFaultRegs.afsr            = NVIC_AFSR;    // Auxiliary Fault Status Register
-  //
-  // Halt execution
-  // If NVIC registers indicate readable memory, change the variable value to != 0 to continue execution.
-  //
-  _Continue = 0u;
-  while (_Continue == 0u) {
-  }
-  //
+
+  printf ("hardFault\n");
+
   // Read saved registers from the stack.
-  //
   HardFaultRegs.SavedRegs.r0       = pStack[0];  // Register R0
   HardFaultRegs.SavedRegs.r1       = pStack[1];  // Register R1
   HardFaultRegs.SavedRegs.r2       = pStack[2];  // Register R2
@@ -202,6 +195,13 @@ void HardFaultHandler(unsigned int* pStack) {
   HardFaultRegs.SavedRegs.lr       = pStack[5];  // Link register LR
   HardFaultRegs.SavedRegs.pc       = pStack[6];  // Program counter PC
   HardFaultRegs.SavedRegs.psr.byte = pStack[7];  // Program status word PSR
+
+  printf ("- pc:%p\n", HardFaultRegs.SavedRegs.pc);
+  printf ("- r0:%p\n", HardFaultRegs.SavedRegs.r0);
+  printf ("- r1:%p\n", HardFaultRegs.SavedRegs.r1);
+  printf ("- r2:%p\n", HardFaultRegs.SavedRegs.r2);
+  printf ("- r3:%p\n", HardFaultRegs.SavedRegs.r3);
+  printf ("- lr:%p\n", HardFaultRegs.SavedRegs.lr);
   //
   // Halt execution
   // To step out of the HardFaultHandler, change the variable value to != 0.
