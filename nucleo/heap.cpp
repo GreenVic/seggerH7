@@ -8,11 +8,309 @@
 //{{{  includes
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
 
 #include "heap.h"
+//}}}
+
+#define MIN_ALLOC_SZ 4
+#define BIN_COUNT 9
+#define BIN_MAX_IDX (BIN_COUNT - 1)
+
+typedef unsigned int uint;
+
+//{{{  c style heap
+//{{{  struct node_t
+typedef struct node_t {
+  bool hole;
+  uint size;
+  struct node_t* next;
+  struct node_t* prev;
+  } node_t;
+//}}}
+//{{{  struct footer_t
+typedef struct {
+  node_t* header;
+  } footer_t;
+//}}}
+//{{{  struct bin_t
+typedef struct {
+  node_t* head;
+  } bin_t;
+//}}}
+//{{{  struct heap_t
+typedef struct {
+  long start;
+  long end;
+  long size;
+  long free;
+  long minFree;
+  bin_t* bins[BIN_COUNT];
+  } heap_t;
+//}}}
+
+//{{{
+node_t* get_best_fit (bin_t* bin, size_t size) {
+
+  if (bin->head == NULL)
+    return NULL; // empty list!
+
+  node_t *temp = bin->head;
+  while (temp != NULL) {
+    if (temp->size >= size)
+      return temp; // found a fit!
+    temp = temp->next;
+    }
+
+  return NULL; // no fit!
+  }
+//}}}
+//{{{
+node_t* get_last_node (bin_t* bin) {
+
+  node_t* temp = bin->head;
+  while (temp->next != NULL)
+    temp = temp->next;
+  return temp;
+  }
+//}}}
+footer_t* get_foot (node_t *node) { return (footer_t*)((char*)node + sizeof(node_t) + node->size); }
+//{{{
+void createFoot (node_t *head) {
+  footer_t* foot = get_foot (head);
+  foot->header = head;
+  }
+//}}}
+//{{{
+int get_bin_index (size_t sz) {
+
+  int index = 0;
+  sz = sz < 4 ? 4 : sz;
+
+  while (sz >>= 1)
+    index++;
+  index -= 2;
+
+  if (index > BIN_MAX_IDX)
+    index = BIN_MAX_IDX;
+  return index;
+  }
+//}}}
+//{{{
+void addNode (bin_t* bin, node_t* node) {
+
+  node->next = NULL;
+  node->prev = NULL;
+
+  node_t* temp = bin->head;
+
+  if (bin->head == NULL) {
+    bin->head = node;
+    return;
+    }
+
+  // we need to save next and prev while we iterate
+  node_t* current = bin->head;
+  node_t* previous = NULL;
+
+  // iterate until we get the the end of the list or we find a
+  // node whose size is
+  while (current != NULL && current->size <= node->size) {
+    previous = current;
+    current = current->next;
+    }
+
+  if (current == NULL) { // we reached the end of the list
+    previous->next = node;
+    node->prev = previous;
+    }
+
+  else {
+    if (previous != NULL) { // middle of list, connect all links!
+      node->next = current;
+      previous->next = node;
+      node->prev = previous;
+      current->prev = node;
+      }
+    else { // head is the only element
+      node->next = bin->head;
+      bin->head->prev = node;
+      bin->head = node;
+      }
+    }
+  }
+//}}}
+//{{{
+void removeNode (bin_t* bin, node_t* node) {
+
+  if (bin->head == NULL)
+    return;
+
+  if (bin->head == node) {
+    bin->head = bin->head->next;
+    return;
+    }
+
+  node_t* temp = bin->head->next;
+  while (temp != NULL) {
+    if (temp == node) { // found the node
+      if (temp->next == NULL) { // last item
+        temp->prev->next = NULL;
+        }
+      else { // middle item
+        temp->prev->next = temp->next;
+        temp->next->prev = temp->prev;
+        }
+      // we dont worry about deleting the head here because we already checked that
+      return;
+      }
+    temp = temp->next;
+    }
+  }
+//}}}
+
+//{{{
+void init_heap (heap_t* heap, int start, int size) {
+
+  for (int i = 0; i < BIN_COUNT; i++) {
+    heap->bins[i] = (bin_t*)malloc (sizeof(bin_t));
+    memset (heap->bins[i], 0, sizeof(bin_t));
+    }
+
+  // first we create the initial region, this is the "wilderness" chunk, heap starts as one big chunk of memory
+  node_t* init_region = (node_t*)start;
+  init_region->hole = true;
+  init_region->size = (size) - sizeof(node_t) - sizeof(footer_t);
+
+  createFoot (init_region); // create a foot (size must be defined)
+
+  // now we add the region to the correct bin and setup the heap struct
+  addNode (heap->bins[get_bin_index (init_region->size)], init_region);
+
+  heap->start = start;
+  heap->end = start + size;
+  heap->size = size;
+  heap->free = size;
+  heap->minFree = size;
+  }
+//}}}
+//{{{
+void* heap_alloc (heap_t* heap, size_t size) {
+
+  vTaskSuspendAll();
+
+  // first get the bin index that this chunk size should be in
+  int index = get_bin_index (size);
+
+  // now use this bin to try and find a good fitting chunk!
+  bin_t* temp = (bin_t*)heap->bins[index];
+  node_t* found = get_best_fit (temp, size);
+
+  // while no chunk if found advance through the bins until we find a chunk or get to the wilderness
+  while (found == NULL) {
+    temp = heap->bins[++index];
+    found = get_best_fit (temp, size);
+    }
+
+  // if the differnce between the found chunk and the requested chunk is bigger than
+  // overhead (metadata size) + the min alloc size then split chunk, otherwise just return the chunk
+  if ((found->size - size) > (sizeof(footer_t) + sizeof(node_t) + MIN_ALLOC_SZ)) {
+    // do the math to get where to split at, then set its metadata
+    node_t* split = (node_t*)(((char*)found + sizeof(footer_t) + sizeof(node_t)) + size);
+    split->size = found->size - size - (sizeof(footer_t) + sizeof(node_t));
+    split->hole = true;
+
+    createFoot (split); // create a footer for the split
+
+    // now we need to get the new index for this split chunk place it in the correct bin
+    int new_idx = get_bin_index (split->size);
+    addNode (heap->bins[new_idx], split);
+
+    found->size = size; // set the found chunks size
+    createFoot (found); // since size changed, remake foot
+    }
+
+  found->hole = false; // not a hole anymore
+  removeNode (heap->bins[index], found); // remove it from its bin
+
+  // since we don't need the prev and next fields when the chunk
+  // is in use by the user, we can clear these and return the address of the next field
+  found->prev = NULL;
+  found->next = NULL;
+  heap->free -= size;
+  if (heap->free < heap->minFree)
+    heap->minFree = heap->free;
+
+  xTaskResumeAll();
+
+  return &found->next;
+  }
+                                                                             //}}}
+//{{{
+void heap_free (heap_t* heap, void* ptr) {
+
+  vTaskSuspendAll();
+
+  // the actual head of the node is not ptr, it is ptr minus the size of the fields that precede "next"
+  // in the node structure, if the node being free is the start of the heap then there is
+  // no need to coalesce so just put it in the right list
+  node_t* head = (node_t*)((char*)ptr - (sizeof(int) * 2));
+  heap->free += head->size;
+
+  if ((long)head != heap->start) {
+    // these are the next and previous nodes in the heap, not the prev and next
+    // in a bin. to find prev we just get subtract from the start of the head node
+    // to get the footer of the previous node (which gives us the header pointer).
+    // to get the next node we simply get the footer and add the sizeof(footer_t).
+    node_t* next = (node_t*)((char*) get_foot (head) + sizeof (footer_t));
+    node_t* prev = (node_t*)*((int*)((char*)head - sizeof (footer_t)));
+
+    // if the previous node is a hole we can coalese!
+    if (prev->hole) {
+      // remove the previous node from its bin
+      bin_t* list = heap->bins[get_bin_index(prev->size)];
+      removeNode (list, prev);
+
+      // re-calculate the size of thie node and recreate a footer
+      prev->size += sizeof(footer_t) + sizeof(node_t) + head->size;
+      createFoot (prev);
+
+      // previous is now the node we are working with, we head to prev
+      // because the next if statement will coalesce with the next node
+      // and we want that statement to work even when we coalesce with prev
+      head = prev;
+      }
+
+    // if the next node is free coalesce!
+    if (next->hole) {
+      // remove it from its bin
+      bin_t* list = heap->bins[get_bin_index(next->size)];
+      removeNode (list, next);
+
+      // re-calculate the new size of head
+      head->size += sizeof(footer_t) + sizeof(node_t) + next->size;
+
+      // clear out the old metadata from next
+      footer_t* oldFooter = get_foot (next);
+      oldFooter->header = 0;
+      next->size = 0;
+      next->hole = false;
+
+      // make the new footer!
+      createFoot (head);
+      }
+     }
+
+  // this chunk is now a hole, so put it in the right bin!
+  head->hole = true;
+  addNode (heap->bins[get_bin_index (head->size)], head);
+
+  xTaskResumeAll();
+  }
+//}}}
 //}}}
 
 //{{{
@@ -311,17 +609,21 @@ size_t getSram123MinFree() { return mSram123Heap ? mSram123Heap->getMinSize() : 
 #define SDRAM_DEVICE_SIZE 0x08000000
 #define LCD_WIDTH  1024
 #define LCD_HEIGHT 600
-cHeap* mSdRamHeap = nullptr;
+heap_t* heap1 = nullptr;
 
 //{{{
 uint8_t* sdRamAlloc (size_t size) {
-  if (!mSdRamHeap)
-    mSdRamHeap = new cHeap (SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4,
-                            SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4, true);
-  return mSdRamHeap->alloc (size);
+  if (!heap1) {
+    heap1 = (heap_t*)malloc (sizeof (heap_t));
+    memset (heap1, 0, sizeof (heap_t));
+    init_heap (heap1, SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4, SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
+    }
+
+  return (uint8_t*)heap_alloc (heap1, size);
+  //return mSdRamHeap->alloc (size);
   }
 //}}}
-void sdRamFree (void* ptr) { mSdRamHeap->free (ptr); }
-size_t getSdRamSize() { return mSdRamHeap ? mSdRamHeap->getSize() : 0 ;}
-size_t getSdRamFree() { return mSdRamHeap ? mSdRamHeap->getFree() : 0; }
-size_t getSdRamMinFree() { return mSdRamHeap ? mSdRamHeap->getMinSize() : 0; }
+void sdRamFree (void* ptr) { heap_free (heap1, ptr); }
+size_t getSdRamSize() { return heap1->size; }
+size_t getSdRamFree() { return heap1->free; }
+size_t getSdRamMinFree() { return heap1->minFree; }
