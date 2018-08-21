@@ -20,6 +20,7 @@ using namespace std;
 
 #define SW_JPEG
 #define SW_SCALE 4
+//#define FMC_PERIOD  FMC_SDRAM_CLOCK_PERIOD_2
 #define FMC_PERIOD  FMC_SDRAM_CLOCK_PERIOD_3
 
 const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);

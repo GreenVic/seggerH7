@@ -485,11 +485,11 @@ cTile* hwJpegDecode (const string& fileName) {
   //}}}
 
   cTile* tile = nullptr;
-  FIL file;
-  if (f_open (&file, fileName.c_str(), FA_READ) == FR_OK) {
-    if (f_read (&file, mInBuf[0].mBuf, INBUF_SIZE, &mInBuf[0].mSize) == FR_OK)
+  FIL* file = (FIL*)pvPortMalloc (sizeof (FIL));
+  if (f_open (file, fileName.c_str(), FA_READ) == FR_OK) {
+    if (f_read (file, mInBuf[0].mBuf, INBUF_SIZE, &mInBuf[0].mSize) == FR_OK)
       mInBuf[0].mFull = true;
-    if (f_read (&file, mInBuf[1].mBuf, INBUF_SIZE, &mInBuf[1].mSize) == FR_OK)
+    if (f_read (file, mInBuf[1].mBuf, INBUF_SIZE, &mInBuf[1].mSize) == FR_OK)
       mInBuf[1].mFull = true;
     //{{{  init stuff
     mHandle.mReadIndex = 0;
@@ -537,7 +537,7 @@ cTile* hwJpegDecode (const string& fileName) {
         }
       else {
         //{{{  fill next buffer
-        if (f_read (&file, mInBuf[mHandle.mWriteIndex].mBuf, INBUF_SIZE, &mInBuf[mHandle.mWriteIndex].mSize) == FR_OK)
+        if (f_read (file, mInBuf[mHandle.mWriteIndex].mBuf, INBUF_SIZE, &mInBuf[mHandle.mWriteIndex].mSize) == FR_OK)
           mInBuf[mHandle.mWriteIndex].mFull = true;
 
         if (((mHandle.Context & JPEG_CONTEXT_PAUSE_INPUT) != 0) && (mHandle.mWriteIndex == mHandle.mReadIndex)) {
@@ -557,7 +557,8 @@ cTile* hwJpegDecode (const string& fileName) {
         mHandle.mWriteIndex = mHandle.mWriteIndex ? 0 : 1;
         }
         //}}}
-    f_close (&file);
+    f_close (file);
+    vPortFree (file);
 
     printf ("- JPEG decode %p %d:%dx%d - out %d\n",
             mOutYuvBuf, mHandle.mChromaSampling, mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
@@ -584,8 +585,8 @@ cTile* swJpegDecode (const string& fileName, int scale) {
 
   cTile* tile = nullptr;
 
-  FIL file;
-  if (f_open (&file, fileName.c_str(), FA_READ))
+  FIL* file = (FIL*)pvPortMalloc (sizeof (FIL));
+  if (f_open (file, fileName.c_str(), FA_READ))
     printf ("swJpegDecode %s open fail\n", fileName.c_str());
   else {
     printf ("swJpegDecode %s start decoding\n", fileName.c_str());
@@ -595,7 +596,7 @@ cTile* swJpegDecode (const string& fileName, int scale) {
     mCinfo.err = jpeg_std_error (&jerr);
     jpeg_create_decompress (&mCinfo);
 
-    jpeg_stdio_src (&mCinfo, &file);
+    jpeg_stdio_src (&mCinfo, file);
     jpeg_read_header (&mCinfo, TRUE);
 
     mCinfo.dct_method = JDCT_FLOAT;
@@ -623,7 +624,8 @@ cTile* swJpegDecode (const string& fileName, int scale) {
       }
     jpeg_finish_decompress (&mCinfo);
     jpeg_destroy_decompress (&mCinfo);
-    f_close (&file);
+    f_close (file);
+    vPortFree (file);
     }
 
   return tile;
