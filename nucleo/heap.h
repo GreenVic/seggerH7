@@ -9,24 +9,24 @@
 uint8_t* dtcmAlloc (size_t bytes);
 void dtcmFree (void* p);
 size_t getDtcmSize();
-size_t getDtcmFreeSize();
-size_t getDtcmMinFreeSize();
+size_t getDtcmFree();
+size_t getDtcmMinFree();
 
 size_t getSramSize();
-size_t getSramFreeSize();
-size_t getSramMinFreeSize();
+size_t getSramFree();
+size_t getSramMinFree();
 
 uint8_t* sram123Alloc (size_t bytes);
 void sram123Free (void* p);
 size_t getSram123Size();
-size_t getSram123FreeSize();
-size_t getSram123MinFreeSize();
+size_t getSram123Free();
+size_t getSram123MinFree();
 
 uint8_t* sdRamAlloc (size_t size);
 void sdRamFree (void* p);
 size_t getSdRamSize();
-size_t getSdRamFreeSize();
-size_t getSdRamMinFreeSize();
+size_t getSdRamFree();
+size_t getSdRamMinFree();
 
 //{{{
 #ifdef __cplusplus

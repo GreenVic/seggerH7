@@ -706,18 +706,11 @@ void cLcd::drawInfo() {
     auto y = getHeight() - kFooterHeight - kGap;
     text (COL_WHITE, kFooterHeight,
           dec(mNumPresents) + ":" + dec (mDrawTime) + ":" + dec (mWaitTime) + " " +
-          dec (osGetCPUUsage()) + "%:" +
-          dec (mBrightness) + "% " +
-          "d" + dec (getDtcmFreeSize()/1000) + ":" +
-          dec (getDtcmSize()/1000) + "k " +
-          "s" + dec (getSram123FreeSize()/1000) + ":" +
-          dec (getSram123Size()/1000) + "k " +
-          "a" + dec (getSramFreeSize()/1000) + ":" +
-          dec (getSramMinFreeSize()/1000) + "k:" +
-          dec (getSramSize()/1000) + "k " +
-          "e" + dec (getSdRamFreeSize()/1000) + ":" +
-          dec (getSdRamMinFreeSize()/1000) + "k:" +
-          dec (getSdRamSize()/1000) + "k",
+          dec (osGetCPUUsage()) + "%:" + dec (mBrightness) + "% " +
+          "d" + dec (getDtcmFree()/1000) + ":" + dec (getDtcmSize()/1000) + " " +
+          "s" + dec (getSram123Free()/1000) + ":" + dec (getSram123Size()/1000) + " " +
+          "a" + dec (getSramFree()/1000) + ":" + dec (getSramMinFree()/1000) + ":" + dec (getSramSize()/1000) + " " +
+          "e" + dec (getSdRamFree()/1000) + ":" + dec (getSdRamMinFree()/1000) + ":" + dec (getSdRamSize()/1000),
           cRect(0, y, getWidth(), kTitleHeight+kGap));
 
     // draw log
@@ -960,11 +953,8 @@ cFontChar* cLcd::loadChar (uint16_t fontHeight, char ch) {
   fontChar->bitmap = nullptr;
 
   if (FTglyphSlot->bitmap.buffer) {
-    fontChar->bitmap = (uint8_t*)sram123Alloc (FTglyphSlot->bitmap.pitch * FTglyphSlot->bitmap.rows);
+    fontChar->bitmap = (uint8_t*)pvPortMalloc (FTglyphSlot->bitmap.pitch * FTglyphSlot->bitmap.rows);
     memcpy (fontChar->bitmap, FTglyphSlot->bitmap.buffer, FTglyphSlot->bitmap.pitch * FTglyphSlot->bitmap.rows);
-    //auto alignedAddr = (uint32_t)fontChar->bitmap & ~0x1F;
-    //SCB_CleanDCache_by_Addr ((uint32_t*)alignedAddr,
-    //  FTglyphSlot->bitmap.pitch * FTglyphSlot->bitmap.rows + ((uint32_t)fontChar->bitmap - alignedAddr));
     }
 
   return mFontCharMap.insert (

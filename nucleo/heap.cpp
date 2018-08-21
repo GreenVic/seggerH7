@@ -56,7 +56,7 @@ public:
   //}}}
 
   size_t getSize() { return mSize; }
-  size_t getFreeSize() { return mFreeBytesRemaining; }
+  size_t getFree() { return mFreeBytesRemaining; }
   size_t getMinSize() { return mMinFreeBytesRemaining; }
 
   //{{{
@@ -230,6 +230,21 @@ private:
   };
 //}}}
 
+// dtcm
+cHeap* mDtcmHeap = nullptr;
+
+//{{{
+uint8_t* dtcmAlloc (size_t size) {
+  if (!mDtcmHeap)
+    mDtcmHeap = new cHeap (0x20000000, 0x00020000, false);
+  return (uint8_t*)mDtcmHeap->alloc (size);
+  }
+//}}}
+void dtcmFree (void* ptr) { mDtcmHeap->free (ptr); }
+size_t getDtcmSize(){ return mDtcmHeap ? mDtcmHeap->getSize() : 0 ; }
+size_t getDtcmFree() { return mDtcmHeap ? mDtcmHeap->getFree() : 0 ; }
+size_t getDtcmMinFree() { return mDtcmHeap ? mDtcmHeap->getMinSize() : 0 ; }
+
 // sram AXI
 cHeap* mSramHeap = nullptr;
 
@@ -257,8 +272,8 @@ void vPortFree (void* ptr) {
   }
 //}}}
 size_t getSramSize() { return mSramHeap ? mSramHeap->getSize() : 0 ; }
-size_t getSramFreeSize() { return mSramHeap ? mSramHeap->getFreeSize() : 0 ; }
-size_t getSramMinFreeSize() { return mSramHeap ? mSramHeap->getMinSize() : 0 ; }
+size_t getSramFree() { return mSramHeap ? mSramHeap->getFree() : 0 ; }
+size_t getSramMinFree() { return mSramHeap ? mSramHeap->getMinSize() : 0 ; }
 
 //{{{
 //void* operator new (size_t size) {
@@ -276,21 +291,6 @@ size_t getSramMinFreeSize() { return mSramHeap ? mSramHeap->getMinSize() : 0 ; }
   //}
 //}}}
 
-// dtcm
-cHeap* mDtcmHeap = nullptr;
-
-//{{{
-uint8_t* dtcmAlloc (size_t size) {
-  if (!mDtcmHeap)
-    mDtcmHeap = new cHeap (0x20000000, 0x00020000, false);
-  return (uint8_t*)mDtcmHeap->alloc (size);
-  }
-//}}}
-void dtcmFree (void* ptr) { mDtcmHeap->free (ptr); }
-size_t getDtcmSize(){ return mDtcmHeap ? mDtcmHeap->getSize() : 0 ; }
-size_t getDtcmFreeSize() { return mDtcmHeap ? mDtcmHeap->getFreeSize() : 0 ; }
-size_t getDtcmMinFreeSize() { return mDtcmHeap ? mDtcmHeap->getMinSize() : 0 ; }
-
 // sram 123
 cHeap* mSram123Heap = nullptr;
 
@@ -303,8 +303,8 @@ uint8_t* sram123Alloc (size_t size) {
 //}}}
 void sram123Free (void* ptr) { mSram123Heap->free (ptr); }
 size_t getSram123Size(){ return mSram123Heap ? mSram123Heap->getSize() : 0 ; }
-size_t getSram123FreeSize() { return mSram123Heap ? mSram123Heap->getFreeSize() : 0 ; }
-size_t getSram123MinFreeSize() { return mSram123Heap ? mSram123Heap->getMinSize() : 0 ; }
+size_t getSram123Free() { return mSram123Heap ? mSram123Heap->getFree() : 0 ; }
+size_t getSram123MinFree() { return mSram123Heap ? mSram123Heap->getMinSize() : 0 ; }
 
 // sd ram
 #define SDRAM_DEVICE_ADDR 0xD0000000
@@ -323,5 +323,5 @@ uint8_t* sdRamAlloc (size_t size) {
 //}}}
 void sdRamFree (void* ptr) { mSdRamHeap->free (ptr); }
 size_t getSdRamSize() { return mSdRamHeap ? mSdRamHeap->getSize() : 0 ;}
-size_t getSdRamFreeSize() { return mSdRamHeap ? mSdRamHeap->getFreeSize() : 0; }
-size_t getSdRamMinFreeSize() { return mSdRamHeap ? mSdRamHeap->getMinSize() : 0; }
+size_t getSdRamFree() { return mSdRamHeap ? mSdRamHeap->getFree() : 0; }
+size_t getSdRamMinFree() { return mSdRamHeap ? mSdRamHeap->getMinSize() : 0; }
