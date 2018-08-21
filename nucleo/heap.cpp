@@ -46,8 +46,15 @@ public:
 
   size_t getSize() { return mSize; }
   size_t getFree() { return mFreeSize; }
-  size_t getMinSize() { return mMinFreeSize; }
+  size_t getMinFree() { return mMinFreeSize; }
 
+  void list() {
+    printf ("-------------------------\n");
+    for (auto block : mBlockMap)
+      printf ("block %p %p %x %d\n",
+              block.first, block.second->mAddress, block.second->mSize, block.second->mAllocated);
+    printf ("-------------------------\n");
+    }
   //{{{
   uint8_t* alloc (size_t size) {
 
@@ -57,22 +64,35 @@ public:
 
     if (mBlockMap.empty()) {
       // empty
-      auto blockit = mBlockMap.insert (
-        std::map<uint8_t*,cBlock*>::value_type (mStart, new cBlock (mStart, size, true)));
-      blockit = mBlockMap.insert (
-        std::map<uint8_t*,cBlock*>::value_type (mStart+size, new cBlock (mStart+size, mSize-size, false)));
+      mBlockMap.insert (std::map<uint8_t*,cBlock*>::value_type (mStart, new cBlock (mStart, size, true)));
+      mBlockMap.insert (std::map<uint8_t*,cBlock*>::value_type (mStart+size, new cBlock (mStart+size, mSize-size, false)));
       mFreeSize += size;
       allocAddress = mStart;
       }
     else {
       for (auto block : mBlockMap) {
-        if (!block.second->mAllocated)
-          printf ("insert block here\n");
+        if ((!block.second->mAllocated) && (size <= block.second->mSize)) {
+          block.second->mAllocated = true;
+          if (size < block.second->mSize) {
+            printf ("---- split block %x:%x\n", size, block.second->mSize);
+            auto blockit = mBlockMap.insert (
+              std::map<uint8_t*,cBlock*>::value_type (
+                block.second->mAddress+size, new cBlock (block.second->mAddress+size,
+                block.second->mSize-size, false)));
+            block.second->mSize = size;
+            }
+          else
+            printf ("---- reallocate free block %x\n", size);
+          allocAddress = block.second->mAddress;
+          break;
+          }
         }
       }
 
+    list();
     xTaskResumeAll();
 
+    printf ("-----> alloc %p %x\n", allocAddress, size);
     return allocAddress;
     }
   //}}}
@@ -80,17 +100,21 @@ public:
   void free (void* ptr) {
 
     if (ptr) {
+      printf ("-----> free %p\n", ptr);
+
       vTaskSuspendAll();
       auto blockIt = mBlockMap.find ((uint8_t*)ptr);
       if (blockIt == mBlockMap.end())
-        printf ("free block not found\n");
+        printf ("**** free block not found\n");
       else if (!blockIt->second->mAllocated)
-        printf ("deallocating free blcok\n");
+        printf ("**** deallocating free blcok\n");
       else {
+        printf ("---- free block found\n");
         blockIt->second->mAllocated = false;
         mFreeSize -= blockIt->second->mSize;
         }
 
+      list();
       xTaskResumeAll();
       }
     }
@@ -692,27 +716,23 @@ size_t getSram123MinFree() { return mSram123Heap ? mSram123Heap->getMinSize() : 
 // sd ram
 #define SDRAM_DEVICE_ADDR 0xD0000000
 #define SDRAM_DEVICE_SIZE 0x08000000
-#define LCD_WIDTH  1024
-#define LCD_HEIGHT 600
-heap_t heap1 = { 0 };
 
 cSimpleHeap* mSdramHeap = nullptr;
 
+//{{{
 uint8_t* sdRamAlloc (size_t size) {
 
-  if (!heap1.start) {
-    heapInit (&heap1, SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4, SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
-    mSdramHeap = new cSimpleHeap (
-      (uint8_t*)(SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4), SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4, true);
-    }
+  if (!mSdramHeap)
+    mSdramHeap = new cSimpleHeap ((uint8_t*)(SDRAM_DEVICE_ADDR), SDRAM_DEVICE_SIZE, true);
 
-  mSdramHeap->alloc (size);
-  return (uint8_t*)heapAlloc (&heap1, size);
+  return mSdramHeap->alloc (size);
   }
-void sdRamFree (void* ptr) { 
+//}}}
+//{{{
+void sdRamFree (void* ptr) {
   mSdramHeap->free (ptr);
-  heapFree (&heap1, ptr); 
   }
-size_t getSdRamSize() { return heap1.size; }
-size_t getSdRamFree() { return heap1.free; }
-size_t getSdRamMinFree() { return heap1.minFree; }
+//}}}
+size_t getSdRamSize() { return mSdramHeap ? mSdramHeap->getSize() : 0; }
+size_t getSdRamFree() { return mSdramHeap ? mSdramHeap->getFree() : 0; }
+size_t getSdRamMinFree() { return mSdramHeap ? mSdramHeap->getMinFree() : 0; }

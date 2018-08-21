@@ -536,7 +536,7 @@ int main() {
   mRtc = new cRtc();
   mRtc->init();
 
-  lcd = new cLcd ((uint16_t*)0xD0000000, (uint16_t*)(0xD0000000 + LCD_WIDTH*LCD_HEIGHT*2));
+  lcd = new cLcd ((uint16_t*)sdRamAlloc(LCD_WIDTH*LCD_HEIGHT*2), (uint16_t*)sdRamAlloc(LCD_WIDTH*LCD_HEIGHT*2));
   lcd->init (kHello);
 
   TaskHandle_t uiHandle;
