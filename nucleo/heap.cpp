@@ -173,7 +173,7 @@ void removeNode (bin_t* bin, node_t* node) {
 //}}}
 
 //{{{
-void init_heap (heap_t* heap, int start, int size) {
+void heapInit (heap_t* heap, int start, int size) {
 
   for (int i = 0; i < BIN_COUNT; i++) {
     heap->bins[i] = (bin_t*)malloc (sizeof(bin_t));
@@ -198,7 +198,7 @@ void init_heap (heap_t* heap, int start, int size) {
   }
 //}}}
 //{{{
-void* heap_alloc (heap_t* heap, size_t size) {
+void* heapAlloc (heap_t* heap, size_t size) {
 
   vTaskSuspendAll();
 
@@ -250,7 +250,7 @@ void* heap_alloc (heap_t* heap, size_t size) {
   }
                                                                              //}}}
 //{{{
-void heap_free (heap_t* heap, void* ptr) {
+void heapFree (heap_t* heap, void* ptr) {
 
   vTaskSuspendAll();
 
@@ -613,13 +613,14 @@ heap_t heap1 = { 0 };
 
 //{{{
 uint8_t* sdRamAlloc (size_t size) {
-  if (!heap1.start)
-    init_heap (&heap1, SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4, SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
 
-  return (uint8_t*)heap_alloc (&heap1, size);
+  if (!heap1.start)
+    heapInit (&heap1, SDRAM_DEVICE_ADDR + LCD_WIDTH*LCD_HEIGHT*4, SDRAM_DEVICE_SIZE - LCD_WIDTH*LCD_HEIGHT*4);
+
+  return (uint8_t*)heapAlloc (&heap1, size);
   }
 //}}}
-void sdRamFree (void* ptr) { heap_free (&heap1, ptr); }
+void sdRamFree (void* ptr) { heapFree (&heap1, ptr); }
 size_t getSdRamSize() { return heap1.size; }
 size_t getSdRamFree() { return heap1.free; }
 size_t getSdRamMinFree() { return heap1.minFree; }
