@@ -1,5 +1,6 @@
 // heap.h
 #pragma once
+#include <string>
 //{{{
 #ifdef __cplusplus
  extern "C" {
@@ -22,7 +23,7 @@ size_t getSram123Size();
 size_t getSram123Free();
 size_t getSram123MinFree();
 
-uint8_t* sdRamAlloc (size_t size);
+uint8_t* sdRamAlloc (size_t size, const std::string& tag);
 void sdRamFree (void* p);
 size_t getSdRamSize();
 size_t getSdRamFree();

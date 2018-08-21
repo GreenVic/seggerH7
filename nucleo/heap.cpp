@@ -246,16 +246,15 @@ public:
   size_t getMinFree() { return mMinFreeSize; }
 
   //{{{
-  uint8_t* alloc (size_t size) {
+  uint8_t* alloc (size_t size, const std::string& tag) {
 
     uint8_t* allocAddress = nullptr;
 
     vTaskSuspendAll();
 
     if (mBlockMap.empty()) {
-      mBlockMap.insert (std::map<uint8_t*,cBlock*>::value_type (mStart, new cBlock (mStart, size, true)));
-      mBlockMap.insert (std::map<uint8_t*,cBlock*>::value_type (mStart+size, new cBlock (mStart+size, mSize-size, false)));
-      mFreeSize -= size;
+      mBlockMap.insert (std::map<uint8_t*,cBlock*>::value_type (mStart, new cBlock (mStart, size, true, tag)));
+      mBlockMap.insert (std::map<uint8_t*,cBlock*>::value_type (mStart+size, new cBlock (mStart+size, mSize-size, false, "free")));
       mFreeSize -= size;
       if (mFreeSize < mMinFreeSize)
         mMinFreeSize = mFreeSize;
@@ -270,11 +269,12 @@ public:
             auto blockit = mBlockMap.insert (
               std::map<uint8_t*,cBlock*>::value_type (
                 block.second->mAddress+size, new cBlock (block.second->mAddress+size,
-                block.second->mSize-size, false)));
+                block.second->mSize-size, false, "free")));
             block.second->mSize = size;
             }
           else
             printf ("cSdRamHeap::alloc - reallocate free block %x\n", size);
+          block.second->mTag = tag;
 
           mFreeSize -= size;
           if (mFreeSize < mMinFreeSize)
@@ -313,6 +313,7 @@ public:
         if (mDebug)
           printf ("cSdRamHeap::free block found\n");
         blockIt->second->mAllocated = false;
+        blockIt->second->mTag = "free";
         mFreeSize += blockIt->second->mSize;
         }
 
@@ -328,19 +329,21 @@ private:
   //{{{
   class cBlock {
   public:
-    cBlock (uint8_t* address, uint32_t size, bool allocated) :
-      mAddress(address), mSize(size), mAllocated(allocated) {}
+    cBlock (uint8_t* address, uint32_t size, bool allocated, const std::string& tag) :
+      mAddress(address), mSize(size), mAllocated(allocated), mTag(tag) {}
 
     uint8_t* mAddress = nullptr;
     uint32_t mSize = 0;
     bool mAllocated = false;
+    std::string mTag;
     };
   //}}}
   //{{{
   void list() {
     for (auto block : mBlockMap)
-      printf ("block %p %p %x %d\n",
-              block.first, block.second->mAddress, block.second->mSize, block.second->mAllocated);
+      printf ("block %p:%p %7x %c %s\n",
+              block.first, block.second->mAddress, block.second->mSize,
+              block.second->mAllocated ? 'a' : 'f', block.second->mTag.c_str());
     printf ("-------------------------\n");
     }
   //}}}
@@ -430,12 +433,12 @@ size_t getSram123MinFree() { return mSram123Heap ? mSram123Heap->getMinSize() : 
 // sd ram
 cSdRamHeap* mSdramHeap = nullptr;
 //{{{
-uint8_t* sdRamAlloc (size_t size) {
+uint8_t* sdRamAlloc (size_t size, const std::string& tag) {
 
   if (!mSdramHeap)
     mSdramHeap = new cSdRamHeap ((uint8_t*)0xD0000000, 0x08000000, true);
 
-  return mSdramHeap->alloc (size);
+  return mSdramHeap->alloc (size, tag);
   }
 //}}}
 //{{{

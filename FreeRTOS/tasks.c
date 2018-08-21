@@ -82,7 +82,9 @@ task.h is included from an application file. */
 #include "timers.h"
 #include "StackMacros.h"
 
-#include "heap.h"
+uint8_t* dtcmAlloc (size_t bytes);
+void dtcmFree (void* p);
+#
 
 /* Lint e961 and e750 are suppressed as a MISRA exception justified because the
 MPU ports require MPU_WRAPPERS_INCLUDED_FROM_API_FILE to be defined for the

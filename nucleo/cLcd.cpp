@@ -102,10 +102,10 @@ extern "C" { void DMA2D_IRQHandler() {
 //}}}
 
 //{{{
-cLcd::cLcd (uint16_t* buffer0, uint16_t* buffer1)  {
+cLcd::cLcd()  {
 
-  mBuffer[0] = buffer0;
-  mBuffer[1] = buffer1;
+  mBuffer[0] = (uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2, "lcdBuf0");
+  mBuffer[1] = (uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2, "lcdBuf1");
   mLcd = this;
 
   // consts

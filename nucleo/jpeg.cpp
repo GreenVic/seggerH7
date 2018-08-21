@@ -481,7 +481,7 @@ cTile* hwJpegDecode (const string& fileName) {
   if (!mInBuf[1].mBuf)
     mInBuf[1].mBuf = (uint8_t*)pvPortMalloc (INBUF_SIZE);
   if (!mOutYuvBuf)
-    mOutYuvBuf = sdRamAlloc (4500*3000*2);
+    mOutYuvBuf = sdRamAlloc (4500*3000*2, "yuvBuf");
   //}}}
 
   cTile* tile = nullptr;
@@ -564,7 +564,7 @@ cTile* hwJpegDecode (const string& fileName) {
             mOutYuvBuf, mHandle.mChromaSampling, mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
 
     // alloc rgb
-    auto rgb565Pic = sdRamAlloc (mHandle.mWidth * mHandle.mHeight * 2);
+    auto rgb565Pic = sdRamAlloc (mHandle.mWidth * mHandle.mHeight * 2, "hwJpegPic");
     if (!rgb565Pic)
       printf ("JPEG rgb565 alloc fail\n");
     else {
@@ -605,7 +605,7 @@ cTile* swJpegDecode (const string& fileName, int scale) {
     mCinfo.scale_denom = scale;
     jpeg_start_decompress (&mCinfo);
 
-    auto rgb565Pic = sdRamAlloc (mCinfo.output_width * mCinfo.output_height*2);
+    auto rgb565Pic = sdRamAlloc (mCinfo.output_width * mCinfo.output_height*2, "swJpegPic");
     if (!rgb565Pic)
       printf ("swJpegDecode %s rgb565pic alloc fail\n", fileName.c_str());
     else {
