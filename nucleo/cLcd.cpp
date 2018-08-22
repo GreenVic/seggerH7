@@ -686,54 +686,50 @@ void cLcd::yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t 
   }
 //}}}
 //{{{
-void cLcd::yuvMcuTo565sw (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, 
-                          uint32_t BlockIndex, uint32_t DataCount) {
+void cLcd::yuvMcuTo565sw (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize,
+                          uint32_t blockIndex, uint32_t dataCount) {
 
   for (int32_t i = 0; i <= 255; i++) {
     int32_t index = (i * 2) - 256;
-    CR_RED_LUT[i] = ( (((int32_t) ((1.40200 / 2) * (1L << 16)))  * index) + ((int32_t) 1 << (16 - 1))) >> 16;
-    CB_BLUE_LUT[i] = ( (((int32_t) ((1.77200 / 2) * (1L << 16)))  * index) + ((int32_t) 1 << (16 - 1))) >> 16;
+    CR_RED_LUT[i] = ((((int32_t) ((1.40200 / 2) * (1L << 16)))  * index) +
+                     ((int32_t) 1 << (16 - 1))) >> 16;
+    CB_BLUE_LUT[i] = ((((int32_t) ((1.77200 / 2) * (1L << 16)))  * index) +
+                      ((int32_t) 1 << (16 - 1))) >> 16;
     CR_GREEN_LUT[i] = (-((int32_t) ((0.71414 / 2) * (1L << 16)))) * index;
     CB_GREEN_LUT[i] = (-((int32_t) ((0.34414 / 2) * (1L << 16)))) * index;
     }
 
-  uint32_t ImageWidth = xsize;
-  uint32_t ImageHeight = ysize;
-  uint32_t ImageSize_Bytes = xsize * ysize * JPEG_BYTES_PER_PIXEL;
+  uint32_t lineOffset = xsize % 16;
+  if (lineOffset != 0)
+    lineOffset = 16 - lineOffset;
+  uint32_t hFactor = 16;
+  uint32_t vFactor  = 8;
 
-  uint32_t LineOffset = ImageWidth % 16;
-  if (LineOffset != 0)
-    LineOffset = 16 - LineOffset;
-  uint32_t H_factor = 16;
-  uint32_t  V_factor  = 8;
+  uint32_t widthExtend = xsize + lineOffset;
+  uint32_t scaledWidth = JPEG_BYTES_PER_PIXEL * xsize;
 
-  uint32_t WidthExtend = ImageWidth + LineOffset;
-  uint32_t ScaledWidth = JPEG_BYTES_PER_PIXEL * ImageWidth;
-
-  uint32_t hMCU = (ImageWidth / H_factor);
-  if ((ImageWidth % H_factor) != 0)
+  uint32_t hMCU = (xsize / hFactor);
+  if ((xsize % hFactor) != 0)
     hMCU++; /*+1 for horizenatl incomplete MCU */
 
-  uint32_t vMCU = (ImageHeight / V_factor);
-  if ((ImageHeight % V_factor) != 0)
+  uint32_t vMCU = (ysize / vFactor);
+  if ((ysize % vFactor) != 0)
     vMCU++; /*+1 for vertical incomplete MCU */
 
-  uint32_t MCU_Total_Nb = hMCU * vMCU;
+  uint32_t currentMCU = blockIndex;
+  uint32_t numberMCU = dataCount / YCBCR_422_BLOCK_SIZE;
 
-  uint32_t numberMCU = DataCount / YCBCR_422_BLOCK_SIZE;
-  uint32_t currentMCU = BlockIndex;
-
-  while (currentMCU < (numberMCU + BlockIndex)) {
-    uint32_t xRef = ((currentMCU * 16) / WidthExtend) * 8;
-    uint32_t yRef = ((currentMCU * 16) % WidthExtend);
-    uint32_t refLine = ScaledWidth * xRef + (JPEG_BYTES_PER_PIXEL * yRef);
+  while (currentMCU < numberMCU + blockIndex) {
+    uint32_t xRef = ((currentMCU * 16) / widthExtend) * 8;
+    uint32_t yRef = ((currentMCU * 16) % widthExtend);
+    uint32_t refLine = scaledWidth * xRef + (JPEG_BYTES_PER_PIXEL * yRef);
     currentMCU++;
 
     uint8_t* lumPtr = src;
     uint8_t* chrPtr = src + 128; /* chrPtr = src + 2*64 */
 
     for (uint32_t i = 0; i <  8; i++) {
-      if (refLine < ImageSize_Bytes) {
+      if (refLine < xsize * ysize * JPEG_BYTES_PER_PIXEL) {
         uint8_t* dstPtr = dst + refLine;
 
         for (uint32_t k = 0; k < 2; k++) {
@@ -745,12 +741,10 @@ void cLcd::yuvMcuTo565sw (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t y
             int32_t c_green = ((int32_t)(*(CR_GREEN_LUT + crcomp)) + (int32_t)(*(CB_GREEN_LUT + cbcomp))) >> 16;
 
             int32_t ycomp = (int32_t)(*(lumPtr +j));
-
             *(__IO uint16_t*)dstPtr = ((CLAMP(ycomp + c_red) >> 3) << JPEG_RED_OFFSET) |
                                       ((CLAMP(ycomp + c_green) >> 2) << JPEG_GREEN_OFFSET) |
                                       ((CLAMP(ycomp + c_blue) >> 3) << JPEG_BLUE_OFFSET);
             ycomp = (int32_t)(*(lumPtr +j +1));
-
             *((__IO uint16_t*)(dstPtr + 2)) = ((CLAMP(ycomp + c_red) >> 3) << JPEG_RED_OFFSET) |
                                               ((CLAMP(ycomp + c_green) >> 2) << JPEG_GREEN_OFFSET) |
                                               ((CLAMP(ycomp + c_blue) >> 3) << JPEG_BLUE_OFFSET);
@@ -760,7 +754,7 @@ void cLcd::yuvMcuTo565sw (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t y
           lumPtr += 64;
           }
         lumPtr = lumPtr - 128 + 8;
-        refLine += ScaledWidth;
+        refLine += scaledWidth;
         }
       }
     src += YCBCR_422_BLOCK_SIZE;
