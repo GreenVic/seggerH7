@@ -157,6 +157,8 @@ public:
 
   static void rgb888toRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize);
   static void yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
+  static void yuvMcuTo565sw (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, 
+                             uint32_t BlockIndex, uint32_t DataCount);
 
   void start();
   void drawInfo();

@@ -405,6 +405,9 @@ extern "C" { void JPEG_IRQHandler() {
 
     else
       printf ("JPEG unrecognised chroma sampling %d\n", mHandle.mChromaSampling);
+
+    while (mOutChunkSize > 0x10000)
+      mOutChunkSize /= 2;
     //}}}
     // if the MDMA Out is triggred with JPEG Out FIFO Threshold flag then MDMA out buffer size is 32 bytes
     // else (MDMA Out is triggred with JPEG Out FIFO not empty flag then MDMA buffer size is 4 bytes

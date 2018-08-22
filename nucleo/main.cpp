@@ -32,7 +32,7 @@ cLcd* lcd = nullptr;
 vector<string> mFileVec;
 int gCount = 0;
 
-__IO bool show = false;
+__IO bool gShow = false;
 __IO cTile* showTile[2] = { nullptr, nullptr };
 
 //extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
@@ -137,22 +137,22 @@ void uiThread (void* arg) {
       const cRect titleRect (0,0, lcd->getWidth() * gCount / mFileVec.size(),22);
       lcd->grad (COL_BLUE, COL_GREY, COL_GREY, COL_BLACK, titleRect);
 
-      if (showTile[show]) {
-        if (showTile[show]->mWidth > lcd->getWidth() || showTile[show]->mHeight > lcd->getHeight()) {
+      if (showTile[gShow]) {
+        if (showTile[gShow]->mWidth > lcd->getWidth() || showTile[gShow]->mHeight > lcd->getHeight()) {
           uint16_t lcdWidth = lcd->getWidth() - 20;
           uint16_t lcdHeight = lcd->getHeight() - 44;
-          float xscale = (float)showTile[show]->mWidth / lcdWidth;
-          float yscale = (float)showTile[show]->mHeight / lcdHeight;
+          float xscale = (float)showTile[gShow]->mWidth / lcdWidth;
+          float yscale = (float)showTile[gShow]->mHeight / lcdHeight;
           if (xscale > yscale)
             lcdHeight = int (lcdHeight * yscale / xscale);
           else
             lcdWidth = int (lcdWidth * xscale / yscale);
          cPoint p ((lcd->getWidth() - lcdWidth) / 2, (lcd->getHeight() - lcdHeight) / 2);
-         lcd->size ((cTile*)showTile[show], cRect (p.x, p.y, p.x + lcdWidth, p.y + lcdHeight));
+         lcd->size ((cTile*)showTile[gShow], cRect (p.x, p.y, p.x + lcdWidth, p.y + lcdHeight));
           }
         else
-          lcd->copy ((cTile*)showTile[show], cPoint ((lcd->getWidth() - showTile[show]->mWidth) / 2,
-                                                     (lcd->getHeight() - showTile[show]->mHeight) / 2));
+          lcd->copy ((cTile*)showTile[gShow], cPoint ((lcd->getWidth() - showTile[gShow]->mWidth) / 2,
+                                                     (lcd->getHeight() - showTile[gShow]->mHeight) / 2));
         }
 
       lcd->setShowInfo (BSP_PB_GetState (BUTTON_KEY) == 0);
@@ -226,16 +226,16 @@ void appThread (void* arg) {
 
       printf ("APP decode %s size:%d time:%d date:%d\n",
               fileName.c_str(), int(filInfo.fsize), filInfo.ftime, filInfo.fdate);
-      delete showTile[!show];
+      delete showTile[gShow];
 
       auto startTime = HAL_GetTick();
-      showTile[!show] = hwJpeg ? hwJpegDecode (fileName) : swJpegDecode (fileName, SW_SCALE);
-      show = !show;
+      showTile[gShow] = hwJpeg ? hwJpegDecode (fileName) : swJpegDecode (fileName, SW_SCALE);
+      //gShow = !gShow;
 
-      if (showTile[show]) {
-        printf ("APP decoded - show:%d - took %d\n", show, HAL_GetTick() - startTime);
+      if (showTile[gShow]) {
+        printf ("APP decoded - show:%d - took %d\n", gShow, HAL_GetTick() - startTime);
         lcd->setTitle (fileName + " " +
-                       dec (showTile[show]->mWidth) + "x" + dec (showTile[show]->mHeight) + " " +
+                       dec (showTile[gShow]->mWidth) + "x" + dec (showTile[gShow]->mHeight) + " " +
                        dec ((int)(filInfo.fsize) / 1000) + "k " +
                        dec (filInfo.ftime >> 11, 2, '0') + ":" +
                        dec ((filInfo.ftime >> 5) & 0x3F, 2, '0') + ":" +

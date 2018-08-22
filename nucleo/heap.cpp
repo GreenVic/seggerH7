@@ -268,14 +268,14 @@ public:
       if ((!block->mAllocated) && (size <= block->mSize)) {
         block->mAllocated = true;
         if (size < block->mSize) {
-          printf ("cSdRamHeap::alloc - split block %x:%x\n", size, block->mSize);
+          //printf ("cSdRamHeap::alloc - split block %x:%x\n", size, block->mSize);
           auto newFreeBlock = new cBlock (block->mAddress+size, block->mSize-size, false, "free");
           newFreeBlock->mNext = block->mNext;
           block->mSize = size;
           block->mNext = newFreeBlock;
           }
-        else
-          printf ("cSdRamHeap::alloc - reallocate free block %x\n", size);
+        //else
+        //  printf ("cSdRamHeap::alloc - reallocate free block %x\n", size);
         block->mTag = tag;
 
         mFreeSize -= size;
@@ -313,7 +313,9 @@ public:
       cBlock* prevBlock = nullptr;
       while (block) {
         if (block->mAddress == ptr) {
-          if (block->mAllocated) {
+          if (!block->mAllocated)
+            printf ("**** free block not free\n");
+          else {
             // free block
             printf ("free block %x %s\n", block->mSize, block->mTag.c_str());
             block->mAllocated = false;
@@ -322,21 +324,18 @@ public:
 
             auto nextBlock = block->mNext;
             if (nextBlock && (!nextBlock->mAllocated)) {
-              printf ("- combine with next free block %x + %x\n", block->mSize, block->mNext->mSize);
+              //printf ("- combine with next free block %x + %x\n", block->mSize, block->mNext->mSize);
               block->mSize += nextBlock->mSize;
               block->mNext = nextBlock->mNext;
               delete (nextBlock);
               }
-
             if (prevBlock && (!prevBlock->mAllocated)) {
-              printf ("- combine with prev free block %x + %x\n", prevBlock->mSize, block->mSize);
+              //printf ("- combine with prev free block %x + %x\n", prevBlock->mSize, block->mSize);
               prevBlock->mSize += block->mSize;
               prevBlock->mNext = block->mNext;
               delete (block);
               }
             }
-          else
-            printf ("free block not allocated\n");
           break;
           }
 
