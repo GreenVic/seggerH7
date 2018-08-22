@@ -101,6 +101,8 @@ public:
         }
       }
 
+    if (!allocAddress)
+      printf ("****** cHeap::alloc fail size:%d\n", size);
     return allocAddress;
     }
   //}}}
@@ -292,7 +294,7 @@ public:
       }
 
     if (mDebug) {
-      printf ("cSdRamHeap::alloc %p %x\n", allocAddress, size);
+      printf ("cSdRamHeap::alloc %p %x %s\n", allocAddress, size, tag.c_str());
       list();
       }
 
@@ -322,19 +324,23 @@ public:
         blockIt->second->mAllocated = false;
         blockIt->second->mTag = "free";
         mFreeSize += blockIt->second->mSize;
-        auto nextBlockIt = blockIt++;
+        auto nextBlockIt = ++blockIt;
         if (nextBlockIt != mBlockMap.end()) {
-          printf ("have next \n");
-          if (!nextBlockIt->second->mAllocated) {
-            printf ("should remove next block\n");
+          if (!(nextBlockIt->second->mAllocated)) {
+            printf ("- combine with next free block %x + %x\n",
+                    blockIt->second->mSize, nextBlockIt->second->mSize);
+            //blockIt->second->mSize += nextBlockIt->second->mSize;
+            //mBlockMap.erase (nextBlockIt);
             }
           }
 
         if (blockIt != mBlockMap.begin()) {
-          auto prevBlockIt = blockIt--;
-          printf ("have prev \n");
-          if (!prevBlockIt->second->mAllocated) {
-            printf ("should remove prev block\n");
+          auto prevBlockIt = --blockIt;
+          if (!(prevBlockIt->second->mAllocated)) {
+            printf ("- combine with prev free block %x + %x\n",
+                    prevBlockIt->second->mSize, blockIt->second->mSize);
+            //prevBlockIt->second->mSize += blockIt->second->mSize;
+            //mBlockMap.erase (blockIt);
             }
           }
         }
