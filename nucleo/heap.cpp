@@ -330,7 +330,6 @@ public:
               prevBlock->mNext = block->mNext;
               delete (block);
               }
-
             }
           else
             printf ("free block not allocated\n");
