@@ -246,6 +246,7 @@ private:
 //}}}
 //{{{
 class cSdRamHeap : public cHeap {
+// simple slow heap for unreliable sdRam
 public:
   cSdRamHeap (uint8_t* start, size_t size, bool debug) : cHeap(size, debug), mStart(start) {}
 
@@ -316,9 +317,26 @@ public:
       else {
         if (mDebug)
           printf ("cSdRamHeap::free block found\n");
+
+        // free block
         blockIt->second->mAllocated = false;
         blockIt->second->mTag = "free";
         mFreeSize += blockIt->second->mSize;
+        auto nextBlockIt = blockIt++;
+        if (nextBlockIt != mBlockMap.end()) {
+          printf ("have next \n");
+          if (!nextBlockIt->second->mAllocated) {
+            printf ("should remove next block\n");
+            }
+          }
+
+        if (blockIt != mBlockMap.begin()) {
+          auto prevBlockIt = blockIt--;
+          printf ("have prev \n");
+          if (!prevBlockIt->second->mAllocated) {
+            printf ("should remove prev block\n");
+            }
+          }
         }
 
       if (mDebug)
@@ -404,14 +422,14 @@ size_t getSramMinFreeSize() { return mSramHeap ? mSramHeap->getMinFreeSize() : 0
 //void* operator new (size_t size) {
 
   //void* allocAddress = malloc (size);
-  ////printf ("new %p %d\n", allocAddress, size);
+  //printf ("new %p %d\n", allocAddress, size);
   //return allocAddress;
   //}
 //}}}
 //{{{
 //void operator delete (void* ptr) {
 
-  ////printf ("free %p\n", ptr);
+  //printf ("free %p\n", ptr);
   //free (ptr);
   //}
 //}}}
