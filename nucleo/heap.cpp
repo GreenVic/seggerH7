@@ -25,6 +25,7 @@ public:
   virtual size_t getSize() { return mSize; }
   virtual size_t getFreeSize() { return mFreeSize; }
   virtual size_t getMinFreeSize() { return mMinFreeSize; }
+  virtual size_t getLargestFreeSize() { return mLargestFreeSize; }
 
   virtual uint8_t* alloc (size_t size, const std::string& tag) = 0;
   virtual void free (void* ptr) = 0;
@@ -33,6 +34,7 @@ protected:
   size_t mSize = 0;
   size_t mFreeSize = 0;
   size_t mMinFreeSize = 0;
+  size_t mLargestFreeSize = 0;
   bool mDebug = false;
   };
 //}}}
@@ -288,6 +290,8 @@ public:
 
     if (mDebug) {
       printf ("cSdRamHeap::alloc %p %x %s\n", allocAddress, size, tag.c_str());
+      if (!check())
+        printf ("**** check error\n");
       list();
       }
 
@@ -335,17 +339,33 @@ public:
             printf ("free block not allocated\n");
           break;
           }
+
         prevBlock = block;
         block = block->mNext;
         }
 
-      if (mDebug)
+      if (mDebug) {
+        if (!check())
+          printf ("**** check error\n");
         list();
+        }
 
       xTaskResumeAll();
       }
     }
   //}}}
+
+  virtual size_t getLargestFreeSize() {
+
+    size_t largestFreeSize = 0;
+    auto block = mFirst;
+    while (block) {
+      if (!block->mAllocated && (block->mSize > largestFreeSize))
+        largestFreeSize = block->mSize;
+      block = block->mNext;
+      }
+    return largestFreeSize;
+    }
 
 private:
   //{{{
@@ -371,6 +391,29 @@ private:
       block = block->mNext;
       }
     printf ("-------------------------\n");
+    }
+  //}}}
+  //{{{
+  bool check() {
+
+    bool addressOk = true;
+    bool freeOk = true;
+
+    size_t size = 0;
+    cBlock* prevBlock = nullptr;
+    auto block = mFirst;
+    while (block) {
+      size += block->mSize;
+      if (prevBlock && (prevBlock->mAddress + prevBlock->mSize != block->mAddress))
+        addressOk = false;
+      if (!block->mAllocated &&
+          ((block->mNext && (!block->mNext->mAllocated)) || (prevBlock && (!prevBlock->mAllocated))))
+        freeOk = false;
+      prevBlock = block;
+      block = block->mNext;
+      }
+
+    return addressOk && freeOk && (size == mSize);
     }
   //}}}
 
