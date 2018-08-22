@@ -288,8 +288,8 @@ public:
       block = block->mNext;
       }
 
+    printf ("cSdRamHeap::alloc %p %x %s\n", allocAddress, size, tag.c_str());
     if (mDebug) {
-      printf ("cSdRamHeap::alloc %p %x %s\n", allocAddress, size, tag.c_str());
       if (!check())
         printf ("**** check error\n");
       list();
@@ -317,7 +317,8 @@ public:
             printf ("**** free block not free\n");
           else {
             // free block
-            printf ("free block %x %s\n", block->mSize, block->mTag.c_str());
+            if (mDebug)
+              printf ("free block %x %s\n", block->mSize, block->mTag.c_str());
             block->mAllocated = false;
             block->mTag = "free";
             mFreeSize += block->mSize;
@@ -486,7 +487,7 @@ cSdRamHeap* mSdRamHeap = nullptr;
 uint8_t* sdRamAlloc (size_t size, const std::string& tag) {
 
   if (!mSdRamHeap)
-    mSdRamHeap = new cSdRamHeap (0xD0000000, 0x08000000, true);
+    mSdRamHeap = new cSdRamHeap (0xD0000000, 0x08000000, false);
 
   return mSdRamHeap->alloc (size, tag);
   }
