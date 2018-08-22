@@ -32,12 +32,6 @@ public:
   virtual void free (void* ptr) = 0;
 
 protected:
-  const uint32_t mAlignment = 8;
-  const uint32_t mAlignmentMask = 7;
-  const size_t kHeapStructSize = 8;
-  const size_t kHeapMinimumBlockSize = kHeapStructSize << 1;
-  const size_t kBlockAllocatedBit = 0x80000000;
-
   size_t mSize = 0;
   size_t mFreeSize = 0;
   size_t mMinFreeSize = 0;
@@ -137,6 +131,12 @@ public:
   //}}}
 
 private:
+  const uint32_t mAlignment = 8;
+  const uint32_t mAlignmentMask = 7;
+  const size_t kHeapStructSize = 8;
+  const size_t kHeapMinimumBlockSize = kHeapStructSize << 1;
+  const size_t kBlockAllocatedBit = 0x80000000;
+
   //{{{  struct tLink_t
   typedef struct A_BLOCK_LINK {
     struct A_BLOCK_LINK* mNextFreeBlock; // The next free block in the list
@@ -248,7 +248,7 @@ private:
 class cSdRamHeap : public cHeap {
 // simple slow heap for unreliable sdRam
 public:
-  cSdRamHeap (uint8_t* start, size_t size, bool debug) : cHeap(size, debug), mStart(start) {}
+  cSdRamHeap (uint32_t start, size_t size, bool debug) : cHeap(size, debug), mStart((uint8_t*)start) {}
 
   //{{{
   virtual uint8_t* alloc (size_t size, const std::string& tag) {
@@ -397,23 +397,10 @@ void* pvPortMalloc (size_t size) {
   if (!mSramHeap)
     mSramHeap = new cRtosHeap (0x24010000, 0x00070000, false);
 
-  void* allocAddress = mSramHeap->alloc (size, "");
-  if (allocAddress) {
-    //printf ("pvPortMalloc %p %d\n", allocAddress, size);
-    }
-  else
-    printf ("pvPortMalloc %d fail\n", size);
-
-  return allocAddress;
+  return mSramHeap->alloc (size, "");
   }
 //}}}
-//{{{
-void vPortFree (void* ptr) {
-
-  //printf ("vPortFree %p\n", ptr);
-   mSramHeap->free (ptr);
-  }
-//}}}
+void vPortFree (void* ptr) { mSramHeap->free (ptr); }
 size_t getSramSize() { return mSramHeap ? mSramHeap->getSize() : 0 ; }
 size_t getSramFreeSize() { return mSramHeap ? mSramHeap->getFreeSize() : 0 ; }
 size_t getSramMinFreeSize() { return mSramHeap ? mSramHeap->getMinFreeSize() : 0 ; }
@@ -454,7 +441,7 @@ cSdRamHeap* mSdRamHeap = nullptr;
 uint8_t* sdRamAlloc (size_t size, const std::string& tag) {
 
   if (!mSdRamHeap)
-    mSdRamHeap = new cSdRamHeap ((uint8_t*)0xD0000000, 0x08000000, true);
+    mSdRamHeap = new cSdRamHeap (0xD0000000, 0x08000000, true);
 
   return mSdRamHeap->alloc (size, tag);
   }
