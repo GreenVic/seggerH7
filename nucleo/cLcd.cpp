@@ -708,10 +708,10 @@ void cLcd::drawInfo() {
     text (COL_WHITE, kFooterHeight,
           dec(mNumPresents) + ":" + dec (mDrawTime) + ":" + dec (mWaitTime) + " " +
           dec (osGetCPUUsage()) + "%:" + dec (mBrightness) + "% " +
-          "dtcm:" + dec (getDtcmFree()/1000) + ":" + dec (getDtcmSize()/1000) + " " +
-          "s123:" + dec (getSram123Free()/1000) + ":" + dec (getSram123Size()/1000) + " " +
-          "axi:" + dec (getSramFree()/1000) + ":" + dec (getSramMinFree()/1000) + ":" + dec (getSramSize()/1000) + " " +
-          "sd:" + dec (getSdRamFree()/1000) + ":" + dec (getSdRamMinFree()/1000) + ":" + dec (getSdRamSize()/1000),
+          "dtcm:" + dec (getDtcmFreeSize()/1000) + ":" + dec (getDtcmSize()/1000) + " " +
+          "s123:" + dec (getSram123FreeSize()/1000) + ":" + dec (getSram123Size()/1000) + " " +
+          "axi:" + dec (getSramFreeSize()/1000) + ":" + dec (getSramMinFreeSize()/1000) + ":" + dec (getSramSize()/1000) + " " +
+          "sd:" + dec (getSdRamFreeSize()/1000) + ":" + dec (getSdRamMinFreeSize()/1000) + ":" + dec (getSdRamSize()/1000),
           cRect(0, y, getWidth(), kTitleHeight+kGap));
 
     // draw log
