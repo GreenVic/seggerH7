@@ -11,8 +11,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <map>
-
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -250,7 +248,11 @@ private:
 class cSdRamHeap : public cHeap {
 // simple slow heap for unreliable sdRam
 public:
-  cSdRamHeap (uint32_t start, size_t size, bool debug) : cHeap(size, debug), mStart((uint8_t*)start) {}
+  //{{{
+  cSdRamHeap (uint32_t start, size_t size, bool debug) : cHeap(size, debug) {
+    mFirst = new cBlock ((uint8_t*)start, size, false, "free");
+    }
+  //}}}
 
   //{{{
   virtual uint8_t* alloc (size_t size, const std::string& tag) {
@@ -259,38 +261,29 @@ public:
 
     vTaskSuspendAll();
 
-    if (mBlockMap.empty()) {
-      mBlockMap.insert (std::map<uint8_t*,cBlock*>::value_type (mStart, new cBlock (mStart, size, true, tag)));
-      mBlockMap.insert (std::map<uint8_t*,cBlock*>::value_type (mStart+size, new cBlock (mStart+size, mSize-size, false, "free")));
-      mFreeSize -= size;
-      if (mFreeSize < mMinFreeSize)
-        mMinFreeSize = mFreeSize;
-      allocAddress = mStart;
-      }
-    else {
-      for (auto block : mBlockMap) {
-        if ((!block.second->mAllocated) && (size <= block.second->mSize)) {
-          block.second->mAllocated = true;
-          if (size < block.second->mSize) {
-            printf ("cSdRamHeap::alloc - split block %x:%x\n", size, block.second->mSize);
-            auto blockit = mBlockMap.insert (
-              std::map<uint8_t*,cBlock*>::value_type (
-                block.second->mAddress+size, new cBlock (block.second->mAddress+size,
-                block.second->mSize-size, false, "free")));
-            block.second->mSize = size;
-            }
-          else
-            printf ("cSdRamHeap::alloc - reallocate free block %x\n", size);
-          block.second->mTag = tag;
-
-          mFreeSize -= size;
-          if (mFreeSize < mMinFreeSize)
-            mMinFreeSize = mFreeSize;
-
-          allocAddress = block.second->mAddress;
-          break;
+    auto block = mFirst;
+    while (block) {
+      if ((!block->mAllocated) && (size <= block->mSize)) {
+        block->mAllocated = true;
+        if (size < block->mSize) {
+          printf ("cSdRamHeap::alloc - split block %x:%x\n", size, block->mSize);
+          auto newFreeBlock = new cBlock (block->mAddress+size, block->mSize-size, false, "free");
+          newFreeBlock->mNext = block->mNext;
+          block->mSize = size;
+          block->mNext = newFreeBlock;
           }
+        else
+          printf ("cSdRamHeap::alloc - reallocate free block %x\n", size);
+        block->mTag = tag;
+
+        mFreeSize -= size;
+        if (mFreeSize < mMinFreeSize)
+          mMinFreeSize = mFreeSize;
+
+        allocAddress = block->mAddress;
+        break;
         }
+      block = block->mNext;
       }
 
     if (mDebug) {
@@ -311,38 +304,40 @@ public:
         printf ("cSdRamHeap::free %p\n", ptr);
 
       vTaskSuspendAll();
-      auto blockIt = mBlockMap.find ((uint8_t*)ptr);
-      if (blockIt == mBlockMap.end())
-        printf ("cSdRamHeap::free **** free block not found\n");
-      else if (!blockIt->second->mAllocated)
-        printf ("cSdRamHeap::free **** deallocating free blcok\n");
-      else {
-        if (mDebug)
-          printf ("cSdRamHeap::free block found\n");
 
-        // free block
-        blockIt->second->mAllocated = false;
-        blockIt->second->mTag = "free";
-        mFreeSize += blockIt->second->mSize;
-        auto nextBlockIt = ++blockIt;
-        if (nextBlockIt != mBlockMap.end()) {
-          if (!(nextBlockIt->second->mAllocated)) {
-            printf ("- combine with next free block %x + %x\n",
-                    blockIt->second->mSize, nextBlockIt->second->mSize);
-            //blockIt->second->mSize += nextBlockIt->second->mSize;
-            //mBlockMap.erase (nextBlockIt);
-            }
-          }
+      auto block = mFirst;
+      cBlock* prevBlock = nullptr;
+      while (block) {
+        if (block->mAddress == ptr) {
+          if (block->mAllocated) {
+            // free block
+            printf ("free block %x %s\n", block->mSize, block->mTag.c_str());
+            block->mAllocated = false;
+            block->mTag = "free";
+            mFreeSize += block->mSize;
 
-        if (blockIt != mBlockMap.begin()) {
-          auto prevBlockIt = --blockIt;
-          if (!(prevBlockIt->second->mAllocated)) {
-            printf ("- combine with prev free block %x + %x\n",
-                    prevBlockIt->second->mSize, blockIt->second->mSize);
-            //prevBlockIt->second->mSize += blockIt->second->mSize;
-            //mBlockMap.erase (blockIt);
+            auto nextBlock = block->mNext;
+            if (nextBlock && (!nextBlock->mAllocated)) {
+              printf ("- combine with next free block %x + %x\n", block->mSize, block->mNext->mSize);
+              block->mSize += nextBlock->mSize;
+              block->mNext = nextBlock->mNext;
+              delete (nextBlock);
+              }
+
+            if (prevBlock && (!prevBlock->mAllocated)) {
+              printf ("- combine with prev free block %x + %x\n", prevBlock->mSize, block->mSize);
+              prevBlock->mSize += block->mSize;
+              prevBlock->mNext = block->mNext;
+              delete (block);
+              }
+
             }
+          else
+            printf ("free block not allocated\n");
+          break;
           }
+        prevBlock = block;
+        block = block->mNext;
         }
 
       if (mDebug)
@@ -360,6 +355,7 @@ private:
     cBlock (uint8_t* address, uint32_t size, bool allocated, const std::string& tag) :
       mAddress(address), mSize(size), mAllocated(allocated), mTag(tag) {}
 
+    cBlock* mNext = nullptr;
     uint8_t* mAddress = nullptr;
     uint32_t mSize = 0;
     bool mAllocated = false;
@@ -368,16 +364,18 @@ private:
   //}}}
   //{{{
   void list() {
-    for (auto block : mBlockMap)
-      printf ("block %p:%p %7x %c %s\n",
-              block.first, block.second->mAddress, block.second->mSize,
-              block.second->mAllocated ? 'a' : 'f', block.second->mTag.c_str());
+
+    auto block = mFirst;
+    while (block) {
+      printf ("block %p %7x %c %s\n",
+              block->mAddress, block->mSize, block->mAllocated ? 'a' : 'f', block->mTag.c_str());
+      block = block->mNext;
+      }
     printf ("-------------------------\n");
     }
   //}}}
 
-  uint8_t* mStart = nullptr;
-  std::map <uint8_t*, cBlock*> mBlockMap;
+  cBlock* mFirst = nullptr;
   };
 //}}}
 
