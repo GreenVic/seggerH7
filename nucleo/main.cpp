@@ -193,9 +193,7 @@ void uiThread (void* arg) {
 //{{{
 void appThread (void* arg) {
 
-  //lsm303dlhc_init_la();
-  //uint8_t buf[100];
-  //lsm303dlhc_read_la (buf);
+  lsm303c_init_la();
 
   bool hwJpeg = BSP_PB_GetState (BUTTON_KEY) == 0;
 

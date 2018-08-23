@@ -1,9 +1,10 @@
 // lsm303.c
 #include "lsm303dlhc.h"
 
-static const uint8_t LA_ADDRESS      = 0x32;
-static const uint8_t MF_ADDRESS      = 0x3c;
-//{{{   Linear acceleration related register addesses
+static const uint8_t LA_ADDRESS = 0x3A;
+static const uint8_t MF_ADDRESS = 0x3c;
+//{{{  Linear acceleration related register addesses
+static const uint8_t WHO_AM_I_A      = 0x0F;
 static const uint8_t CTRL_REG1_A     = 0x20;
 static const uint8_t CTRL_REG2_A     = 0x21;
 static const uint8_t CTRL_REG3_A     = 0x22;
@@ -87,7 +88,7 @@ void I2C4_ER_IRQHandler() {
   }
 
 //{{{
-void lsm303dlhc_init_la() {
+void lsm303c_init_la() {
 
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_I2C4_CLK_ENABLE();
@@ -105,6 +106,9 @@ void lsm303dlhc_init_la() {
   HAL_NVIC_SetPriority (I2C4_EV_IRQn, 0, 2);
   HAL_NVIC_EnableIRQ (I2C4_EV_IRQn);
 
+  // I2C TIMING Register define when I2C clock source is APB1 (SYSCLK/4) */
+  // I2C TIMING is calculated in case of the I2C Clock source is the APB1CLK = 100 MHz */
+  // This example use TIMING to 0x00901954 to reach 400 kHz speed (Rise time = 100 ns, Fall time = 10 ns) */
   I2cHandle.Instance             = I2C4;
   I2cHandle.Init.Timing          = 0x00901954;
   I2cHandle.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -116,35 +120,39 @@ void lsm303dlhc_init_la() {
   I2cHandle.Init.NoStretchMode   = I2C_NOSTRETCH_DISABLE;
 
   if (HAL_I2C_Init (&I2cHandle) != HAL_OK)
-    printf ("i2c4 init error\n");
+    printf ("HAL_I2C_Init error\n");
 
-  //HAL_I2CEx_ConfigAnalogFilter (&I2cHandle, I2C_ANALOGFILTER_ENABLE);
+  uint8_t reg = WHO_AM_I_A;
+
+  if (HAL_I2C_Master_Transmit_IT (&I2cHandle, 0x3A, &reg, 1) != HAL_OK)
+    printf ("lsm303c_init_la id tx error\n");
+
+  uint8_t buf = 0;
+  if (HAL_I2C_Master_Receive_IT (&I2cHandle, 0x3A, &buf, 1) != HAL_OK)
+    printf ("lsm303c_init_la id rx error\n");
 
   uint8_t init[2][2] = { {CTRL_REG1_A, ODR_400Hz | LPen | Xen | Yen | Zen},
-                         {CTRL_REG4_A, BDU | FS_4G | HR}
-                       };
+                         {CTRL_REG4_A, BDU | FS_4G | HR} };
 
-  HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit (&I2cHandle, LA_ADDRESS, init[0], 2, 1000);
-  if (ret != HAL_OK)
-    printf ("i2c4 init1 error\n");
+  if (HAL_I2C_Master_Transmit_IT (&I2cHandle, 0x3A, init[0], 2)  != HAL_OK)
+    printf ("lsm303c_init_la tx ctrl_reg1_a error\n");
 
-  ret = HAL_I2C_Master_Transmit (&I2cHandle, LA_ADDRESS, init[1], 2, 1000);
-  if (ret != HAL_OK)
-    printf ("i2c4 init2 error\n");
+  if (HAL_I2C_Master_Transmit_IT (&I2cHandle, 0x3A, init[1], 2)  != HAL_OK)
+    printf ("lsm303c_init_la tx ctrl_reg4_a error\n");
   }
 //}}}
 //{{{
-void lsm303dlhc_read_la (uint8_t* buf) {
+void lsm303c_read_la (uint8_t* buf) {
 
   uint8_t reg = OUT_X_L_A | 0b10000000;
 
-  HAL_StatusTypeDef ret = HAL_I2C_Master_Sequential_Transmit_IT (&I2cHandle, LA_ADDRESS, &reg, 1, I2C_FIRST_FRAME);
+  HAL_StatusTypeDef ret = HAL_I2C_Master_Sequential_Transmit_IT (&I2cHandle, 0x3A, &reg, 1, I2C_FIRST_FRAME);
   if (ret != HAL_OK)
     printf ("i2c4 read error\n");
 
   while (!__HAL_I2C_GET_FLAG(&I2cHandle, I2C_FLAG_TC));
 
-  ret = HAL_I2C_Master_Sequential_Receive_IT (&I2cHandle, LA_ADDRESS, buf, 6, I2C_LAST_FRAME);
+  ret = HAL_I2C_Master_Sequential_Receive_IT (&I2cHandle, 0x3A, buf, 6, I2C_LAST_FRAME);
   if (ret != HAL_OK)
     printf ("i2c4 read error\n");
 
@@ -152,64 +160,64 @@ void lsm303dlhc_read_la (uint8_t* buf) {
   }
 //}}}
 //{{{
-void lsm303dlhc_read_la_b (uint8_t* buf) {
+void lsm303c_read_la_b (uint8_t* buf) {
 
   uint8_t reg = OUT_X_L_A | 0b10000000;
 
-  HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit(&I2cHandle, LA_ADDRESS, &reg, 1, 1000);
+  HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit_IT (&I2cHandle, 0x3A, &reg, 1);
   if (ret != HAL_OK)
     printf ("i2c4 readb error\n");
 
-  ret = HAL_I2C_Master_Receive(&I2cHandle, LA_ADDRESS, buf, 6, 1000);
+  ret = HAL_I2C_Master_Receive_IT (&I2cHandle, 0x3A, buf, 6);
   if (ret != HAL_OK)
     printf ("i2c4 readb error\n");
   }
 //}}}
 
 //{{{
-void lsm303dlhc_init_mf() {
+void lsm303c_init_mf() {
 
   uint8_t init[2][2] = {
       {CRB_REG_M, (uint8_t)0x20},
       {MR_REG_M, (uint8_t)0x00}
     };
 
-  HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit(&I2cHandle, MF_ADDRESS, init[0], 2, 1000);
+  HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit_IT (&I2cHandle, 0x3c, init[0], 2);
   if (ret != HAL_OK)
     return;
 
-  ret = HAL_I2C_Master_Transmit(&I2cHandle, MF_ADDRESS, init[1], 2, 1000);
+  ret = HAL_I2C_Master_Transmit_IT (&I2cHandle, 0x3c, init[1], 2);
   if (ret != HAL_OK)
     return;
   }
 //}}}
 //{{{
-void lsm303dlhc_read_mf (uint8_t *buf) {
+void lsm303c_read_mf (uint8_t *buf) {
 
   uint8_t reg = OUT_X_H_M;
 
-  HAL_StatusTypeDef ret = HAL_I2C_Master_Sequential_Transmit_IT(&I2cHandle, MF_ADDRESS, &reg, 1, I2C_FIRST_FRAME);
+  HAL_StatusTypeDef ret = HAL_I2C_Master_Sequential_Transmit_IT (&I2cHandle, 0x3c, &reg, 1, I2C_FIRST_FRAME);
   if (ret != HAL_OK)
       return;
   while (!__HAL_I2C_GET_FLAG(&I2cHandle, I2C_FLAG_TC));
 
-  ret = HAL_I2C_Master_Sequential_Receive_IT(&I2cHandle, MF_ADDRESS, buf, 6, I2C_LAST_FRAME);
+  ret = HAL_I2C_Master_Sequential_Receive_IT (&I2cHandle, 0x3c, buf, 6, I2C_LAST_FRAME);
   if (ret != HAL_OK)
     return;
   while (I2cHandle.State != HAL_I2C_STATE_READY);
   }
 //}}}
 //{{{
-void lsm303dlhc_read_mf_b (uint8_t *buf) {
+void lsm303c_read_mf_b (uint8_t *buf) {
 
   uint8_t reg = OUT_X_H_M;
 
-  HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit(&I2cHandle, MF_ADDRESS, &reg, 1, 1000);
+  HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit_IT (&I2cHandle, 0x3c, &reg, 1);
   if (ret != HAL_OK)
     return;
 
 
-  ret = HAL_I2C_Master_Receive(&I2cHandle, MF_ADDRESS, buf, 6, 1000);
+  ret = HAL_I2C_Master_Receive_IT (&I2cHandle, 0x3c, buf, 6);
   if (ret != HAL_OK)
     return;
   }
