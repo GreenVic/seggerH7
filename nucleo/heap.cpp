@@ -463,10 +463,8 @@ size_t getDtcmMinFreeSize() { return mDtcmHeap ? mDtcmHeap->getMinFreeSize() : 0
 cRtosHeap* mSramHeap = nullptr;
 //{{{
 void* pvPortMalloc (size_t size) {
-
   if (!mSramHeap)
     mSramHeap = new cRtosHeap (0x24010000, 0x00070000, false);
-
   return mSramHeap->alloc (size, "");
   }
 //}}}
@@ -511,8 +509,7 @@ cSdRamHeap* mSdRamHeap = nullptr;
 uint8_t* sdRamAlloc (size_t size, const std::string& tag) {
 
   if (!mSdRamHeap)
-    mSdRamHeap = new cSdRamHeap (0xD0000000, 0x08000000, true);
-
+    mSdRamHeap = new cSdRamHeap (0xD0000000, 0x08000000, false);
   return mSdRamHeap->alloc (size, tag);
   }
 //}}}
