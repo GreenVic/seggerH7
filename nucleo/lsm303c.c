@@ -1,5 +1,5 @@
 // lsm303.c
-#include "lsm303dlhc.h"
+#include "lsm303c.h"
 
 static const uint8_t LA_ADDRESS = 0x3A;
 static const uint8_t MF_ADDRESS = 0x3c;

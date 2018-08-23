@@ -12,7 +12,7 @@
 #include "cLcd.h"
 #include "sd.h"
 #include "jpeg.h"
-#include "lsm303dlhc.h"
+#include "lsm303c.h"
 
 #include "../fatFs/ff.h"
 
