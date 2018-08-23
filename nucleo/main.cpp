@@ -12,9 +12,10 @@
 #include "cLcd.h"
 #include "sd.h"
 #include "jpeg.h"
+#include "lsm303dlhc.h"
 
 #include "../fatFs/ff.h"
-  
+
 using namespace std;
 //}}}
 
@@ -191,6 +192,10 @@ void uiThread (void* arg) {
 //}}}
 //{{{
 void appThread (void* arg) {
+
+  //lsm303dlhc_init_la();
+  //uint8_t buf[100];
+  //lsm303dlhc_read_la (buf);
 
   bool hwJpeg = BSP_PB_GetState (BUTTON_KEY) == 0;
 
@@ -526,10 +531,7 @@ int main() {
   SCB_EnableDCache();
   mpuConfig();
 
-  BSP_LED_Init (LED_GREEN);
-  BSP_LED_Init (LED_BLUE);
   BSP_LED_Init (LED_RED);
-
   BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_GPIO);
 
   printf ("%s\n", kHello.c_str());
