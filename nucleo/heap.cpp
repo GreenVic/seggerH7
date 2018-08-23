@@ -252,7 +252,9 @@ class cSdRamHeap : public cHeap {
 public:
   //{{{
   cSdRamHeap (uint32_t start, size_t size, bool debug) : cHeap(size, debug) {
-    mFirst = new cBlock ((uint8_t*)start, size, false, "free");
+    mBlocks[0].mAddress = (uint8_t*)start;
+    mBlocks[0].mSize = size;
+    mBlocks[0].mAllocate = cBlock::eFree;
     }
   //}}}
 
@@ -263,19 +265,17 @@ public:
 
     vTaskSuspendAll();
 
-    auto block = mFirst;
+    auto block = mBlocks;
     while (block) {
-      if ((!block->mAllocated) && (size <= block->mSize)) {
-        block->mAllocated = true;
+      if ((block->mAllocate == cBlock::eFree) && (size <= block->mSize)) {
+        block->mAllocate = cBlock::eAllocated;
         if (size < block->mSize) {
-          //printf ("cSdRamHeap::alloc - split block %x:%x\n", size, block->mSize);
-          auto newFreeBlock = new cBlock (block->mAddress+size, block->mSize-size, false, "free");
+          // split block
+          auto newFreeBlock = newBlock (block->mAddress+size, block->mSize-size, cBlock::eFree, "free");
           newFreeBlock->mNext = block->mNext;
           block->mSize = size;
           block->mNext = newFreeBlock;
           }
-        //else
-        //  printf ("cSdRamHeap::alloc - reallocate free block %x\n", size);
         block->mTag = tag;
 
         mFreeSize -= size;
@@ -309,32 +309,32 @@ public:
 
       vTaskSuspendAll();
 
-      auto block = mFirst;
+      auto block = mBlocks;
       cBlock* prevBlock = nullptr;
       while (block) {
         if (block->mAddress == ptr) {
-          if (!block->mAllocated)
+          if (block->mAllocate != cBlock::eAllocated)
             printf ("**** free block not free\n");
           else {
             // free block
             if (mDebug)
               printf ("free block %x %s\n", block->mSize, block->mTag.c_str());
-            block->mAllocated = false;
+            block->mAllocate = cBlock::eFree;
             block->mTag = "free";
             mFreeSize += block->mSize;
 
             auto nextBlock = block->mNext;
-            if (nextBlock && (!nextBlock->mAllocated)) {
-              //printf ("- combine with next free block %x + %x\n", block->mSize, block->mNext->mSize);
+            if (nextBlock && (nextBlock->mAllocate == cBlock::eFree)) {
+              printf ("- combine with next free block %x + %x\n", block->mSize, block->mNext->mSize);
               block->mSize += nextBlock->mSize;
               block->mNext = nextBlock->mNext;
-              delete (nextBlock);
+              nextBlock->mAllocate = cBlock::eUnused;
               }
-            if (prevBlock && (!prevBlock->mAllocated)) {
-              //printf ("- combine with prev free block %x + %x\n", prevBlock->mSize, block->mSize);
+            if (prevBlock && (prevBlock->mAllocate == cBlock::eFree)) {
+              printf ("- combine with prev free block %x + %x\n", prevBlock->mSize, block->mSize);
               prevBlock->mSize += block->mSize;
               prevBlock->mNext = block->mNext;
-              delete (block);
+              block->mAllocate = cBlock::eUnused;
               }
             }
           break;
@@ -355,39 +355,44 @@ public:
     }
   //}}}
 
+  //{{{
   virtual size_t getLargestFreeSize() {
 
-    size_t largestFreeSize = 0;
-    auto block = mFirst;
+    mLargestFreeSize = 0;
+    auto block = mBlocks;
     while (block) {
-      if (!block->mAllocated && (block->mSize > largestFreeSize))
-        largestFreeSize = block->mSize;
+      if ((block->mAllocate == cBlock::eFree) && (block->mSize > mLargestFreeSize))
+        mLargestFreeSize = block->mSize;
       block = block->mNext;
       }
-    return largestFreeSize;
+    return mLargestFreeSize;
     }
+  //}}}
 
 private:
   //{{{
   class cBlock {
   public:
-    cBlock (uint8_t* address, uint32_t size, bool allocated, const std::string& tag) :
-      mAddress(address), mSize(size), mAllocated(allocated), mTag(tag) {}
+    enum eAllocate { eFree, eAllocated, eUnused };
+
+    cBlock() {}
+    cBlock (uint8_t* address, uint32_t size, eAllocate allocate, const std::string& tag) :
+      mAddress(address), mSize(size), mAllocate(allocate), mTag(tag) {}
 
     cBlock* mNext = nullptr;
     uint8_t* mAddress = nullptr;
     uint32_t mSize = 0;
-    bool mAllocated = false;
+    eAllocate mAllocate = eUnused;
     std::string mTag;
     };
   //}}}
   //{{{
   void list() {
 
-    auto block = mFirst;
+    auto block = mBlocks;
     while (block) {
-      printf ("block %p %7x %c %s\n",
-              block->mAddress, block->mSize, block->mAllocated ? 'a' : 'f', block->mTag.c_str());
+      printf ("block %p %7x %d %s\n",
+              block->mAddress, block->mSize, block->mAllocate, block->mTag.c_str());
       block = block->mNext;
       }
     printf ("-------------------------\n");
@@ -401,13 +406,14 @@ private:
 
     size_t size = 0;
     cBlock* prevBlock = nullptr;
-    auto block = mFirst;
+    auto block = mBlocks;
     while (block) {
       size += block->mSize;
       if (prevBlock && (prevBlock->mAddress + prevBlock->mSize != block->mAddress))
         addressOk = false;
-      if (!block->mAllocated &&
-          ((block->mNext && (!block->mNext->mAllocated)) || (prevBlock && (!prevBlock->mAllocated))))
+      if ((block->mAllocate == cBlock::eFree) &&
+          ((block->mNext && (block->mNext->mAllocate == cBlock::eFree)) ||
+           (prevBlock && (prevBlock->mAllocate == cBlock::eFree))))
         freeOk = false;
       prevBlock = block;
       block = block->mNext;
@@ -416,8 +422,26 @@ private:
     return addressOk && freeOk && (size == mSize);
     }
   //}}}
+  //{{{
+  cBlock* newBlock (uint8_t* address, uint32_t size, cBlock::eAllocate allocate, const std::string& tag) {
 
-  cBlock* mFirst = nullptr;
+    for (int i = 0; i < 10; i++)
+      if (mBlocks[i].mAllocate == cBlock::eUnused) {
+        auto block = &mBlocks[i];
+        block->mNext = nullptr;
+        block->mAddress = address;
+        block->mSize = size;
+        block->mAllocate = allocate;
+        block->mTag = tag;
+        return block;
+        }
+
+    printf ("**** newBlock failed\n");
+    return nullptr;
+    }
+  //}}}
+
+  cBlock mBlocks[20];
   };
 //}}}
 
@@ -487,7 +511,7 @@ cSdRamHeap* mSdRamHeap = nullptr;
 uint8_t* sdRamAlloc (size_t size, const std::string& tag) {
 
   if (!mSdRamHeap)
-    mSdRamHeap = new cSdRamHeap (0xD0000000, 0x08000000, false);
+    mSdRamHeap = new cSdRamHeap (0xD0000000, 0x08000000, true);
 
   return mSdRamHeap->alloc (size, tag);
   }

@@ -14,7 +14,7 @@
 #include "jpeg.h"
 
 #include "../fatFs/ff.h"
-
+  
 using namespace std;
 //}}}
 
