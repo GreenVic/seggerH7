@@ -70,7 +70,8 @@ private:
       int16_t height = bottom - top;
       auto midy = top + height/2;
 
-      for (int i = (mMax/1000) * 1000; i > mMin; i -= 1000)  {
+      auto grid = range > 10000 ? 5000 : 1000;
+      for (int i = (mMax/1000) * grid; i > mMin; i -= grid)  {
         auto gridy = (i * height) / (range * 2);
         lcd->rectClipped (COL_GREY, cRect(0, midy - gridy, lcd->getWidth(), midy - gridy + 1));
         }

@@ -133,7 +133,7 @@ void lsm303c_init_la() {
   else
     printf ("whoami la %x\n", buf);
 
-  uint8_t init[2] =  {CTRL_REG1_A, ODR_50Hz | Xen | Yen | Zen };
+  uint8_t init[2] =  {CTRL_REG1_A, ODR_200Hz | Xen | Yen | Zen };
   if (HAL_I2C_Master_Transmit (&I2cHandle, LA_ADDRESS, init, 2, 10000)  != HAL_OK)
     printf ("lsm303c_init_la tx ctrl_reg1_a error\n");
   }

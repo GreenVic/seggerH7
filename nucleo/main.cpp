@@ -15,6 +15,7 @@
 #include "lsm303c.h"
 
 #include "../fatFs/ff.h"
+#include "../common/cTraceVec.h"
 
 using namespace std;
 //}}}
@@ -35,6 +36,8 @@ int gCount = 0;
 
 __IO bool gShow = false;
 __IO cTile* showTile[2] = { nullptr, nullptr };
+
+cTraceVec mTraceVec;
 
 //extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
@@ -159,6 +162,7 @@ void uiThread (void* arg) {
       lcd->setShowInfo (BSP_PB_GetState (BUTTON_KEY) == 0);
       lcd->drawInfo();
 
+      mTraceVec.draw (lcd, 20, lcd->getHeight()-40);
       //{{{  draw clock
       float hourAngle;
       float minuteAngle;
@@ -272,14 +276,18 @@ void appThread (void* arg) {
     if (lsm303c_read_la_status() & 0x07) {
       int16_t la[3] = { 0 };
       lsm303c_read_la (la);
-      lcd->info (COL_YELLOW, "LA x:" + dec(la[0]) + " y:" + dec(la[1]) + " z:" + dec(la[2]));
+      //lcd->info (COL_YELLOW, "LA x:" + dec(la[0]) + " y:" + dec(la[1]) + " z:" + dec(la[2]));
+      mTraceVec.addSample (0, la[0]);
+      mTraceVec.addSample (1, la[1]);
+      mTraceVec.addSample (2, la[2]);
+      lcd->change();
       }
     if (lsm303c_read_mf_status() & 0x07) {
       int16_t mf[3] = { 0 };
       lsm303c_read_mf (mf);
       lcd->info (COL_YELLOW, "MF x:" + dec(mf[0]) + " y:" + dec(mf[1]) + " z:" + dec(mf[2]));
       }
-    vTaskDelay (10);
+    vTaskDelay (2);
     }
   }
 //}}}
@@ -544,6 +552,7 @@ int main() {
   BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_GPIO);
 
   printf ("%s\n", kHello.c_str());
+  mTraceVec.addTrace (1024, 1, 3);
 
   mRtc = new cRtc();
   mRtc->init();
