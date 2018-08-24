@@ -9,11 +9,11 @@
 
 void lsm303c_init_la();
 uint8_t lsm303c_read_la_status();
-void lsm303c_read_la (uint8_t* buf);
+void lsm303c_read_la (int16_t* buf);
 
 void lsm303c_init_mf();
-void lsm303c_read_mf (uint8_t *buf);
-void lsm303c_read_mf_b (uint8_t *buf);
+uint8_t lsm303c_read_mf_status();
+void lsm303c_read_mf (int16_t* buf);
 
 //{{{
 #ifdef __cplusplus

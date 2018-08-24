@@ -194,12 +194,7 @@ void uiThread (void* arg) {
 void appThread (void* arg) {
 
   lsm303c_init_la();
-  for (int i = 0; i < 40; i++) {
-    while (!(lsm303c_read_la_status() & 0x07)) {}
-    uint8_t buf[6] = { 0 };
-    lsm303c_read_la (buf);
-    printf ("buf %x %x %x %x %x %x\n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
-    }
+  lsm303c_init_mf();
 
   bool hwJpeg = BSP_PB_GetState (BUTTON_KEY) == 0;
 
@@ -274,8 +269,17 @@ void appThread (void* arg) {
   //    vTaskDelay (200);
   //    }
   while (true) {
-    vTaskDelay (1000);
-    lcd->change();
+    if (lsm303c_read_la_status() & 0x07) {
+      int16_t la[3] = { 0 };
+      lsm303c_read_la (la);
+      lcd->info (COL_YELLOW, "LA x:" + dec(la[0]) + " y:" + dec(la[1]) + " z:" + dec(la[2]));
+      }
+    if (lsm303c_read_mf_status() & 0x07) {
+      int16_t mf[3] = { 0 };
+      lsm303c_read_mf (mf);
+      lcd->info (COL_YELLOW, "MF x:" + dec(mf[0]) + " y:" + dec(mf[1]) + " z:" + dec(mf[2]));
+      }
+    vTaskDelay (10);
     }
   }
 //}}}
