@@ -81,6 +81,7 @@ static const uint8_t TEMP_H_M     = 0x2F;
 
 static const uint8_t INT_CFG_M    = 0x30;
 static const uint8_t INT_SRC_M    = 0x31;
+
 static const uint8_t INT_THS_L_M  = 0x32;
 static const uint8_t INT_THS_H_M  = 0x33;
 //}}}
@@ -132,7 +133,7 @@ void lsm303c_init_la() {
   else
     printf ("whoami la %x\n", buf);
 
-  uint8_t init[2] =  {CTRL_REG1_A, ODR_200Hz | Xen | Yen | Zen };
+  uint8_t init[2] =  {CTRL_REG1_A, ODR_50Hz | Xen | Yen | Zen };
   if (HAL_I2C_Master_Transmit (&I2cHandle, LA_ADDRESS, init, 2, 10000)  != HAL_OK)
     printf ("lsm303c_init_la tx ctrl_reg1_a error\n");
   }
@@ -178,8 +179,8 @@ void lsm303c_init_mf() {
   else
     printf ("whoami mf %x\n", buf);
 
-  uint8_t init[2] =  {CTRL_REG1_M, ODR_200Hz | Xen | Yen | Zen };
-  if (HAL_I2C_Master_Transmit (&I2cHandle, LA_ADDRESS, init, 2, 10000)  != HAL_OK)
+  uint8_t init[2] =  {CTRL_REG1_M, 0x70 };
+  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, init, 2, 10000)  != HAL_OK)
     printf ("lsm303c_init_la tx ctrl_reg1_a error\n");
   }
 //}}}
@@ -200,7 +201,7 @@ uint8_t lsm303c_read_mf_status() {
 //{{{
 void lsm303c_read_mf (int16_t* buf) {
 
-  uint8_t reg = OUT_X_H_M;
+  uint8_t reg = OUT_X_L_M;
   if (HAL_I2C_Master_Sequential_Transmit_IT (&I2cHandle, MF_ADDRESS, &reg, 1, I2C_FIRST_FRAME) != HAL_OK) {
     printf ("lsm303c_read_mf tx error\n");
     return;
