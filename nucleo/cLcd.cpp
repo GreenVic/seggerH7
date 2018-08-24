@@ -932,7 +932,7 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   //
   //  CK <-> PG.07
   //  DE <-> PF.10
-  // ADJ <-> PD.13
+  // ADJ <-> PB.07
 
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
@@ -991,7 +991,7 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
 
 
   //}}}
-  //{{{  adj PWM - PD13
+  //{{{  adj PWM - PB07
   __HAL_RCC_TIM4_CLK_ENABLE();
 
   GPIO_InitStructure.Mode = GPIO_MODE_AF_PP;

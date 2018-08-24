@@ -194,6 +194,11 @@ void uiThread (void* arg) {
 void appThread (void* arg) {
 
   lsm303c_init_la();
+  for (int i = 0; i < 100; i++) {
+    uint8_t buf[6] = { 0 };
+    lsm303c_read_la (buf);
+    printf ("buf %x %x %x %x %x %x\n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+    }
 
   bool hwJpeg = BSP_PB_GetState (BUTTON_KEY) == 0;
 
@@ -315,8 +320,8 @@ void clockConfig() {
   rccOscInit.PLL.PLLM = 4;
   rccOscInit.PLL.PLLN = 400;
   rccOscInit.PLL.PLLP = 2;
-  rccOscInit.PLL.PLLR = 2;
   rccOscInit.PLL.PLLQ = 4;
+  rccOscInit.PLL.PLLR = 2;
   rccOscInit.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
   rccOscInit.PLL.PLLRGE = RCC_PLL1VCIRANGE_2;
   HAL_RCC_OscConfig (&rccOscInit);
@@ -333,7 +338,8 @@ void clockConfig() {
   rccClkInit.APB2CLKDivider = RCC_APB2_DIV2;
   rccClkInit.APB3CLKDivider = RCC_APB3_DIV2;
   rccClkInit.APB4CLKDivider = RCC_APB4_DIV2;
-  HAL_RCC_ClockConfig (&rccClkInit, FLASH_LATENCY_4);
+  HAL_RCC_ClockConfig (&rccClkInit, FLASH_LATENCY_2);
+  //HAL_RCC_ClockConfig (&rccClkInit, FLASH_LATENCY_4);
 
   // PLL3_VCO In  = HSE_VALUE / PLL3M = 1 Mhz
   // PLL3_VCO Out = PLL3_VCO In * PLL3N = 100 Mhz
