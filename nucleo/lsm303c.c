@@ -111,8 +111,8 @@ void lsm303c_init_la() {
     printf ("HAL_I2C_Init error\n");
 
   HAL_I2CEx_ConfigAnalogFilter (&I2cHandle, I2C_ANALOGFILTER_ENABLE);
-  uint8_t reg = WHO_AM_I_A;
 
+  uint8_t reg = WHO_AM_I_A;
   if (HAL_I2C_Master_Transmit (&I2cHandle, LA_ADDRESS, &reg, 1, 10000) != HAL_OK)
     printf ("lsm303c_init_la id tx error\n");
 
@@ -125,6 +125,22 @@ void lsm303c_init_la() {
   uint8_t init[2] =  {CTRL_REG1_A, ODR_800Hz | Xen | Yen | Zen };
   if (HAL_I2C_Master_Transmit (&I2cHandle, LA_ADDRESS, init, 2, 10000)  != HAL_OK)
     printf ("lsm303c_init_la tx ctrl_reg1_a error\n");
+  }
+//}}}
+//{{{
+uint8_t lsm303c_read_la_status() {
+
+  uint8_t reg = STATUS_REG_A;
+  if (HAL_I2C_Master_Transmit (&I2cHandle, LA_ADDRESS, &reg, 1, 10000) != HAL_OK)
+    printf ("lsm303c_read_la_status id tx error\n");
+
+  uint8_t buf[4] = {0};
+  if (HAL_I2C_Master_Receive (&I2cHandle, LA_ADDRESS, buf, 1, 10000) != HAL_OK)
+    printf ("lsm303c_read_la_status id rx error\n");
+  //else
+  //  printf ("STATUS_REG_A %x\n", buf[0]);
+
+  return buf[0];
   }
 //}}}
 //{{{

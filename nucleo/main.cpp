@@ -194,7 +194,8 @@ void uiThread (void* arg) {
 void appThread (void* arg) {
 
   lsm303c_init_la();
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < 40; i++) {
+    while (!(lsm303c_read_la_status() & 0x07)) {}
     uint8_t buf[6] = { 0 };
     lsm303c_read_la (buf);
     printf ("buf %x %x %x %x %x %x\n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);

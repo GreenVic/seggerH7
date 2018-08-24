@@ -8,7 +8,7 @@
 //}}}
 
 void lsm303c_init_la();
-void lsm303c_read_la_b (uint8_t* buf);
+uint8_t lsm303c_read_la_status();
 void lsm303c_read_la (uint8_t* buf);
 
 void lsm303c_init_mf();
