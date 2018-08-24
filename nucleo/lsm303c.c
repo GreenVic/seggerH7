@@ -179,9 +179,15 @@ void lsm303c_init_mf() {
   else
     printf ("whoami mf %x\n", buf);
 
-  uint8_t init[2] =  {CTRL_REG1_M, 0x70 };
-  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, init, 2, 10000)  != HAL_OK)
-    printf ("lsm303c_init_la tx ctrl_reg1_a error\n");
+  uint8_t init1[2] =  {CTRL_REG1_M, 0x50 };
+  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, init1, 2, 10000)  != HAL_OK)
+    printf ("lsm303c_init_la 1 tx ctrl_reg1_a error\n");
+  uint8_t init2[2] =  {CTRL_REG2_M, 0x60 };
+  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, init2, 2, 10000)  != HAL_OK)
+    printf ("lsm303c_init_la 2 tx ctrl_reg1_a error\n");
+  uint8_t init3[2] =  {CTRL_REG3_M, 0x00 };
+  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, init3, 2, 10000)  != HAL_OK)
+    printf ("lsm303c_init_la 3 tx ctrl_reg1_a error\n");
   }
 //}}}
 //{{{
