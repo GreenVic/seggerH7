@@ -164,7 +164,7 @@ void uiThread (void* arg) {
       lcd->setShowInfo (BSP_PB_GetState (BUTTON_KEY) == 0);
       lcd->drawInfo();
 
-      mTraceVec.draw (lcd, 20, lcd->getHeight()-40);
+      mTraceVec.draw (lcd, 20, 450);
       //{{{  draw clock
       float hourAngle;
       float minuteAngle;
@@ -272,9 +272,7 @@ void appThread (void* arg) {
   //    vTaskDelay (200);
   //    }
 
-  lsm303c_init_la();
-  lsm303c_init_mf();
-
+  lsm303c_init();
   while (true) {
     while (lsm303c_read_la_ready()) {
       lsm303c_read_la (la);
