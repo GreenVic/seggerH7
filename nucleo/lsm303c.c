@@ -61,6 +61,8 @@ static const uint8_t Xen       = 0x01;
 static const uint8_t SIM       = 0x01;
 //}}}
 //{{{  magnetic field register addesses
+static const uint8_t WHO_AM_I_M   = 0x0F;
+
 static const uint8_t CTRL_REG1_M  = 0x20;
 static const uint8_t CTRL_REG2_M  = 0x21;
 static const uint8_t CTRL_REG3_M  = 0x22;
@@ -96,6 +98,7 @@ void lsm303c_init_la() {
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_I2C4_CLK_ENABLE();
 
+  //{{{  gpio init
   GPIO_InitTypeDef  GPIO_InitStruct;
   GPIO_InitStruct.Pin = GPIO_PIN_12 | GPIO_PIN_13;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
@@ -103,12 +106,8 @@ void lsm303c_init_la() {
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   GPIO_InitStruct.Alternate = GPIO_AF4_I2C4;
   HAL_GPIO_Init (GPIOD, &GPIO_InitStruct);
-
-  HAL_NVIC_SetPriority (I2C4_ER_IRQn, 0, 1);
-  HAL_NVIC_EnableIRQ (I2C4_ER_IRQn);
-  HAL_NVIC_SetPriority (I2C4_EV_IRQn, 0, 2);
-  HAL_NVIC_EnableIRQ (I2C4_EV_IRQn);
-
+  //}}}
+  //{{{  i2c init
   I2cHandle.Instance = I2C4;
   I2cHandle.Init.Timing = 0x20601138;
   I2cHandle.Init.OwnAddress1 = 0;
@@ -120,6 +119,11 @@ void lsm303c_init_la() {
   I2cHandle.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
   if (HAL_I2C_Init (&I2cHandle) != HAL_OK)
     printf ("HAL_I2C_Init error\n");
+  //}}}
+  HAL_NVIC_SetPriority (I2C4_ER_IRQn, 0, 1);
+  HAL_NVIC_EnableIRQ (I2C4_ER_IRQn);
+  HAL_NVIC_SetPriority (I2C4_EV_IRQn, 0, 2);
+  HAL_NVIC_EnableIRQ (I2C4_EV_IRQn);
 
   HAL_I2CEx_ConfigAnalogFilter (&I2cHandle, I2C_ANALOGFILTER_ENABLE);
 
@@ -136,6 +140,26 @@ void lsm303c_init_la() {
   uint8_t init[2] =  {CTRL_REG1_A, ODR_200Hz | Xen | Yen | Zen };
   if (HAL_I2C_Master_Transmit (&I2cHandle, LA_ADDRESS, init, 2, 10000)  != HAL_OK)
     printf ("lsm303c_init_la tx ctrl_reg1_a error\n");
+
+  reg = WHO_AM_I_M;
+  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, &reg, 1, 10000) != HAL_OK)
+    printf ("lsm303c_init_mf tx error\n");
+
+  buf = 0;
+  if (HAL_I2C_Master_Receive (&I2cHandle, MF_ADDRESS, &buf, 1, 10000) != HAL_OK)
+    printf ("lsm303c_init_mf rx error\n");
+  else
+    printf ("whoami mf %x\n", buf);
+
+  uint8_t init1[2] =  {CTRL_REG1_M, 0x50 };
+  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, init1, 2, 10000)  != HAL_OK)
+    printf ("lsm303c_init_la 1 tx ctrl_reg1_a error\n");
+  uint8_t init2[2] =  {CTRL_REG2_M, 0x60 };
+  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, init2, 2, 10000)  != HAL_OK)
+    printf ("lsm303c_init_la 2 tx ctrl_reg1_a error\n");
+  uint8_t init3[2] =  {CTRL_REG3_M, 0x00 };
+  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, init3, 2, 10000)  != HAL_OK)
+    printf ("lsm303c_init_la 3 tx ctrl_reg1_a error\n");
   }
 //}}}
 //{{{
@@ -169,25 +193,6 @@ void lsm303c_read_la (int16_t* buf) {
 //{{{
 void lsm303c_init_mf() {
 
-  uint8_t reg = WHO_AM_I_A;
-  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, &reg, 1, 10000) != HAL_OK)
-    printf ("lsm303c_init_mf tx error\n");
-
-  uint8_t buf = 0;
-  if (HAL_I2C_Master_Receive (&I2cHandle, MF_ADDRESS, &buf, 1, 10000) != HAL_OK)
-    printf ("lsm303c_init_mf rx error\n");
-  else
-    printf ("whoami mf %x\n", buf);
-
-  uint8_t init1[2] =  {CTRL_REG1_M, 0x50 };
-  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, init1, 2, 10000)  != HAL_OK)
-    printf ("lsm303c_init_la 1 tx ctrl_reg1_a error\n");
-  uint8_t init2[2] =  {CTRL_REG2_M, 0x60 };
-  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, init2, 2, 10000)  != HAL_OK)
-    printf ("lsm303c_init_la 2 tx ctrl_reg1_a error\n");
-  uint8_t init3[2] =  {CTRL_REG3_M, 0x00 };
-  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, init3, 2, 10000)  != HAL_OK)
-    printf ("lsm303c_init_la 3 tx ctrl_reg1_a error\n");
   }
 //}}}
 //{{{

@@ -197,9 +197,6 @@ void uiThread (void* arg) {
 //{{{
 void appThread (void* arg) {
 
-  lsm303c_init_la();
-  lsm303c_init_mf();
-
   bool hwJpeg = BSP_PB_GetState (BUTTON_KEY) == 0;
 
   char sdPath[4];
@@ -272,6 +269,10 @@ void appThread (void* arg) {
   //    sdRamTest (uint16_t(offset++), (uint16_t*)(SDRAM_DEVICE_ADDR + (j * 0x00200000)), 0x00200000);
   //    vTaskDelay (200);
   //    }
+
+  lsm303c_init_la();
+  lsm303c_init_mf();
+
   while (true) {
     if (lsm303c_read_la_status() & 0x07) {
       int16_t la[3] = { 0 };
