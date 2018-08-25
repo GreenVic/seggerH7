@@ -46,7 +46,7 @@
       <file file_name="cRtc.cpp" />
       <file file_name="jpeg.cpp" />
       <file file_name="heap.cpp" />
-      <file file_name="lsm303c.c" />
+      <file file_name="lsm303c.cpp" />
     </folder>
     <folder Name="RTT Files">
       <configuration Name="Common" macros="STLport=No" />
