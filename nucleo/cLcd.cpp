@@ -117,7 +117,7 @@ static const uint8_t CLAMP_LUT[] = {
 //}}}
 
 //{{{
-extern "C" {void LTDC_IRQHandler() {
+extern "C" { void LTDC_IRQHandler() {
 
   // line Interrupt
   if ((LTDC->ISR & LTDC_FLAG_LI) != RESET) {
@@ -142,7 +142,7 @@ extern "C" {void LTDC_IRQHandler() {
 }
 //}}}
 //{{{
-extern "C" {void LTDC_ER_IRQHandler() {
+extern "C" { void LTDC_ER_IRQHandler() {
 
   // transfer Error Interrupt
   if ((LTDC->ISR &  LTDC_FLAG_TE) != RESET) {
