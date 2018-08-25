@@ -8,11 +8,11 @@
 //}}}
 
 void lsm303c_init_la();
-uint8_t lsm303c_read_la_status();
+bool lsm303c_read_la_ready();
 void lsm303c_read_la (int16_t* buf);
 
 void lsm303c_init_mf();
-uint8_t lsm303c_read_mf_status();
+bool lsm303c_read_mf_ready();
 void lsm303c_read_mf (int16_t* buf);
 
 //{{{

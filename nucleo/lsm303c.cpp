@@ -1,4 +1,4 @@
-// lsm303.c
+// lsm303c.cpp
 #include "lsm303c.h"
 
 static const uint8_t LA_ADDRESS = 0x3A;
@@ -163,7 +163,7 @@ void lsm303c_init_la() {
   }
 //}}}
 //{{{
-uint8_t lsm303c_read_la_status() {
+bool lsm303c_read_la_ready() {
 
   uint8_t reg = STATUS_REG_A;
   if (HAL_I2C_Master_Transmit (&I2cHandle, LA_ADDRESS, &reg, 1, 1000) != HAL_OK)
@@ -173,7 +173,7 @@ uint8_t lsm303c_read_la_status() {
   if (HAL_I2C_Master_Receive (&I2cHandle, LA_ADDRESS, &buf, 1, 1000) != HAL_OK)
     printf ("lsm303c_read_la_status id rx error\n");
 
-  return buf;
+  return buf & 0x07;
   }
 //}}}
 //{{{
@@ -196,7 +196,7 @@ void lsm303c_init_mf() {
   }
 //}}}
 //{{{
-uint8_t lsm303c_read_mf_status() {
+bool lsm303c_read_mf_ready() {
 
   uint8_t reg = STATUS_REG_M;
   if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, &reg, 1, 10000) != HAL_OK)
@@ -206,7 +206,7 @@ uint8_t lsm303c_read_mf_status() {
   if (HAL_I2C_Master_Receive (&I2cHandle, MF_ADDRESS, &buf, 1, 10000) != HAL_OK)
     printf ("lsm303c_read_mf_status id rx error\n");
 
-  return buf;
+  return buf & 0x07;
   }
 //}}}
 //{{{

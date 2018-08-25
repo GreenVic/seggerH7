@@ -38,6 +38,8 @@ __IO bool gShow = false;
 __IO cTile* showTile[2] = { nullptr, nullptr };
 
 cTraceVec mTraceVec;
+int16_t la[3] = { 0 };
+int16_t mf[3] = { 0 };
 
 //extern "C" { void EXTI15_10_IRQHandler() { HAL_GPIO_EXTI_IRQHandler (USER_BUTTON_PIN); } }
 //{{{
@@ -274,17 +276,13 @@ void appThread (void* arg) {
   lsm303c_init_mf();
 
   while (true) {
-    if (lsm303c_read_la_status() & 0x07) {
-      int16_t la[3] = { 0 };
+    while (lsm303c_read_la_ready()) {
       lsm303c_read_la (la);
-      //lcd->info (COL_YELLOW, "LA x:" + dec(la[0]) + " y:" + dec(la[1]) + " z:" + dec(la[2]));
       mTraceVec.addSample (0, la[0]);
       mTraceVec.addSample (1, la[1]);
       mTraceVec.addSample (2, la[2]);
-      lcd->change();
       }
-    if (lsm303c_read_mf_status() & 0x07) {
-      int16_t mf[3] = { 0 };
+    while (lsm303c_read_mf_ready()) {
       lsm303c_read_mf (mf);
       lcd->info (COL_YELLOW, "MF x:" + dec(mf[0]) + " y:" + dec(mf[1]) + " z:" + dec(mf[2]));
       }
