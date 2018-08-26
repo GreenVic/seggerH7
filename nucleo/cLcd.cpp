@@ -697,21 +697,21 @@ void cLcd::yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t 
 
 // cTile
 //{{{
-void cLcd::copy (cTile* srcTile, cPoint p) {
+void cLcd::copy (cTile* tile, cPoint p) {
 
   if (!xSemaphoreTake (mLockSem, 5000))
     printf ("cLcd take fail\n");
 
-  uint16_t width = p.x + srcTile->mWidth > getWidth() ? getWidth() - p.x : srcTile->mWidth;
-  uint16_t height = p.y + srcTile->mHeight > getHeight() ? getHeight() - p.y : srcTile->mHeight;
+  uint16_t width = p.x + tile->mWidth > getWidth() ? getWidth() - p.x : tile->mWidth;
+  uint16_t height = p.y + tile->mHeight > getHeight() ? getHeight() - p.y : tile->mHeight;
 
   DMA2D->FGPFCCR = DMA2D_INPUT_RGB565;
-  DMA2D->FGMAR = (uint32_t)srcTile->mPiccy;
-  DMA2D->FGOR = srcTile->mPitch - width;
+  DMA2D->FGMAR = (uint32_t)tile->mPiccy;
+  DMA2D->FGOR = tile->mPitch - width;
 
   DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
   DMA2D->OMAR = uint32_t(mBuffer[mDrawBuffer] + (p.y * getWidth()) + p.x);
-  DMA2D->OOR = getWidth() > srcTile->mWidth ? getWidth() - srcTile->mWidth : 0;
+  DMA2D->OOR = getWidth() > tile->mWidth ? getWidth() - tile->mWidth : 0;
 
   DMA2D->NLR = (width << 16) | height;
   DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
@@ -723,12 +723,12 @@ void cLcd::copy (cTile* srcTile, cPoint p) {
   }
 //}}}
 //{{{
-void cLcd::copy90 (cTile* srcTile, cPoint p) {
+void cLcd::copy90 (cTile* tile, cPoint p) {
 
   if (!xSemaphoreTake (mLockSem, 5000))
     printf ("cLcd take fail\n");
 
-  uint32_t src = (uint32_t)srcTile->mPiccy;
+  uint32_t src = (uint32_t)tile->mPiccy;
   uint32_t dst = (uint32_t)mBuffer[mDrawBuffer];
 
   DMA2D->FGPFCCR = DMA2D_INPUT_RGB565;
@@ -736,13 +736,13 @@ void cLcd::copy90 (cTile* srcTile, cPoint p) {
 
   DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
   DMA2D->OOR = getWidth() - 1;
-  DMA2D->NLR = 0x10000 | (srcTile->mWidth);
+  DMA2D->NLR = 0x10000 | (tile->mWidth);
 
-  for (int line = 0; line < srcTile->mHeight; line++) {
+  for (int line = 0; line < tile->mHeight; line++) {
     DMA2D->FGMAR = src;
     DMA2D->OMAR = dst;
     DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
-    src += srcTile->mWidth * srcTile->mComponents;
+    src += tile->mWidth * tile->mComponents;
     dst += 2;
 
     mDma2dWait = eWaitDone;
@@ -753,19 +753,19 @@ void cLcd::copy90 (cTile* srcTile, cPoint p) {
   }
 //}}}
 //{{{
-void cLcd::size (cTile* srcTile, const cRect& r) {
+void cLcd::size (cTile* tile, const cRect& r) {
 
-  uint32_t xStep16 = ((srcTile->mWidth - 1) << 16) / (r.getWidth() - 1);
-  uint32_t yStep16 = ((srcTile->mHeight - 1) << 16) / (r.getHeight() - 1);
+  uint32_t xStep16 = ((tile->mWidth - 1) << 16) / (r.getWidth() - 1);
+  uint32_t yStep16 = ((tile->mHeight - 1) << 16) / (r.getHeight() - 1);
   __IO uint16_t* dst = mBuffer[mDrawBuffer] + r.top * getWidth() + r.left;
 
-  if (srcTile->mFormat == cTile::eRgb565) {
+  if (tile->mFormat == cTile::eRgb565) {
     if (!xSemaphoreTake (mLockSem, 5000))
       printf ("cLcd take fail\n");
 
-    for (uint32_t y16 = (srcTile->mY << 16); y16 < ((srcTile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
-      auto src = (uint16_t*)(srcTile->mPiccy) + (srcTile->mY + (y16 >> 16)) * srcTile->mPitch + srcTile->mX;
-      for (uint32_t x16 = srcTile->mX << 16; x16 < (srcTile->mX + r.getWidth()) * xStep16; x16 += xStep16)
+    for (uint32_t y16 = (tile->mY << 16); y16 < ((tile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
+      auto src = (uint16_t*)(tile->mPiccy) + (tile->mY + (y16 >> 16)) * tile->mPitch + tile->mX;
+      for (uint32_t x16 = tile->mX << 16; x16 < (tile->mX + r.getWidth()) * xStep16; x16 += xStep16)
         *dst++ = *(src + (x16 >> 16));
       dst += getWidth() - r.getWidth();
       }
@@ -775,15 +775,15 @@ void cLcd::size (cTile* srcTile, const cRect& r) {
      if (!xSemaphoreTake (mLockSem, 5000))
       printf ("cLcd take fail\n");
 
-    for (uint32_t y16 = (srcTile->mY << 16); y16 < ((srcTile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
+    for (uint32_t y16 = (tile->mY << 16); y16 < ((tile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
       uint32_t y = y16 >> 16;
-      for (uint32_t x16 = srcTile->mX << 16; x16 < (srcTile->mX + r.getWidth()) * xStep16; x16 += xStep16) {
+      for (uint32_t x16 = tile->mX << 16; x16 < (tile->mX + r.getWidth()) * xStep16; x16 += xStep16) {
         uint32_t x = x16 >> 16;
-        uint32_t mcu = ((y/8) * (srcTile->mWidth/16)) + x/16;
-        uint8_t* lumPtr = srcTile->mPiccy + (mcu * YCBCR_422_BLOCK_SIZE) + ((y & 0x07) * 8) + ((x/2) & 0x07);
-        uint8_t* chrPtr = lumPtr + 128;
-        if (x & 1)
+        uint32_t mcu = ((y/8) * (tile->mWidth/16)) + x/16;
+        uint8_t* lumPtr = tile->mPiccy + (mcu * YCBCR_422_BLOCK_SIZE) + ((y & 0x07) * 8) + (x & 0x07);
+        if (x & 0x08)
           lumPtr += 64;
+        uint8_t* chrPtr = tile->mPiccy + (mcu * YCBCR_422_BLOCK_SIZE) + ((y & 0x07) * 8) + ((x/2) & 0x07) + 128;
 
         int32_t cBcomp = (int32_t)(*chrPtr);
         int32_t b = (int32_t)(*(CB_BLUE_LUT + cBcomp));

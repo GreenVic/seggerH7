@@ -139,9 +139,9 @@ public:
   void stampClipped (uint16_t colour, uint8_t* src, cRect r);
   int text (uint16_t colour, uint16_t fontHeight, const std::string& str, cRect r);
 
-  void copy (cTile* srcTile, cPoint p);
-  void copy90 (cTile* srcTile, cPoint p);
-  void size (cTile* srcTile, const cRect& r);
+  void copy (cTile* tile, cPoint p);
+  void copy90 (cTile* tile, cPoint p);
+  void size (cTile* tile, const cRect& r);
 
   inline void pixel (uint16_t colour, cPoint p) { *(mBuffer[mDrawBuffer] + p.y * getWidth() + p.x) = colour; }
   void grad (uint16_t colTL, uint16_t colTR, uint16_t colBL, uint16_t colBR, const cRect& r);
