@@ -274,16 +274,18 @@ void appThread (void* arg) {
 
   lsm303c_init();
   while (true) {
-    while (lsm303c_read_la_ready()) {
-      lsm303c_read_la (la);
+    while (lsm303c_la_ready()) {
+      lsm303c_la (la);
       mTraceVec.addSample (0, la[0]);
       mTraceVec.addSample (1, la[1]);
       mTraceVec.addSample (2, la[2]);
+      lcd->change();
       }
-    while (lsm303c_read_mf_ready()) {
-      lsm303c_read_mf (mf);
-      lcd->info (COL_YELLOW, "MF x:" + dec(mf[0]) + " y:" + dec(mf[1]) + " z:" + dec(mf[2]));
-      }
+
+    //lcd->info (COL_YELLOW, "MF x:" + dec(mf[0]) + " y:" + dec(mf[1]) + " z:" + dec(mf[2]));
+    //while (lsm303c_mf_ready())
+    //  lsm303c_mf (mf);
+
     vTaskDelay (2);
     }
   }

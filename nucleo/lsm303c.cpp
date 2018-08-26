@@ -129,88 +129,93 @@ void lsm303c_init() {
 
   HAL_I2CEx_ConfigAnalogFilter (&I2cHandle, I2C_ANALOGFILTER_ENABLE);
 
-  uint8_t reg = WHO_AM_I_A;
-  if (HAL_I2C_Master_Transmit (&I2cHandle, LA_ADDRESS, &reg, 1, 10000) != HAL_OK)
+  uint8_t value = WHO_AM_I_A;
+  if (HAL_I2C_Master_Transmit (&I2cHandle, LA_ADDRESS, &value, 1, 10000) != HAL_OK)
     printf ("lsm303c_init id tx error\n");
-  if (HAL_I2C_Master_Receive (&I2cHandle, LA_ADDRESS, &reg, 1, 10000) != HAL_OK)
+  if (HAL_I2C_Master_Receive (&I2cHandle, LA_ADDRESS, &value, 1, 10000) != HAL_OK)
     printf ("lsm303c_init id rx error\n");
   else
-    printf ("whoami la %x\n", reg);
+    printf ("whoami la %x\n", value);
 
-  uint8_t laInit[2] =  { CTRL_REG1_A, ODR_400Hz | BDU | Xen | Yen | Zen };
-  if (HAL_I2C_Master_Transmit (&I2cHandle, LA_ADDRESS, laInit, 2, 10000)  != HAL_OK)
-    printf ("lsm303c_init tx ctrl_reg1_a error\n");
-
-  reg = WHO_AM_I_M;
-  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, &reg, 1, 10000) != HAL_OK)
+  value = WHO_AM_I_M;
+  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, &value, 1, 10000) != HAL_OK)
     printf ("lsm303c_init tx error\n");
-  if (HAL_I2C_Master_Receive (&I2cHandle, MF_ADDRESS, &reg, 1, 10000) != HAL_OK)
+  if (HAL_I2C_Master_Receive (&I2cHandle, MF_ADDRESS, &value, 1, 10000) != HAL_OK)
     printf ("lsm303c_init rx error\n");
   else
-    printf ("whoami mf %x\n", reg);
+    printf ("whoami mf %x\n", value);
 
-  uint8_t mfInitReg1[2] = { CTRL_REG1_M, 0x70 }; // ultra high performance, 10hz
-  uint8_t mfInitReg2[2] = { CTRL_REG2_M, 0x60 }; // FS += 16gauss
-  uint8_t mfInitReg3[2] = { CTRL_REG3_M, 0x00 }; // continuous conversion
+  uint8_t laReg1[2]     = { CTRL_REG1_A, ODR_400Hz | BDU | Xen | Yen | Zen };
+  uint8_t laFifoCtrl[2] = { FIFO_CTRL, 0x40 }; // fmode FIFO stream mode
+  if (HAL_I2C_Master_Transmit (&I2cHandle, LA_ADDRESS, laReg1, 2, 10000)  != HAL_OK)
+    printf ("lsm303c_init tx ctrl_reg1_a error\n");
+  if (HAL_I2C_Master_Transmit (&I2cHandle, LA_ADDRESS, laFifoCtrl, 2, 10000)  != HAL_OK)
+    printf ("lsm303c_init tx ctrl_reg1_a error\n");
 
-  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, mfInitReg1, 2, 10000)  != HAL_OK)
+  uint8_t mfReg1[2] = { CTRL_REG1_M, 0x70 }; // ultra high performance, 10hz
+  uint8_t mfReg2[2] = { CTRL_REG2_M, 0x60 }; // FS += 16gauss
+  uint8_t mfReg3[2] = { CTRL_REG3_M, 0x00 }; // continuous conversion
+
+  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, mfReg1, 2, 10000)  != HAL_OK)
     printf ("lsm303c_init 1 tx ctrl_reg1_a error\n");
-  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, mfInitReg2, 2, 10000)  != HAL_OK)
+  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, mfReg2, 2, 10000)  != HAL_OK)
     printf ("lsm303c_init 2 tx ctrl_reg1_a error\n");
-  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, mfInitReg3, 2, 10000)  != HAL_OK)
+  if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, mfReg3, 2, 10000)  != HAL_OK)
     printf ("lsm303c_init 3 tx ctrl_reg1_a error\n");
   }
 //}}}
 
 //{{{
-bool lsm303c_read_la_ready() {
+bool lsm303c_la_ready() {
 
   uint8_t reg = STATUS_REG_A;
+
   if (HAL_I2C_Master_Transmit (&I2cHandle, LA_ADDRESS, &reg, 1, 1000) != HAL_OK)
-    printf ("lsm303c_read_la_ready tx error\n");
+    printf ("lsm303c_la_ready tx error\n");
   if (HAL_I2C_Master_Receive (&I2cHandle, LA_ADDRESS, &reg, 1, 1000) != HAL_OK)
-    printf ("lsm303c_read_la_ready rx error\n");
+    printf ("lsm303c_la_ready rx error\n");
 
   return reg & 0x07;
   }
 //}}}
 //{{{
-bool lsm303c_read_mf_ready() {
+bool lsm303c_mf_ready() {
 
   uint8_t reg = STATUS_REG_M;
+
   if (HAL_I2C_Master_Transmit (&I2cHandle, MF_ADDRESS, &reg, 1, 10000) != HAL_OK)
-    printf ("lsm303c_read_mf_ready tx error\n");
+    printf ("lsm303c_mf_ready tx error\n");
   if (HAL_I2C_Master_Receive (&I2cHandle, MF_ADDRESS, &reg, 1, 10000) != HAL_OK)
-    printf ("lsm303c_read_mf_ready rx error\n");
+    printf ("lsm303c_mf_ready rx error\n");
 
   return reg & 0x07;
   }
 //}}}
 //{{{
-void lsm303c_read_la (int16_t* buf) {
+void lsm303c_la (int16_t* buf) {
 
   uint8_t reg = OUT_X_L_A;
   if (HAL_I2C_Master_Sequential_Transmit_IT (&I2cHandle, LA_ADDRESS, &reg, 1, I2C_FIRST_FRAME) != HAL_OK)
-    printf ("lsm303c_read_la read error\n");
+    printf ("lsm303c_la read error\n");
   while (!__HAL_I2C_GET_FLAG (&I2cHandle, I2C_FLAG_TC));
 
   if (HAL_I2C_Master_Sequential_Receive_IT (&I2cHandle, LA_ADDRESS, (uint8_t*)buf, 6, I2C_LAST_FRAME) != HAL_OK)
-    printf ("lsm303c_read_la read error\n");
+    printf ("lsm303c_la read error\n");
   while (I2cHandle.State != HAL_I2C_STATE_READY);
   }
 //}}}
 //{{{
-void lsm303c_read_mf (int16_t* buf) {
+void lsm303c_mf (int16_t* buf) {
 
   uint8_t reg = OUT_X_L_M;
   if (HAL_I2C_Master_Sequential_Transmit_IT (&I2cHandle, MF_ADDRESS, &reg, 1, I2C_FIRST_FRAME) != HAL_OK) {
-    printf ("lsm303c_read_mf tx error\n");
+    printf ("lsm303c_mf tx error\n");
     return;
     }
   while (!__HAL_I2C_GET_FLAG (&I2cHandle, I2C_FLAG_TC));
 
   if (HAL_I2C_Master_Sequential_Receive_IT (&I2cHandle, MF_ADDRESS, (uint8_t*)buf, 6, I2C_LAST_FRAME) != HAL_OK) {
-    printf ("lsm303c_read_mf rx error\n");
+    printf ("lsm303c_mf rx error\n");
     return;
     }
   while (I2cHandle.State != HAL_I2C_STATE_READY);
