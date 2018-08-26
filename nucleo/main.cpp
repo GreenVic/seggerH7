@@ -272,20 +272,20 @@ void appThread (void* arg) {
   //    vTaskDelay (200);
   //    }
 
-  lsm303c_init();
+  //  accel
+  //lsm303c_init();
   while (true) {
-    while (lsm303c_la_ready()) {
-      lsm303c_la (la);
-      mTraceVec.addSample (0, la[0]);
-      mTraceVec.addSample (1, la[1]);
-      mTraceVec.addSample (2, la[2]);
-      lcd->change();
-      }
+   // while (lsm303c_la_ready()) {
+   //   lsm303c_la (la);
+   //   mTraceVec.addSample (0, la[0]);
+    //  mTraceVec.addSample (1, la[1]);
+    //  mTraceVec.addSample (2, la[2]);
+    //  lcd->change();
+    //  }
 
     //lcd->info (COL_YELLOW, "MF x:" + dec(mf[0]) + " y:" + dec(mf[1]) + " z:" + dec(mf[2]));
     //while (lsm303c_mf_ready())
     //  lsm303c_mf (mf);
-
     vTaskDelay (2);
     }
   }

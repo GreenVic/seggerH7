@@ -565,18 +565,8 @@ cTile* hwJpegDecode (const string& fileName) {
 
     printf ("- JPEG decode %p %d:%dx%d - out %d\n",
             mOutYuvBuf, mHandle.mChromaSampling, mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
-
-    // alloc rgb
-    auto rgb565Pic = sdRamAlloc (mHandle.mWidth * mHandle.mHeight * 2, "hwJpegPic");
-    if (!rgb565Pic)
-      printf ("JPEG rgb565 alloc fail\n");
-    else {
-      tile = new cTile (rgb565Pic, 2, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
-      cLcd::yuvMcuToRgb565 (mOutYuvBuf, rgb565Pic, mHandle.mWidth, mHandle.mHeight, mHandle.mChromaSampling);
-      }
+    tile = new cTile (mOutYuvBuf, cTile::eYuv422mcu, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
     }
-
-  sdRamFree (mOutYuvBuf);
   mOutYuvBuf = nullptr;
 
   return tile;
@@ -616,7 +606,7 @@ cTile* swJpegDecode (const string& fileName, int scale) {
       if (!rgb888Line)
         printf ("swJpegDecode %s rgbLine alloc fail\n", fileName.c_str());
       else {
-        tile = new cTile (rgb565Pic, 2, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
+        tile = new cTile (rgb565Pic, cTile::eRgb565, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
         while (mCinfo.output_scanline < mCinfo.output_height) {
           jpeg_read_scanlines (&mCinfo, &rgb888Line, 1);
           cLcd::rgb888toRgb565 (rgb888Line, rgb565Pic, mCinfo.output_width, 1);

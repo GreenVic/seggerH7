@@ -1,4 +1,4 @@
-// cTrace.h
+// cTraceVec.h
 #pragma once
 #include <vector>
 #include "cLcd.h"
@@ -23,6 +23,7 @@ public:
       trace->trigger();
     }
   //}}}
+
   //{{{
   void draw (cLcd* lcd, int16_t top, int16_t bottom) {
 
@@ -63,6 +64,7 @@ private:
       mCurSample = 0;
       }
     //}}}
+
     //{{{
     void draw (cLcd* lcd, int16_t top, int16_t bottom) {
 

@@ -53,17 +53,10 @@
 //{{{
 class cTile {
 public:
+  enum eFormat { eRgb565, eYuv422mcu };
   cTile() {};
-  cTile (uint8_t* piccy, uint16_t components, uint16_t pitch,
-         uint16_t x, uint16_t y, uint16_t width, uint16_t height)
-     :  mPiccy(piccy), mComponents(components), mPitch(pitch), mX(x), mY(y), mWidth(width), mHeight(height) {
-   if (components == 2)
-     mFormat = DMA2D_INPUT_RGB565;
-   else if (components == 3)
-     mFormat = DMA2D_INPUT_RGB888;
-   else
-     mFormat = DMA2D_INPUT_ARGB8888;
-    };
+  cTile (uint8_t* piccy, eFormat format, uint16_t pitch, uint16_t x, uint16_t y, uint16_t width, uint16_t height)
+     : mPiccy(piccy), mFormat(format), mPitch(pitch), mX(x), mY(y), mWidth(width), mHeight(height) {}
 
   ~cTile () {
     sdRamFree (mPiccy);
@@ -80,7 +73,7 @@ public:
   uint16_t mY = 0;
   uint16_t mWidth = 0;
   uint16_t mHeight = 0;
-  uint16_t mFormat = 0;
+  eFormat mFormat = eRgb565;
   };
 //}}}
 //{{{
@@ -157,8 +150,8 @@ public:
 
   static void rgb888toRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize);
   static void yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
-  static void yuvMcuTo565sw (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize,
-                             uint32_t blockIndex, uint32_t dataCount);
+  static void yuvMcuTo565sw (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize);
+  static uint16_t yuvMcuTo565pix (uint8_t* src, uint32_t x, uint32_t y, uint16_t xsize, uint16_t ysize);
 
   void start();
   void drawInfo();
