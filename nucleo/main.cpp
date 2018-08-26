@@ -233,11 +233,11 @@ void appThread (void* arg) {
 
       printf ("APP decode %s size:%d time:%d date:%d\n",
               fileName.c_str(), int(filInfo.fsize), filInfo.ftime, filInfo.fdate);
-      delete showTile[gShow];
 
       auto startTime = HAL_GetTick();
+      delete showTile[gShow];
       showTile[gShow] = hwJpeg ? hwJpegDecode (fileName) : swJpegDecode (fileName, SW_SCALE);
-      //gShow = !gShow;
+      gShow = !gShow;
 
       if (showTile[gShow]) {
         printf ("APP decoded - show:%d - took %d\n", gShow, HAL_GetTick() - startTime);
@@ -252,11 +252,6 @@ void appThread (void* arg) {
                        dec ((filInfo.fdate >> 9) + 1980) + " " +
                        dec (HAL_GetTick() - startTime) + "ms");
         vTaskDelay (100);
-        }
-      else {
-        printf ("decode %s tile error\n", fileName.c_str());
-        lcd->info ("decode load error " + fileName);
-        vTaskDelay (500);
         }
       }
     //char stats [250];

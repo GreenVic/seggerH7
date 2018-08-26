@@ -478,14 +478,10 @@ cTile* hwJpegDecode (const string& fileName) {
 
   mHandle.Instance = JPEG;
   init();
-  //{{{  alloc buffers
-  if (!mInBuf[0].mBuf)
-    mInBuf[0].mBuf = (uint8_t*)pvPortMalloc (INBUF_SIZE);
-  if (!mInBuf[1].mBuf)
-    mInBuf[1].mBuf = (uint8_t*)pvPortMalloc (INBUF_SIZE);
-  if (!mOutYuvBuf)
-    mOutYuvBuf = sdRamAlloc (4500*3000*2, "yuvBuf");
-  //}}}
+
+  mInBuf[0].mBuf = (uint8_t*)pvPortMalloc (INBUF_SIZE);
+  mInBuf[1].mBuf = (uint8_t*)pvPortMalloc (INBUF_SIZE);
+  mOutYuvBuf = sdRamAlloc (6000*4000*2, "yuvBuf");
 
   cTile* tile = nullptr;
   FIL* file = (FIL*)pvPortMalloc (sizeof (FIL));
@@ -567,7 +563,9 @@ cTile* hwJpegDecode (const string& fileName) {
             mOutYuvBuf, mHandle.mChromaSampling, mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
     tile = new cTile (mOutYuvBuf, cTile::eYuv422mcu, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
     }
-  mOutYuvBuf = nullptr;
+
+  vPortFree (mInBuf[0].mBuf);
+  vPortFree (mInBuf[1].mBuf);
 
   return tile;
   }

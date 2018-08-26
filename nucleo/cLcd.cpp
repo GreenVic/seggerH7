@@ -53,7 +53,7 @@ SemaphoreHandle_t cLcd::mFrameSem;
 //}}}
 DMA2D_HandleTypeDef DMA2D_Handle;
 static SemaphoreHandle_t mLockSem;
-//{{{  yuvMcuTo565sw statics
+//{{{  yuvMcuTo565 statics
 static int32_t CR_RED_LUT[256];           /* Cr to Red color conversion Look Up Table  */
 static int32_t CB_BLUE_LUT[256];          /* Cb to Blue color conversion Look Up Table */
 static int32_t CR_GREEN_LUT[256];         /* Cr to Green color conversion Look Up Table*/
@@ -763,7 +763,7 @@ void cLcd::size (cTile* tile, const cRect& r) {
     printf ("cLcd take fail\n");
 
   if (tile->mFormat == cTile::eRgb565) {
-
+    //{{{  rgb565 size
     for (uint32_t y16 = (tile->mY << 16); y16 < ((tile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
       auto src = (uint16_t*)(tile->mPiccy) + (tile->mY + (y16 >> 16)) * tile->mPitch + tile->mX;
       for (uint32_t x16 = tile->mX << 16; x16 < (tile->mX + r.getWidth()) * xStep16; x16 += xStep16)
@@ -771,29 +771,31 @@ void cLcd::size (cTile* tile, const cRect& r) {
       dst += getWidth() - r.getWidth();
       }
     }
+    //}}}
 
   else {
+    // yuv422 size
     for (uint32_t y16 = (tile->mY << 16); y16 < ((tile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
       uint32_t y = y16 >> 16;
       for (uint32_t x16 = tile->mX << 16; x16 < (tile->mX + r.getWidth()) * xStep16; x16 += xStep16) {
         uint32_t x = x16 >> 16;
         uint32_t mcu = ((y/8) * (tile->mWidth/16)) + (x/16);
-        uint8_t* mcuPtr = tile->mPiccy + (mcu * YCBCR_422_BLOCK_SIZE) + ((y & 0x07) * 8);
-        uint8_t* lumPtr = mcuPtr + (x & 0x07) + ((x & 0x08) ? 64 : 0);
-        uint8_t* chrPtr = mcuPtr + ((x/2) & 0x07) + 128;
+        uint8_t* mcuPtr = tile->mPiccy + (mcu * 256) + ((y & 0x07) * 8);
+        uint8_t* lumPtr = mcuPtr + ((x & 0x08) ? 64 : 0) + (x & 0x07);
+        uint8_t* chrPtr = mcuPtr + 128 + ((x/2) & 0x07);
 
-        int32_t cBcomp = (int32_t)(*chrPtr);
-        int32_t b = (int32_t)(*(CB_BLUE_LUT + cBcomp));
-        int32_t g = (int32_t)(*(CB_GREEN_LUT + cBcomp));
+        auto cB = *chrPtr;
+        int32_t b = *(CB_BLUE_LUT + cB);
+        int32_t g = *(CB_GREEN_LUT + cB);
 
-        int32_t cRcomp = (int32_t)(*(chrPtr + 64));
-        int32_t r =  (int32_t)(*(CR_RED_LUT + cRcomp));
-        g = (g + ((int32_t)(*(CR_GREEN_LUT + cRcomp)))) >> 16;
+        auto cR = *(chrPtr + 64);
+        int32_t r = *(CR_RED_LUT + cR);
+        g = (g + *(CR_GREEN_LUT + cR)) >> 16;
 
-        int32_t ycomp = (int32_t)(*lumPtr);
-        *dst++ = ((CLAMP (ycomp + r) >> 3) << JPEG_RED_OFFSET) |
-                 ((CLAMP (ycomp + g) >> 2) << JPEG_GREEN_OFFSET) |
-                 ((CLAMP (ycomp + b) >> 3) << JPEG_BLUE_OFFSET);
+        auto y = *lumPtr;
+        *dst++ = ((CLAMP (y + r) >> 3) << JPEG_RED_OFFSET) |
+                 ((CLAMP (y + g) >> 2) << JPEG_GREEN_OFFSET) |
+                 ((CLAMP (y + b) >> 3) << JPEG_BLUE_OFFSET);
         }
       dst += getWidth() - r.getWidth();
       }
