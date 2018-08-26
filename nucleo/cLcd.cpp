@@ -694,79 +694,6 @@ void cLcd::yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t 
   xSemaphoreGive (mLockSem);
   }
 //}}}
-//{{{
-void cLcd::yuvMcuTo565sw (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize) {
-
-  uint32_t lineOffset = xsize % 16;
-  if (lineOffset != 0)
-    lineOffset = 16 - lineOffset;
-  uint32_t widthExtend = xsize + lineOffset;
-  uint32_t scaledWidth = JPEG_BYTES_PER_PIXEL * xsize;
-
-  uint32_t currentMCU = 0;
-  uint32_t numberMCU = (xsize * ysize * 2) / YCBCR_422_BLOCK_SIZE;
-  while (currentMCU < numberMCU) {
-    uint32_t xRef = ((currentMCU * 16) / widthExtend) * 8;
-    uint32_t yRef = ((currentMCU * 16) % widthExtend);
-    uint32_t refLine = scaledWidth * xRef + (JPEG_BYTES_PER_PIXEL * yRef);
-    currentMCU++;
-
-    uint8_t* lumPtr = src;
-    uint8_t* chrPtr = src + 128; /* chrPtr = src + 2*64 */
-
-    for (uint32_t i = 0; i <  8; i++) {
-      if (refLine < xsize * ysize * JPEG_BYTES_PER_PIXEL) {
-        uint8_t* dstPtr = dst + refLine;
-
-        for (uint32_t k = 0; k < 2; k++) {
-          for (uint32_t j = 0; j < 8; j += 2) {
-            int32_t cbcomp = (int32_t)(*(chrPtr));
-            int32_t c_blue = (int32_t)(*(CB_BLUE_LUT + cbcomp));
-            int32_t crcomp = (int32_t)(*(chrPtr + 64));
-            int32_t c_red = (int32_t)(*(CR_RED_LUT + crcomp));
-            int32_t c_green = ((int32_t)(*(CR_GREEN_LUT + crcomp)) + (int32_t)(*(CB_GREEN_LUT + cbcomp))) >> 16;
-
-            int32_t ycomp = (int32_t)(*(lumPtr + j));
-            *(__IO uint16_t*)dstPtr = ((CLAMP(ycomp + c_red) >> 3) << JPEG_RED_OFFSET) |
-                                      ((CLAMP(ycomp + c_green) >> 2) << JPEG_GREEN_OFFSET) |
-                                      ((CLAMP(ycomp + c_blue) >> 3) << JPEG_BLUE_OFFSET);
-
-            ycomp = (int32_t)(*(lumPtr + j + 1));
-            *((__IO uint16_t*)(dstPtr + 2)) = ((CLAMP(ycomp + c_red) >> 3) << JPEG_RED_OFFSET) |
-                                              ((CLAMP(ycomp + c_green) >> 2) << JPEG_GREEN_OFFSET) |
-                                              ((CLAMP(ycomp + c_blue) >> 3) << JPEG_BLUE_OFFSET);
-            dstPtr += JPEG_BYTES_PER_PIXEL * 2;
-            chrPtr++;
-            }
-          lumPtr += 64;
-          }
-        lumPtr = lumPtr - 128 + 8;
-        refLine += scaledWidth;
-        }
-      }
-    src += YCBCR_422_BLOCK_SIZE;
-    }
-  }
-//}}}
-//{{{
-uint16_t cLcd::yuvMcuTo565pix (uint8_t* src, uint32_t x, uint32_t y, uint16_t xsize, uint16_t ysize) {
-
-  uint32_t currentMCU = ((y / 8) * (xsize / 16)) + x/16;
-  uint32_t mcuOffset = ((y & 0x07) * 64) + (x & 0x0F);
-  uint8_t* lumPtr = src + (currentMCU * YCBCR_422_BLOCK_SIZE) + mcuOffset;
-
-  int32_t cbcomp = (int32_t)(*(lumPtr + 128));
-  int32_t c_blue = (int32_t)(*(CB_BLUE_LUT + cbcomp));
-  int32_t crcomp = (int32_t)(*(lumPtr + 128 + 64));
-  int32_t c_red = (int32_t)(*(CR_RED_LUT + crcomp));
-  int32_t c_green = ((int32_t)(*(CR_GREEN_LUT + crcomp)) + (int32_t)(*(CB_GREEN_LUT + cbcomp))) >> 16;
-
-  int32_t ycomp = (int32_t)(*(lumPtr));
-  return ((CLAMP(ycomp + c_red) >> 3) << JPEG_RED_OFFSET) |
-         ((CLAMP(ycomp + c_green) >> 2) << JPEG_GREEN_OFFSET) |
-         ((CLAMP(ycomp + c_blue) >> 3) << JPEG_BLUE_OFFSET);
-  }
-//}}}
 
 // cTile
 //{{{
@@ -830,7 +757,7 @@ void cLcd::size (cTile* srcTile, const cRect& r) {
 
   uint32_t xStep16 = ((srcTile->mWidth - 1) << 16) / (r.getWidth() - 1);
   uint32_t yStep16 = ((srcTile->mHeight - 1) << 16) / (r.getHeight() - 1);
-  auto dst = mBuffer[mDrawBuffer] + r.top * getWidth() + r.left;
+  __IO uint16_t* dst = mBuffer[mDrawBuffer] + r.top * getWidth() + r.left;
 
   if (srcTile->mFormat == cTile::eRgb565) {
     if (!xSemaphoreTake (mLockSem, 5000))
@@ -849,8 +776,29 @@ void cLcd::size (cTile* srcTile, const cRect& r) {
       printf ("cLcd take fail\n");
 
     for (uint32_t y16 = (srcTile->mY << 16); y16 < ((srcTile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
-      for (uint32_t x16 = srcTile->mX << 16; x16 < (srcTile->mX + r.getWidth()) * xStep16; x16 += xStep16)
-        *dst++ = yuvMcuTo565pix (srcTile->mPiccy, x16 >> 16, y16 >> 16, srcTile->mWidth, srcTile->mHeight);
+      uint32_t y = y16 >> 16;
+      for (uint32_t x16 = srcTile->mX << 16; x16 < (srcTile->mX + r.getWidth()) * xStep16; x16 += xStep16) {
+        uint32_t x = x16 >> 16;
+        uint32_t mcu = ((y/8) * (srcTile->mWidth/16)) + x/16;
+        uint8_t* lumPtr = srcTile->mPiccy + (mcu * YCBCR_422_BLOCK_SIZE) + ((y & 0x07) * 8) + ((x/2) & 0x07);
+        uint8_t* chrPtr = lumPtr + 128;
+        if (x & 1)
+          lumPtr += 64;
+
+        int32_t cBcomp = (int32_t)(*chrPtr);
+        int32_t b = (int32_t)(*(CB_BLUE_LUT + cBcomp));
+        int32_t g = (int32_t)(*(CB_GREEN_LUT + cBcomp));
+
+        int32_t cRcomp = (int32_t)(*(chrPtr + 64));
+        int32_t r =  (int32_t)(*(CR_RED_LUT + cRcomp));
+        g = (g + ((int32_t)(*(CR_GREEN_LUT + cRcomp)))) >> 16;
+
+        int32_t ycomp = (int32_t)(*lumPtr);
+        *dst++ = ((CLAMP (ycomp + r) >> 3) << JPEG_RED_OFFSET) |
+                 ((CLAMP (ycomp + g) >> 2) << JPEG_GREEN_OFFSET) |
+                 ((CLAMP (ycomp + b) >> 3) << JPEG_BLUE_OFFSET);
+        }
+
       dst += getWidth() - r.getWidth();
       }
     xSemaphoreGive (mLockSem);
