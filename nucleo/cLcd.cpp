@@ -759,9 +759,10 @@ void cLcd::size (cTile* tile, const cRect& r) {
   uint32_t yStep16 = ((tile->mHeight - 1) << 16) / (r.getHeight() - 1);
   __IO uint16_t* dst = mBuffer[mDrawBuffer] + r.top * getWidth() + r.left;
 
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
+
   if (tile->mFormat == cTile::eRgb565) {
-    if (!xSemaphoreTake (mLockSem, 5000))
-      printf ("cLcd take fail\n");
 
     for (uint32_t y16 = (tile->mY << 16); y16 < ((tile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
       auto src = (uint16_t*)(tile->mPiccy) + (tile->mY + (y16 >> 16)) * tile->mPitch + tile->mX;
@@ -769,21 +770,17 @@ void cLcd::size (cTile* tile, const cRect& r) {
         *dst++ = *(src + (x16 >> 16));
       dst += getWidth() - r.getWidth();
       }
-    xSemaphoreGive (mLockSem);
     }
-  else {
-     if (!xSemaphoreTake (mLockSem, 5000))
-      printf ("cLcd take fail\n");
 
+  else {
     for (uint32_t y16 = (tile->mY << 16); y16 < ((tile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
       uint32_t y = y16 >> 16;
       for (uint32_t x16 = tile->mX << 16; x16 < (tile->mX + r.getWidth()) * xStep16; x16 += xStep16) {
         uint32_t x = x16 >> 16;
-        uint32_t mcu = ((y/8) * (tile->mWidth/16)) + x/16;
-        uint8_t* lumPtr = tile->mPiccy + (mcu * YCBCR_422_BLOCK_SIZE) + ((y & 0x07) * 8) + (x & 0x07);
-        if (x & 0x08)
-          lumPtr += 64;
-        uint8_t* chrPtr = tile->mPiccy + (mcu * YCBCR_422_BLOCK_SIZE) + ((y & 0x07) * 8) + ((x/2) & 0x07) + 128;
+        uint32_t mcu = ((y/8) * (tile->mWidth/16)) + (x/16);
+        uint8_t* mcuPtr = tile->mPiccy + (mcu * YCBCR_422_BLOCK_SIZE) + ((y & 0x07) * 8);
+        uint8_t* lumPtr = mcuPtr + (x & 0x07) + ((x & 0x08) ? 64 : 0);
+        uint8_t* chrPtr = mcuPtr + ((x/2) & 0x07) + 128;
 
         int32_t cBcomp = (int32_t)(*chrPtr);
         int32_t b = (int32_t)(*(CB_BLUE_LUT + cBcomp));
@@ -798,12 +795,11 @@ void cLcd::size (cTile* tile, const cRect& r) {
                  ((CLAMP (ycomp + g) >> 2) << JPEG_GREEN_OFFSET) |
                  ((CLAMP (ycomp + b) >> 3) << JPEG_BLUE_OFFSET);
         }
-
       dst += getWidth() - r.getWidth();
       }
-    xSemaphoreGive (mLockSem);
     }
 
+  xSemaphoreGive (mLockSem);
   }
 //}}}
 
