@@ -159,7 +159,19 @@ void cLcd::init (const std::string& title) {
   HAL_NVIC_SetPriority (DMA2D_IRQn, 0x0F, 0);
   HAL_NVIC_EnableIRQ (DMA2D_IRQn);
 
+  // sw yuv to rgb565
+  gRedLut = (int32_t*)dtcmAlloc (256*4);
+  gBlueLut = (int32_t*)dtcmAlloc (256*4);
+  gUGreenLut = (int32_t*)dtcmAlloc (256*4);
   gVGreenLut = (int32_t*)dtcmAlloc (256*4);
+
+  for (int32_t i = 0; i <= 255; i++) {
+    int32_t index = (i * 2) - 256;
+    gRedLut[i] = ((((int32_t) ((1.40200 / 2) * (1L << 16))) * index) + ((int32_t) 1 << (16 - 1))) >> 16;
+    gBlueLut[i] = ((((int32_t) ((1.77200 / 2) * (1L << 16))) * index) + ((int32_t) 1 << (16 - 1))) >> 16;
+    gUGreenLut[i] = (-((int32_t) ((0.71414 / 2) * (1L << 16)))) * index;
+    gVGreenLut[i] = (-((int32_t) ((0.34414 / 2) * (1L << 16)))) * index;
+    }
 
   gClampLut5 = dtcmAlloc (256*3);
   gClampLut6 = dtcmAlloc (256*3);
@@ -174,18 +186,6 @@ void cLcd::init (const std::string& title) {
   for (int i = 512; i < 768; i++) {
     gClampLut5[i] = 0x1F;
     gClampLut6[i] = 0x3F;
-    }
-  // sw yuv to rgb565
-  gRedLut = (int32_t*)dtcmAlloc (256*4);
-  gBlueLut = (int32_t*)dtcmAlloc (256*4);
-  gUGreenLut = (int32_t*)dtcmAlloc (256*4);
-
-  for (int32_t i = 0; i <= 255; i++) {
-    int32_t index = (i * 2) - 256;
-    gRedLut[i] = ((((int32_t) ((1.40200 / 2) * (1L << 16))) * index) + ((int32_t) 1 << (16 - 1))) >> 16;
-    gBlueLut[i] = ((((int32_t) ((1.77200 / 2) * (1L << 16))) * index) + ((int32_t) 1 << (16 - 1))) >> 16;
-    gUGreenLut[i] = (-((int32_t) ((0.71414 / 2) * (1L << 16)))) * index;
-    gVGreenLut[i] = (-((int32_t) ((0.34414 / 2) * (1L << 16)))) * index;
     }
   }
 //}}}
@@ -737,11 +737,9 @@ void cLcd::size (cTile* tile, const cRect& r) {
         uint8_t* lumPtr = mcuPtr + ((x & 0x08) ? 64 : 0) + (x & 0x07);
         uint8_t* chrPtr = mcuPtr + 128 + ((x/2) & 0x07);
         uint16_t y = *lumPtr + 0x100;
-        uint16_t cB = *chrPtr;
-        uint16_t cR = *(chrPtr + 64);
-        *dst++ = ((gClampLut5[y + *(gRedLut + cR)]) << 11) |
-                 ((gClampLut6[y + ((*(gUGreenLut + cB) + *(gVGreenLut + cR)) >> 16)]) << 5) |
-                  (gClampLut5[y + *(gBlueLut + cB)]);
+        *dst++ = (gClampLut5[y + *(gRedLut + *(chrPtr + 64))] << 11) |
+                 (gClampLut6[y + ((*(gUGreenLut + *chrPtr) + *(gVGreenLut + *(chrPtr + 64))) >> 16)] << 5) |
+                  gClampLut5[y + *(gBlueLut + *chrPtr)];
         }
       dst += getWidth() - r.getWidth();
       }
