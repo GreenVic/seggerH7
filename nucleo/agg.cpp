@@ -1,3 +1,4 @@
+// agg.cpp
 //{{{  description
 //----------------------------------------------------------------------------
 // Anti-Grain Geometry - Version 2.1 Lite
@@ -33,7 +34,7 @@
 //
 //----------------------------------------------------------------------------
 //}}}
-//{{{
+//{{{  includes
 #include <math.h>
 #include "agg.h"
 //}}}
@@ -107,20 +108,20 @@ namespace agg {
       delete [] m_counts;
       delete [] m_start_ptrs;
       delete [] m_covers;
-      m_covers     = new unsigned char  [max_len];
+      m_covers = new unsigned char [max_len];
       m_start_ptrs = new unsigned char* [max_len];
-      m_counts     = new int16u[max_len];
-      m_max_len    = max_len;
+      m_counts = new int16u[max_len];
+      m_max_len = max_len;
       }
 
-    m_dx            = dx;
-    m_dy            = dy;
-    m_last_x        = 0x7FFF;
-    m_last_y        = 0x7FFF;
-    m_min_x         = min_x;
-    m_cur_count     = m_counts;
+    m_dx = dx;
+    m_dy = dy;
+    m_last_x = 0x7FFF;
+    m_last_y = 0x7FFF;
+    m_min_x = min_x;
+    m_cur_count = m_counts;
     m_cur_start_ptr = m_start_ptrs;
-    m_num_spans     = 0;
+    m_num_spans = 0;
     }
   //}}}
   //{{{
@@ -252,7 +253,7 @@ namespace agg {
     if (m_cur_block >= m_num_blocks) {
       if (m_num_blocks >= m_max_blocks) {
         cell** new_cells = new cell* [m_max_blocks + cell_block_pool];
-        if(m_cells) {
+        if (m_cells) {
           memcpy(new_cells, m_cells, m_max_blocks * sizeof(cell*));
           delete [] m_cells;
           }
@@ -383,16 +384,16 @@ namespace agg {
     dx = x2 - x1;
     dy = y2 - y1;
 
-    //everything is on a single scanline
+    // everything is on a single scanline
     if (ey1 == ey2) {
       render_scanline(ey1, x1, fy1, x2, fy2);
       return;
       }
 
-    //Vertical line - we have to calculate start and end cells,
-    //and then - the common values of the area and coverage for
-    //all cells of the line. We know exactly there's only one
-    //cell, so, we don't have to call render_scanline().
+    // Vertical line - we have to calculate start and end cells,
+    // and then - the common values of the area and coverage for
+    // all cells of the line. We know exactly there's only one
+    // cell, so, we don't have to call render_scanline().
     incr  = 1;
     if (dx == 0) {
       int ex = x1 >> poly_base_shift;
@@ -407,29 +408,29 @@ namespace agg {
 
       x_from = x1;
 
-      //render_scanline(ey1, x_from, fy1, x_from, first);
+      //render_scanline(ey1, x_from, fy1, x_from, first)
       delta = first - fy1;
-      m_cur_cell.add_cover(delta, two_fx * delta);
+      m_cur_cell.add_cover (delta, two_fx * delta);
 
       ey1 += incr;
       set_cur_cell(ex, ey1);
 
       delta = first + first - poly_base_size;
       area = two_fx * delta;
-      while(ey1 != ey2) {
-        //render_scanline(ey1, x_from, poly_base_size - first, x_from, first);
-        m_cur_cell.set_cover(delta, area);
+      while (ey1 != ey2) {
+        //render_scanline (ey1, x_from, poly_base_size - first, x_from, first);
+        m_cur_cell.set_cover (delta, area);
         ey1 += incr;
         set_cur_cell(ex, ey1);
         }
 
-      //render_scanline(ey1, x_from, poly_base_size - first, x_from, fy2);
+      // render_scanline(ey1, x_from, poly_base_size - first, x_from, fy2);
       delta = fy2 - poly_base_size + first;
-      m_cur_cell.add_cover(delta, two_fx * delta);
+      m_cur_cell.add_cover (delta, two_fx * delta);
       return;
      }
 
-    //ok, we have to render several scanlines
+    // ok, we have to render several scanlines
     p  = (poly_base_size - fy1) * dx;
     first = poly_base_size;
     if (dy < 0) {
@@ -447,10 +448,10 @@ namespace agg {
       }
 
     x_from = x1 + delta;
-    render_scanline(ey1, x1, fy1, x_from, first);
+    render_scanline (ey1, x1, fy1, x_from, first);
 
     ey1 += incr;
-    set_cur_cell(x_from >> poly_base_shift, ey1);
+    set_cur_cell (x_from >> poly_base_shift, ey1);
 
     if (ey1 != ey2) {
       p = poly_base_size * dx;
@@ -471,14 +472,14 @@ namespace agg {
           }
 
         x_to = x_from + delta;
-        render_scanline(ey1, x_from, poly_base_size - first, x_to, first);
+        render_scanline (ey1, x_from, poly_base_size - first, x_to, first);
         x_from = x_to;
 
         ey1 += incr;
-        set_cur_cell(x_from >> poly_base_shift, ey1);
+        set_cur_cell (x_from >> poly_base_shift, ey1);
         }
       }
-    render_scanline(ey1, x_from, poly_base_size - first, x2, fy2);
+    render_scanline (ey1, x_from, poly_base_size - first, x2, fy2);
     }
   //}}}
   //{{{
@@ -486,8 +487,10 @@ namespace agg {
 
     if ((m_flags & sort_required) == 0)
       reset();
+
     if (m_flags & not_closed)
       line_to(m_close_x, m_close_y);
+
     set_cur_cell (x >> poly_base_shift, y >> poly_base_shift);
     m_close_x = m_cur_x = x;
     m_close_y = m_cur_y = y;
@@ -498,7 +501,8 @@ namespace agg {
 
     if((m_flags & sort_required) && ((m_cur_x ^ x) | (m_cur_y ^ y))) {
       int c = m_cur_x >> poly_base_shift;
-      if(c < m_min_x) m_min_x = c;
+      if (c < m_min_x) 
+        m_min_x = c;
       ++c;
       if (c > m_max_x)
         m_max_x = c;
@@ -518,12 +522,7 @@ namespace agg {
     }
   //}}}
 
-  //{{{
-  enum
-  {
-      qsort_threshold = 9
-  };
-  //}}}
+  enum { qsort_threshold = 9 };
   //{{{
   template <class T> static inline void swap_cells (T* a, T* b) {
     T temp = *a;
@@ -563,16 +562,13 @@ namespace agg {
 
         i = base + 1;
         j = limit - 1;
-
         // now ensure that *i <= *base <= *j
-        if(less_than(j, i))
-            swap_cells(i, j);
-
-        if(less_than(base, i))
-            swap_cells(base, i);
-
-        if(less_than(j, base))
-            swap_cells(base, j);
+        if (less_than(j, i))
+          swap_cells(i, j);
+        if (less_than(base, i))
+          swap_cells(base, i);
+        if (less_than(j, base))
+          swap_cells(base, j);
 
         for(;;) {
           do
@@ -581,13 +577,10 @@ namespace agg {
           do
             j--;
             while( less_than(base, j) );
-
           if ( i > j )
             break;
-
           swap_cells(i, j);
           }
-
         swap_cells(base, j);
 
         // now, push the largest sub-array
