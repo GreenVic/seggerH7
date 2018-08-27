@@ -27,7 +27,7 @@ enum {
   };
 //}}}
 
-unsigned char* buf = nullptr;
+uint8_t* buf = nullptr;
 cTile* aggTile = nullptr;
 //{{{
 double random (double min, double max)
@@ -39,11 +39,11 @@ double random (double min, double max)
 //{{{
 void draw_ellipse (cRasteriser& ras, double x, double y, double rx, double ry) {
 
-  ras.move_to_d (x + rx, y);
+  ras.moveTod (x + rx, y);
 
   for (int i = 1; i < 360; i++) {
     double a = double(i) * 3.1415926 / 180.0;
-    ras.line_to_d (x + cos(a) * rx, y + sin(a) * ry);
+    ras.lineTod (x + cos(a) * rx, y + sin(a) * ry);
     }
   }
 //}}}
@@ -57,10 +57,10 @@ void draw_line (cRasteriser& ras, double x1, double y1, double x2, double y2, do
   dx = width * (y2 - y1) / d;
   dy = width * (x2 - x1) / d;
 
-  ras.move_to_d(x1 - dx,  y1 + dy);
-  ras.line_to_d(x2 - dx,  y2 + dy);
-  ras.line_to_d(x2 + dx,  y2 - dy);
-  ras.line_to_d(x1 + dx,  y1 - dy);
+  ras.moveTod (x1 - dx,  y1 + dy);
+  ras.lineTod (x2 - dx,  y2 + dy);
+  ras.lineTod (x2 + dx,  y2 - dy);
+  ras.lineTod (x1 + dx,  y1 - dy);
   }
 //}}}
 
@@ -258,9 +258,9 @@ void appThread (void* arg) {
   // Draw random polygons
   for (int i = 0; i < 4; i++) {
     int n = rand() % 6 + 3;
-    rasteriser.move_to_d (random(-30, renderingBuffer.width() + 30), random(-30, renderingBuffer.height() + 30));
+    rasteriser.moveTod (random(-30, renderingBuffer.width() + 30), random(-30, renderingBuffer.height() + 30));
     for (int j = 1; j < n; j++)
-      rasteriser.line_to_d (random(-30, renderingBuffer.width() + 30), random(-30, renderingBuffer.height() + 30));
+      rasteriser.lineTod (random(-30, renderingBuffer.width() + 30), random(-30, renderingBuffer.height() + 30));
     rasteriser.render (renderer, tRgba (255,255, 0,192));
     }
 

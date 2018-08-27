@@ -61,14 +61,14 @@ struct tRgba {
   double opacity() const { return double(a) / 255.0; }
 
   //{{{
-  tRgba gradient(tRgba c, double k) const {
+  tRgba gradient (tRgba c, double k) const {
 
     tRgba ret;
     int ik = int(k * 256);
-    ret.r = uint8_t(int(r) + (((int(c.r) - int(r)) * ik) >> 8));
-    ret.g = uint8_t(int(g) + (((int(c.g) - int(g)) * ik) >> 8));
-    ret.b = uint8_t(int(b) + (((int(c.b) - int(b)) * ik) >> 8));
-    ret.a = uint8_t(int(a) + (((int(c.a) - int(a)) * ik) >> 8));
+    ret.r = uint8_t (int(r) + (((int(c.r) - int(r)) * ik) >> 8));
+    ret.g = uint8_t (int(g) + (((int(c.g) - int(g)) * ik) >> 8));
+    ret.b = uint8_t (int(b) + (((int(c.b) - int(b)) * ik) >> 8));
+    ret.a = uint8_t (int(a) + (((int(c.a) - int(a)) * ik) >> 8));
     return ret;
     }
   //}}}
@@ -129,33 +129,62 @@ class cRenderingBuffer {
 //    responsibility and depends on the platform.
 //}}}
 public:
-  cRenderingBuffer (uint8_t* buf, unsigned width, unsigned height, int stride);
-  ~cRenderingBuffer();
+  //{{{
+  cRenderingBuffer (unsigned char* buf, unsigned width, unsigned height, int stride) :
+      mBuf(0), mRows(0), mWidth(0), mHeight(0), mStride(0), mMaxHeight(0) {
+    attach (buf, width, height, stride);
+    }
+  //}}}
 
-  void attach (uint8_t* buf, unsigned width, unsigned height, int stride);
+  ~cRenderingBuffer() { delete [] mRows; }
 
-  const uint8_t* buf()  const { return m_buf; }
-  unsigned width() const { return m_width;  }
-  unsigned height() const { return m_height; }
-  int stride() const { return m_stride; }
+  //{{{
+  void attach (unsigned char* buf, unsigned width, unsigned height, int stride) {
 
-  bool inbox (int x, int y) const { return x >= 0 && y >= 0 && x < int(m_width) && y < int(m_height); }
-  unsigned abs_stride() const { return (m_stride < 0) ? unsigned(-m_stride) : unsigned(m_stride); }
+    mBuf = buf;
+    mWidth = width;
+    mHeight = height;
+    mStride = stride;
 
-  uint8_t* row (unsigned y) { return m_rows[y];  }
-  const uint8_t* row (unsigned y) const { return m_rows[y]; }
+    if (height > mMaxHeight) {
+      delete [] mRows;
+      mRows = new unsigned char* [mMaxHeight = height];
+      }
+
+    unsigned char* row_ptr = mBuf;
+    if (stride < 0)
+      row_ptr = mBuf - int(height - 1) * stride;
+
+    unsigned char** rows = mRows;
+    while (height--) {
+      *rows++ = row_ptr;
+      row_ptr += stride;
+      }
+    }
+  //}}}
+
+  const uint8_t* buf()  const { return mBuf; }
+  unsigned width() const { return mWidth;  }
+  unsigned height() const { return mHeight; }
+  int stride() const { return mStride; }
+
+  bool inbox (int x, int y) const { return x >= 0 && y >= 0 && x < int(mWidth) && y < int(mHeight); }
+  unsigned abs_stride() const { return (mStride < 0) ? unsigned(-mStride) : unsigned(mStride); }
+
+  uint8_t* row (unsigned y) { return mRows[y];  }
+  const uint8_t* row (unsigned y) const { return mRows[y]; }
 
 private:
   cRenderingBuffer (const cRenderingBuffer&);
   const cRenderingBuffer& operator = (const cRenderingBuffer&);
 
 private:
-  uint8_t*  m_buf;        // Pointer to renrdering buffer
-  uint8_t** m_rows;       // Pointers to each row of the buffer
-  unsigned  m_width;      // Width in pixels
-  unsigned  m_height;     // Height in pixels
-  int       m_stride;     // Number of bytes per row. Can be < 0
-  unsigned  m_max_height; // Maximal current height
+  uint8_t*  mBuf;        // Pointer to renrdering buffer
+  uint8_t** mRows;       // Pointers to each row of the buffer
+  unsigned  mWidth;      // Width in pixels
+  unsigned  mHeight;     // Height in pixels
+  int       mStride;     // Number of bytes per row. Can be < 0
+  unsigned  mMaxHeight;  // Maximal current height
   };
 //}}}
 //{{{
@@ -201,7 +230,7 @@ class cScanline {
  //
  // cScanline::iterator span(sl);
  //
- // unsigned char* row = m_rbuf->row(y); // The the address of the beginning
+ // uint8_t* row = m_rbuf->row(y); // The the address of the beginning
  //                                      // of the current row
  //
  // unsigned num_spans = sl.num_spans(); // Number of spans. It's guaranteed that
@@ -224,7 +253,7 @@ class cScanline {
  //     ...you have x, covers, and pix_count..
  //     **************************************
  //
- //     unsigned char* dst = row + x;  // Calculate the start address of the row.
+ //     uint8_t* dst = row + x;  // Calculate the start address of the row.
  //                                    // In this case we assume a simple
  //                                    // grayscale image 1-byte per pixel.
  //     do
@@ -290,7 +319,7 @@ public:
   void add_cell (int x, int y, unsigned cover) {
 
     x -= m_min_x;
-    m_covers[x] = (unsigned char)cover;
+    m_covers[x] = (uint8_t)cover;
 
     if (x == m_last_x+1)
       (*m_cur_count)++;
@@ -366,13 +395,13 @@ public:
   //{{{
   void clear (const tRgba& c) {
     for (unsigned y = 0; y < m_rbuf->height(); y++)
-        m_span.hline (m_rbuf->row(y), 0, m_rbuf->width(), c);
+      m_span.hline (m_rbuf->row(y), 0, m_rbuf->width(), c);
     }
   //}}}
   //{{{
-  void pixel( int x, int y, const tRgba& c) {
-    if (m_rbuf->inbox(x, y))
-      m_span.hline(m_rbuf->row(y), x, 1, c);
+  void pixel (int x, int y, const tRgba& c) {
+    if (m_rbuf->inbox (x, y))
+      m_span.hline (m_rbuf->row(y), x, 1, c);
     }
   //}}}
   //{{{
@@ -380,7 +409,8 @@ public:
 
    if (m_rbuf->inbox(x, y))
       return m_span.get (m_rbuf->row(y), x);
-    return tRgba(0,0,0);
+
+    return tRgba (0,0,0);
     }
   //}}}
   //{{{
@@ -391,7 +421,7 @@ public:
 
     unsigned num_spans = sl.num_spans();
     int base_x = sl.base_x();
-    unsigned char* row = m_rbuf->row(sl.y());
+    uint8_t* row = m_rbuf->row(sl.y());
     cScanline::iterator span(sl);
 
     do {
@@ -420,7 +450,7 @@ public:
 
 private:
   cRenderingBuffer* m_rbuf;
-  cSpan              m_span;
+  cSpan             m_span;
   };
 //}}}
 
@@ -455,8 +485,6 @@ struct tCell {
 //}}}
 //{{{
 class cOutline {
-// An internal class that implements the main rasterization algorithm.
-// Used in the cRasteriser. Should not be used direcly.
   //{{{
   enum {
     cell_block_shift = 12,
@@ -473,8 +501,8 @@ public:
 
   void reset();
 
-  void move_to(int x, int y);
-  void line_to(int x, int y);
+  void moveTo (int x, int y);
+  void lineTo (int x, int y);
 
   int min_x() const { return m_min_x; }
   int min_y() const { return m_min_y; }
@@ -485,15 +513,16 @@ public:
   const tCell* const* cells();
 
 private:
-  cOutline(const cOutline&);
+  cOutline (const cOutline&);
   const cOutline& operator = (const cOutline&);
 
-  void set_cur_cell(int x, int y);
+  void set_cur_cell (int x, int y);
   void add_cur_cell();
   void sort_cells();
-  void render_cScanline(int ey, int x1, int y1, int x2, int y2);
-  void render_line(int x1, int y1, int x2, int y2);
-  void allocate_block();
+
+  void renderScanline (int ey, int x1, int y1, int x2, int y2);
+  void renderLine (int x1, int y1, int x2, int y2);
+  void allocateBlock();
 
   static void qsort_cells (tCell** start, unsigned num);
 
@@ -502,11 +531,11 @@ private:
   unsigned  m_max_blocks;
   unsigned  m_cur_block;
   unsigned  m_num_cells;
-  tCell**    m_cells;
-  tCell*     m_cur_cell_ptr;
-  tCell**    m_sorted_cells;
+  tCell**   m_cells;
+  tCell*    m_cur_cell_ptr;
+  tCell**   m_sorted_cells;
   unsigned  m_sorted_size;
-  tCell      m_cur_cell;
+  tCell     m_cur_cell;
   int       m_cur_x;
   int       m_cur_y;
   int       m_close_x;
@@ -567,10 +596,10 @@ public:
   void gamma (double g);
   void gamma (const uint8_t* g);
 
-  void move_to (int x, int y) { mOutline.move_to(x, y); }
-  void line_to (int x, int y) { mOutline.line_to(x, y); }
-  void move_to_d (double x, double y) { mOutline.move_to(poly_coord(x), poly_coord(y)); }
-  void line_to_d (double x, double y) { mOutline.line_to(poly_coord(x), poly_coord(y)); }
+  void moveTo (int x, int y) { mOutline.moveTo (x, y); }
+  void lineTo (int x, int y) { mOutline.lineTo (x, y); }
+  void moveTod (double x, double y) { mOutline.moveTo (poly_coord(x), poly_coord(y)); }
+  void lineTod (double x, double y) { mOutline.lineTo (poly_coord(x), poly_coord(y)); }
 
   int min_x() const { return mOutline.min_x(); }
   int min_y() const { return mOutline.min_y(); }
@@ -685,7 +714,7 @@ struct tSpanRgb565 {
     }
   //}}}
   //{{{
-  static void render (unsigned char* ptr, int x, unsigned count, const unsigned char* covers, const tRgba& c) {
+  static void render (uint8_t* ptr, int x, unsigned count, const uint8_t* covers, const tRgba& c) {
 
     uint16_t* p = ((uint16_t*)ptr) + x;
     do {
@@ -699,23 +728,21 @@ struct tSpanRgb565 {
       *p++ = (((((c.r - r) * alpha) + (r << 16)) >> 8) & 0xF800) |
              (((((c.g - g) * alpha) + (g << 16)) >> 13) & 0x7E0) |
               ((((c.b - b) * alpha) + (b << 16)) >> 19);
-      }
-
-    while(--count);
+      } while (--count);
     }
   //}}}
   //{{{
-  static void hline (unsigned char* ptr, int x, unsigned count, const tRgba& c) {
+  static void hline (uint8_t* ptr, int x, unsigned count, const tRgba& c) {
 
     uint16_t* p = ((uint16_t*)ptr) + x;
-    uint16_t  v = rgb565(c.r, c.g, c.b);
+    uint16_t v = rgb565 (c.r, c.g, c.b);
     do {
       *p++ = v;
-      } while(--count);
+      } while (--count);
     }
   //}}}
   //{{{
-  static tRgba get (unsigned char* ptr, int x) {
+  static tRgba get (uint8_t* ptr, int x) {
 
     uint16_t rgb = ((uint16_t*)ptr)[x];
 
@@ -724,6 +751,7 @@ struct tSpanRgb565 {
     c.g = (rgb >> 3) & 0xFC;
     c.b = (rgb << 3) & 0xF8;
     c.a = 255;
+
     return c;
     }
   //}}}

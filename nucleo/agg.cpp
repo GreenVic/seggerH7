@@ -40,38 +40,6 @@
 //}}}
 
 //{{{
-cRenderingBuffer::cRenderingBuffer (unsigned char* buf, unsigned width, unsigned height, int stride) :
-    m_buf(0), m_rows(0), m_width(0), m_height(0), m_stride(0), m_max_height(0) {
-  attach(buf, width, height, stride);
-  }
-//}}}
-cRenderingBuffer::~cRenderingBuffer() { delete [] m_rows; }
-//{{{
-void cRenderingBuffer::attach (unsigned char* buf, unsigned width, unsigned height, int stride) {
-
-  m_buf = buf;
-  m_width = width;
-  m_height = height;
-  m_stride = stride;
-
-  if (height > m_max_height) {
-    delete [] m_rows;
-    m_rows = new unsigned char* [m_max_height = height];
-    }
-
-  unsigned char* row_ptr = m_buf;
-  if (stride < 0)
-    row_ptr = m_buf - int(height - 1) * stride;
-
-  unsigned char** rows = m_rows;
-  while (height--) {
-    *rows++ = row_ptr;
-    row_ptr += stride;
-    }
-  }
-//}}}
-
-//{{{
 cScanline::cScanline() : m_min_x(0), m_max_len(0), m_dx(0), m_dy(0), m_last_x(0x7FFF), m_last_y(0x7FFF),
                        m_covers(0), m_start_ptrs(0), m_counts(0), m_num_spans(0), m_cur_start_ptr(0),
                        m_cur_count(0) { }
@@ -220,7 +188,7 @@ void cOutline::reset() {
   }
 //}}}
 //{{{
-void cOutline::allocate_block() {
+void cOutline::allocateBlock() {
 
   if (m_cur_block >= m_num_blocks) {
     if (m_num_blocks >= m_max_blocks) {
@@ -245,7 +213,7 @@ inline void cOutline::add_cur_cell() {
     if ((m_num_cells & cell_block_mask) == 0) {
       if (m_num_blocks >= cell_block_limit)
         return;
-      allocate_block();
+      allocateBlock();
       }
     *m_cur_cell_ptr++ = m_cur_cell;
     m_num_cells++;
@@ -262,7 +230,7 @@ inline void cOutline::set_cur_cell (int x, int y) {
  }
 //}}}
 //{{{
-inline void cOutline::render_cScanline (int ey, int x1, int y1, int x2, int y2) {
+inline void cOutline::renderScanline (int ey, int x1, int y1, int x2, int y2) {
 
   int ex1 = x1 >> poly_base_shift;
   int ex2 = x2 >> poly_base_shift;
@@ -339,7 +307,7 @@ inline void cOutline::render_cScanline (int ey, int x1, int y1, int x2, int y2) 
   }
 //}}}
 //{{{
-void cOutline::render_line (int x1, int y1, int x2, int y2) {
+void cOutline::renderLine (int x1, int y1, int x2, int y2) {
 
   int ey1 = y1 >> poly_base_shift;
   int ey2 = y2 >> poly_base_shift;
@@ -363,14 +331,14 @@ void cOutline::render_line (int x1, int y1, int x2, int y2) {
 
   // everything is on a single cScanline
   if (ey1 == ey2) {
-    render_cScanline(ey1, x1, fy1, x2, fy2);
+    renderScanline(ey1, x1, fy1, x2, fy2);
     return;
     }
 
   // Vertical line - we have to calculate start and end cells,
   // and then - the common values of the area and coverage for
   // all cells of the line. We know exactly there's only one
-  // cell, so, we don't have to call render_cScanline().
+  // cell, so, we don't have to call renderScanline().
   incr  = 1;
   if (dx == 0) {
     int ex = x1 >> poly_base_shift;
@@ -385,7 +353,7 @@ void cOutline::render_line (int x1, int y1, int x2, int y2) {
 
     x_from = x1;
 
-    //render_cScanline(ey1, x_from, fy1, x_from, first)
+    //renderScanline(ey1, x_from, fy1, x_from, first)
     delta = first - fy1;
     m_cur_cell.add_cover (delta, two_fx * delta);
 
@@ -395,13 +363,13 @@ void cOutline::render_line (int x1, int y1, int x2, int y2) {
     delta = first + first - poly_base_size;
     area = two_fx * delta;
     while (ey1 != ey2) {
-      //render_cScanline (ey1, x_from, poly_base_size - first, x_from, first);
+      //renderScanline (ey1, x_from, poly_base_size - first, x_from, first);
       m_cur_cell.set_cover (delta, area);
       ey1 += incr;
       set_cur_cell(ex, ey1);
       }
 
-    // render_cScanline(ey1, x_from, poly_base_size - first, x_from, fy2);
+    // renderScanline(ey1, x_from, poly_base_size - first, x_from, fy2);
     delta = fy2 - poly_base_size + first;
     m_cur_cell.add_cover (delta, two_fx * delta);
     return;
@@ -425,7 +393,7 @@ void cOutline::render_line (int x1, int y1, int x2, int y2) {
     }
 
   x_from = x1 + delta;
-  render_cScanline (ey1, x1, fy1, x_from, first);
+  renderScanline (ey1, x1, fy1, x_from, first);
 
   ey1 += incr;
   set_cur_cell (x_from >> poly_base_shift, ey1);
@@ -449,24 +417,24 @@ void cOutline::render_line (int x1, int y1, int x2, int y2) {
         }
 
       x_to = x_from + delta;
-      render_cScanline (ey1, x_from, poly_base_size - first, x_to, first);
+      renderScanline (ey1, x_from, poly_base_size - first, x_to, first);
       x_from = x_to;
 
       ey1 += incr;
       set_cur_cell (x_from >> poly_base_shift, ey1);
       }
     }
-  render_cScanline (ey1, x_from, poly_base_size - first, x2, fy2);
+  renderScanline (ey1, x_from, poly_base_size - first, x2, fy2);
   }
 //}}}
 //{{{
-void cOutline::move_to (int x, int y) {
+void cOutline::moveTo (int x, int y) {
 
   if ((m_flags & sort_required) == 0)
     reset();
 
   if (m_flags & not_closed)
-    line_to(m_close_x, m_close_y);
+    lineTo (m_close_x, m_close_y);
 
   set_cur_cell (x >> poly_base_shift, y >> poly_base_shift);
   m_close_x = m_cur_x = x;
@@ -474,7 +442,7 @@ void cOutline::move_to (int x, int y) {
   }
 //}}}
 //{{{
-void cOutline::line_to (int x, int y) {
+void cOutline::lineTo (int x, int y) {
 
   if((m_flags & sort_required) && ((m_cur_x ^ x) | (m_cur_y ^ y))) {
     int c = m_cur_x >> poly_base_shift;
@@ -491,7 +459,7 @@ void cOutline::line_to (int x, int y) {
     if (c > m_max_x)
       m_max_x = c;
 
-    render_line (m_cur_x, m_cur_y, x, y);
+    renderLine (m_cur_x, m_cur_y, x, y);
     m_cur_x = x;
     m_cur_y = y;
     m_flags |= not_closed;
@@ -636,7 +604,7 @@ void cOutline::sort_cells() {
 const tCell* const* cOutline::cells() {
 
   if (m_flags & not_closed) {
-    line_to(m_close_x, m_close_y);
+    lineTo (m_close_x, m_close_y);
     m_flags &= ~not_closed;
     }
 
@@ -685,9 +653,9 @@ bool cRasteriser::hit_test (int tx, int ty) {
     if (y > ty)
       return false;
 
-    area   = start_cell->area;
+    area = start_cell->area;
     cover += start_cell->cover;
-    while((cur_cell = *cells++) != 0) {
+    while ((cur_cell = *cells++) != 0) {
       if (cur_cell->packed_coord != coord)
         break;
       area  += cur_cell->area;
