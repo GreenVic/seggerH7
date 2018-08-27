@@ -254,7 +254,7 @@ void appThread (void* arg) {
   cRenderingBuffer rbuf (buf, width, height, width * 2);
 
   // create renderer, cRasteriser
-  renderer<tSpanRgb565> ren(rbuf);
+  cRenderer<tSpanRgb565> ren(rbuf);
   cRasteriser ras;
   ras.gamma (1.2);
   ras.filling_rule (fill_even_odd);

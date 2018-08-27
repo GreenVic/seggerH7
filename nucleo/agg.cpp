@@ -150,28 +150,28 @@ const uint8_t cRasteriser::s_default_gamma[] = {
 
 enum { not_closed = 1, sort_required = 2 };
 //{{{
-inline void cell::set_cover (int c, int a) {
+inline void tCell::set_cover (int c, int a) {
 
   cover = c;
   area = a;
   }
 //}}}
 //{{{
-inline void cell::add_cover (int c, int a) {
+inline void tCell::add_cover (int c, int a) {
 
   cover += c;
   area += a;
   }
 //}}}
 //{{{
-inline void cell::set_coord (int cx, int cy) {
+inline void tCell::set_coord (int cx, int cy) {
   x = int16_t (cx);
   y = int16_t (cy);
   packed_coord = (cy << 16) + cx;
   }
 //}}}
 //{{{
-inline void cell::set (int cx, int cy, int c, int a) {
+inline void tCell::set (int cx, int cy, int c, int a) {
 
   x = int16_t(cx);
   y = int16_t(cy);
@@ -196,7 +196,7 @@ cOutline::~cOutline() {
   delete [] m_sorted_cells;
 
   if (m_num_blocks) {
-    cell** ptr = m_cells + m_num_blocks - 1;
+    tCell** ptr = m_cells + m_num_blocks - 1;
     while(m_num_blocks--) {
       delete [] *ptr;
       ptr--;
@@ -224,15 +224,15 @@ void cOutline::allocate_block() {
 
   if (m_cur_block >= m_num_blocks) {
     if (m_num_blocks >= m_max_blocks) {
-      cell** new_cells = new cell* [m_max_blocks + cell_block_pool];
+      tCell** new_cells = new tCell* [m_max_blocks + cell_block_pool];
       if (m_cells) {
-        memcpy(new_cells, m_cells, m_max_blocks * sizeof(cell*));
+        memcpy(new_cells, m_cells, m_max_blocks * sizeof(tCell*));
         delete [] m_cells;
         }
       m_cells = new_cells;
       m_max_blocks += cell_block_pool;
       }
-    m_cells[m_num_blocks++] = new cell [unsigned(cell_block_size)];
+    m_cells[m_num_blocks++] = new tCell [unsigned(cell_block_size)];
     }
 
   m_cur_cell_ptr = m_cells[m_cur_block++];
@@ -514,12 +514,12 @@ template <class T> static inline bool less_than (T* a, T* b) {
 //}}}
 
 //{{{
-void cOutline::qsort_cells (cell** start, unsigned num) {
+void cOutline::qsort_cells (tCell** start, unsigned num) {
 
-  cell**  stack[80];
-  cell*** top;
-  cell**  limit;
-  cell**  base;
+  tCell**  stack[80];
+  tCell*** top;
+  tCell**  limit;
+  tCell**  base;
 
   limit = start + num;
   base  = start;
@@ -528,9 +528,9 @@ void cOutline::qsort_cells (cell** start, unsigned num) {
   for (;;) {
     int len = int(limit - base);
 
-    cell** i;
-    cell** j;
-    cell** pivot;
+    tCell** i;
+    tCell** j;
+    tCell** pivot;
 
     if (len > qsort_threshold) {
       // we use base + len/2 as the pivot
@@ -606,12 +606,12 @@ void cOutline::sort_cells() {
   if (m_num_cells > m_sorted_size) {
     delete [] m_sorted_cells;
     m_sorted_size = m_num_cells;
-    m_sorted_cells = new cell* [m_num_cells + 1];
+    m_sorted_cells = new tCell* [m_num_cells + 1];
     }
 
-  cell** sorted_ptr = m_sorted_cells;
-  cell** block_ptr = m_cells;
-  cell*  cell_ptr;
+  tCell** sorted_ptr = m_sorted_cells;
+  tCell** block_ptr = m_cells;
+  tCell*  cell_ptr;
 
   unsigned nb = m_num_cells >> cell_block_shift;
   unsigned i;
@@ -633,7 +633,7 @@ void cOutline::sort_cells() {
   }
 //}}}
 //{{{
-const cell* const* cOutline::cells() {
+const tCell* const* cOutline::cells() {
 
   if (m_flags & not_closed) {
     line_to(m_close_x, m_close_y);
@@ -664,7 +664,7 @@ void cRasteriser::gamma (const uint8_t* g) { memcpy(m_gamma, g, sizeof(m_gamma))
 //{{{
 bool cRasteriser::hit_test (int tx, int ty) {
 
-  const cell* const* cells = mOutline.cells();
+  const tCell* const* cells = mOutline.cells();
   if (mOutline.num_cells() == 0)
     return false;
 
@@ -674,9 +674,9 @@ bool cRasteriser::hit_test (int tx, int ty) {
   int area;
 
   cover = 0;
-  const cell* cur_cell = *cells++;
+  const tCell* cur_cell = *cells++;
   for(;;) {
-    const cell* start_cell = cur_cell;
+    const tCell* start_cell = cur_cell;
 
     int coord  = cur_cell->packed_coord;
     x = cur_cell->x;

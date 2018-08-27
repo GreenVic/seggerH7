@@ -19,8 +19,10 @@
 //----------------------------------------------------------------------------
 //}}}
 #pragma once
+//{{{  includes
 #include <stdint.h>
 #include <string.h>
+//}}}
 
 //{{{
 struct tRgba {
@@ -148,12 +150,12 @@ private:
   const cRenderingBuffer& operator = (const cRenderingBuffer&);
 
 private:
-  unsigned char*  m_buf;        // Pointer to renrdering buffer
-  unsigned char** m_rows;       // Pointers to each row of the buffer
-  unsigned        m_width;      // Width in pixels
-  unsigned        m_height;     // Height in pixels
-  int             m_stride;     // Number of bytes per row. Can be < 0
-  unsigned        m_max_height; // Maximal current height
+  uint8_t*  m_buf;        // Pointer to renrdering buffer
+  uint8_t** m_rows;       // Pointers to each row of the buffer
+  unsigned  m_width;      // Width in pixels
+  unsigned  m_height;     // Height in pixels
+  int       m_stride;     // Number of bytes per row. Can be < 0
+  unsigned  m_max_height; // Maximal current height
   };
 //}}}
 //{{{
@@ -269,8 +271,8 @@ public:
   //}}}
   friend class iterator;
 
-  ~cScanline();
   cScanline();
+  ~cScanline();
 
   void reset (int min_x, int max_x, int dx=0, int dy=0);
 
@@ -318,23 +320,23 @@ private:
   const cScanline& operator = (const cScanline&);
 
 private:
-  int      m_min_x;
-  unsigned m_max_len;
-  int      m_dx;
-  int      m_dy;
-  int      m_last_x;
-  int      m_last_y;
+  int        m_min_x;
+  unsigned   m_max_len;
+  int        m_dx;
+  int        m_dy;
+  int        m_last_x;
+  int        m_last_y;
   uint8_t*   m_covers;
   uint8_t**  m_start_ptrs;
   uint16_t*  m_counts;
-  unsigned m_num_spans;
+  unsigned   m_num_spans;
   uint8_t**  m_cur_start_ptr;
   uint16_t*  m_cur_count;
   };
 //}}}
 
 //{{{
-template<class Span> class renderer {
+template <class cSpan> class cRenderer {
 //{{{  description
 // This class template is used basically for rendering cScanlines.
 // The 'Span' argument is one of the span renderers, such as span_rgb24
@@ -359,7 +361,7 @@ template<class Span> class renderer {
 //     ras.render(ren, agg::tRgba(200, 100, 80));
 //}}}
 public:
-  renderer (cRenderingBuffer& rbuf) : m_rbuf(&rbuf) {}
+  cRenderer (cRenderingBuffer& rbuf) : m_rbuf(&rbuf) {}
 
   //{{{
   void clear (const tRgba& c) {
@@ -418,7 +420,7 @@ public:
 
 private:
   cRenderingBuffer* m_rbuf;
-  Span              m_span;
+  cSpan              m_span;
   };
 //}}}
 
@@ -429,14 +431,14 @@ private:
 // sizeof(int) * 8 - poly_base_shift * 2, i.e, for 32-bit integers and
 // 8-bits fractional part the capacity is 16 bits or [-32768...32767].
 enum { poly_base_shift = 8,
-       poly_base_size  = 1 << poly_base_shift,
-       poly_base_mask  = poly_base_size - 1
+       poly_base_size = 1 << poly_base_shift,
+       poly_base_mask = poly_base_size - 1
      };
 //}}}
 inline int poly_coord (double c) { return int(c * poly_base_size); }
 
 //{{{
-struct cell {
+struct tCell {
 // A pixel cell. There're no constructors defined and it was done
 // intentionally in order to avoid extra overhead when allocating an array of cells.
   int16_t x;
@@ -480,7 +482,7 @@ public:
   int max_y() const { return m_max_y; }
 
   unsigned num_cells() const {return m_num_cells; }
-  const cell* const* cells();
+  const tCell* const* cells();
 
 private:
   cOutline(const cOutline&);
@@ -493,18 +495,18 @@ private:
   void render_line(int x1, int y1, int x2, int y2);
   void allocate_block();
 
-  static void qsort_cells(cell** start, unsigned num);
+  static void qsort_cells (tCell** start, unsigned num);
 
 private:
   unsigned  m_num_blocks;
   unsigned  m_max_blocks;
   unsigned  m_cur_block;
   unsigned  m_num_cells;
-  cell**    m_cells;
-  cell*     m_cur_cell_ptr;
-  cell**    m_sorted_cells;
+  tCell**    m_cells;
+  tCell*     m_cur_cell_ptr;
+  tCell**    m_sorted_cells;
   unsigned  m_sorted_size;
-  cell      m_cur_cell;
+  tCell      m_cur_cell;
   int       m_cur_x;
   int       m_cur_y;
   int       m_close_x;
@@ -596,9 +598,9 @@ public:
   //}}}
 
   //{{{
-  template<class Renderer> void render (Renderer& r, const tRgba& c, int dx = 0, int dy = 0) {
+  template<class cRenderer> void render (cRenderer& r, const tRgba& c, int dx = 0, int dy = 0) {
 
-    const cell* const* cells = mOutline.cells();
+    const tCell* const* cells = mOutline.cells();
     if (mOutline.num_cells() == 0)
       return;
 
@@ -610,9 +612,9 @@ public:
     mScanline.reset (mOutline.min_x(), mOutline.max_x(), dx, dy);
 
     cover = 0;
-    const cell* cur_cell = *cells++;
+    const tCell* cur_cell = *cells++;
     for(;;) {
-      const cell* start_cell = cur_cell;
+      const tCell* start_cell = cur_cell;
 
       int coord  = cur_cell->packed_coord;
       x = cur_cell->x;
