@@ -419,7 +419,7 @@ public:
   //{{{
   ~cOutline() {
 
-    delete [] mSortedcells;
+    vPortFree (mSortedcells);
 
     if (mNumblocks) {
       cPixelCell** ptr = mCells + mNumblocks - 1;
@@ -556,9 +556,9 @@ private:
       return;
 
     if (mNumcells > mSortedsize) {
-      delete [] mSortedcells;
+      vPortFree (mSortedcells);
       mSortedsize = mNumcells;
-      mSortedcells = new cPixelCell* [mNumcells + 1];
+      mSortedcells = (cPixelCell**)pvPortMalloc ((mNumcells + 1) * 4);
       }
 
     cPixelCell** sorted_ptr = mSortedcells;
