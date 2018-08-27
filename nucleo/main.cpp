@@ -41,8 +41,6 @@ void draw_ellipse (cRasteriser& ras, double x, double y, double rx, double ry) {
 
   ras.move_to_d (x + rx, y);
 
-  // Here we have a fixed number of approximation steps, namely 360
-  // while in reality it's supposed to be smarter.
   for (int i = 1; i < 360; i++) {
     double a = double(i) * 3.1415926 / 180.0;
     ras.line_to_d (x + cos(a) * rx, y + sin(a) * ry);
@@ -247,38 +245,35 @@ void uiThread (void* arg) {
 //{{{
 void appThread (void* arg) {
 
-  // Allocate the framebuffer
+  // Create frameBuffer, renderingBuffer, renderer, rasteriser
   buf = sdRamAlloc (width * height * 2, "agg");
+  cRenderingBuffer renderingBuffer (buf, width, height, width * 2);
+  cRenderer<tSpanRgb565> renderer (renderingBuffer);
+  cRasteriser rasteriser;
+  rasteriser.gamma (1.2);
+  rasteriser.filling_rule (fill_even_odd);
 
-  // Create the rendering buffer
-  cRenderingBuffer rbuf (buf, width, height, width * 2);
-
-  // create renderer, cRasteriser
-  cRenderer<tSpanRgb565> ren(rbuf);
-  cRasteriser ras;
-  ras.gamma (1.2);
-  ras.filling_rule (fill_even_odd);
-  ren.clear (tRgba (0,0,0));
+  renderer.clear (tRgba (0,0,0));
 
   // Draw random polygons
   for (int i = 0; i < 4; i++) {
     int n = rand() % 6 + 3;
-    ras.move_to_d (random(-30, rbuf.width() + 30), random(-30, rbuf.height() + 30));
+    rasteriser.move_to_d (random(-30, renderingBuffer.width() + 30), random(-30, renderingBuffer.height() + 30));
     for (int j = 1; j < n; j++)
-      ras.line_to_d (random(-30, rbuf.width() + 30), random(-30, rbuf.height() + 30));
-    ras.render (ren, tRgba (255,255, 0,192));
+      rasteriser.line_to_d (random(-30, renderingBuffer.width() + 30), random(-30, renderingBuffer.height() + 30));
+    rasteriser.render (renderer, tRgba (255,255, 0,192));
     }
 
-  draw_ellipse (ras, rbuf.width()/2, rbuf.height()/2, 50, 100);
-  ras.render (ren, tRgba (255, 0, 255, 192));
+  draw_ellipse (rasteriser, renderingBuffer.width()/2, renderingBuffer.height()/2, 50, 100);
+  rasteriser.render (renderer, tRgba (255, 0, 255, 192));
 
   // Draw random straight lines
   for (int i = 0; i < 5; i++) {
-    draw_line (ras, random(-30, rbuf.width()  + 30), random(-30, rbuf.height() + 30),
-                    random(-30, rbuf.width()  + 30), random(-30, rbuf.height() + 30), random(0.1, 10));
-    ras.render (ren, tRgba (255,255,255,255));
+    draw_line (rasteriser, random(-30, renderingBuffer.width()  + 30), random(-30, renderingBuffer.height() + 30),
+                    random(-30, renderingBuffer.width()  + 30), random(-30, renderingBuffer.height() + 30), random(0.1, 10));
+    rasteriser.render (renderer, tRgba (255,255,255,255));
     }
-  aggTile = new cTile (buf, cTile::eRgb565, rbuf.width(), 0,0, rbuf.width(), rbuf.height());
+  aggTile = new cTile (buf, cTile::eRgb565, renderingBuffer.width(), 0,0, renderingBuffer.width(), renderingBuffer.height());
 
   bool hwJpeg = BSP_PB_GetState (BUTTON_KEY) == 0;
 

@@ -129,12 +129,12 @@ class cRenderingBuffer {
 //    responsibility and depends on the platform.
 //}}}
 public:
-  cRenderingBuffer (unsigned char* buf, unsigned width, unsigned height, int stride);
+  cRenderingBuffer (uint8_t* buf, unsigned width, unsigned height, int stride);
   ~cRenderingBuffer();
 
-  void attach (unsigned char* buf, unsigned width, unsigned height, int stride);
+  void attach (uint8_t* buf, unsigned width, unsigned height, int stride);
 
-  const unsigned char* buf()  const { return m_buf; }
+  const uint8_t* buf()  const { return m_buf; }
   unsigned width() const { return m_width;  }
   unsigned height() const { return m_height; }
   int stride() const { return m_stride; }
@@ -142,8 +142,8 @@ public:
   bool inbox (int x, int y) const { return x >= 0 && y >= 0 && x < int(m_width) && y < int(m_height); }
   unsigned abs_stride() const { return (m_stride < 0) ? unsigned(-m_stride) : unsigned(m_stride); }
 
-  unsigned char* row (unsigned y) { return m_rows[y];  }
-  const unsigned char* row (unsigned y) const { return m_rows[y]; }
+  uint8_t* row (unsigned y) { return m_rows[y];  }
+  const uint8_t* row (unsigned y) const { return m_rows[y]; }
 
 private:
   cRenderingBuffer (const cRenderingBuffer&);
