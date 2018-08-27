@@ -27,8 +27,6 @@ enum {
   };
 //}}}
 
-uint8_t* buf = nullptr;
-cTile* aggTile = nullptr;
 //{{{
 double random (double min, double max)
 {
@@ -175,6 +173,10 @@ void findFiles (const string& dirPath, const string& ext) {
 //{{{
 void uiThread (void* arg) {
 
+  cTarget target (lcd->getDrawBuf(), lcd->getWidth(), lcd->getHeight());
+  cRenderer<tRgb565Span> renderer (target);
+  cRasteriser rasteriser;
+
   lcd->display (70);
 
   int count = 0;
@@ -231,7 +233,22 @@ void uiThread (void* arg) {
       lcd->cLcd::text (COL_WHITE, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600) + cPoint(-2,-2));
       //}}}
 
-      lcd->copy (aggTile, cPoint (0,0));
+      target.setBuffer (lcd->getDrawBuf());
+      int n = rand() % 6 + 3;
+      rasteriser.moveTod (random(-30, target.width() + 30), random(-30, target.height() + 30));
+      rasteriser.lineTod (random(-30, target.width() + 30), random(-30, target.height() + 30));
+      rasteriser.lineTod (random(-30, target.width() + 30), random(-30, target.height() + 30));
+      rasteriser.lineTod (random(-30, target.width() + 30), random(-30, target.height() + 30));
+      rasteriser.render (renderer, tRgba (255,255, 0,192));
+
+      draw_ellipse (rasteriser, random(-30, target.width() + 30)/2, 
+                                random(-30, target.height() + 30)/2, 50, 100);
+      rasteriser.render (renderer, tRgba (255, 0, 255, 192));
+
+      draw_line (rasteriser,
+                 random(-30, target.width()  + 30), random(-30, target.height() + 30),
+                 random(-30, target.width()  + 30), random(-30, target.height() + 30), random(0.1, 10));
+      rasteriser.render (renderer, tRgba (255,255,255,255));
 
       lcd->present();
       }
@@ -244,33 +261,6 @@ void uiThread (void* arg) {
 //}}}
 //{{{
 void appThread (void* arg) {
-
-  // Create frameBuffer,  , renderer, rasteriser
-  buf = sdRamAlloc (width * height * 2, "agg");
-  cTarget target (buf, width, height);
-  cRenderer<tRgb565Span> renderer (target);
-  cRasteriser rasteriser;
-  renderer.clear (tRgba (0,0,0));
-
-  // Draw random polygons
-  for (int i = 0; i < 4; i++) {
-    int n = rand() % 6 + 3;
-    rasteriser.moveTod (random(-30, target.width() + 30), random(-30, target.height() + 30));
-    for (int j = 1; j < n; j++)
-      rasteriser.lineTod (random(-30, target.width() + 30), random(-30, target.height() + 30));
-    rasteriser.render (renderer, tRgba (255,255, 0,192));
-    }
-
-  draw_ellipse (rasteriser, target.width()/2, target.height()/2, 50, 100);
-  rasteriser.render (renderer, tRgba (255, 0, 255, 192));
-
-  // Draw random straight lines
-  for (int i = 0; i < 5; i++) {
-    draw_line (rasteriser, random(-30, target.width()  + 30), random(-30, target.height() + 30),
-                    random(-30, target.width()  + 30), random(-30, target.height() + 30), random(0.1, 10));
-    rasteriser.render (renderer, tRgba (255,255,255,255));
-    }
-  aggTile = new cTile (buf, cTile::eRgb565, target.width(), 0,0, target.width(), target.height());
 
   bool hwJpeg = BSP_PB_GetState (BUTTON_KEY) == 0;
 

@@ -108,6 +108,7 @@ public:
   static uint16_t getBigFontHeight() { return BIG_FONT_HEIGHT; }
 
   uint16_t getBrightness() { return mBrightness; }
+  uint8_t* getDrawBuf() { return (uint8_t*)mBuffer[mDrawBuffer]; }
 
   void setShowInfo (bool show);
   void setTitle (const std::string& str) { mTitle = str; mChanged = true; }
