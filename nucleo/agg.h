@@ -1002,7 +1002,7 @@ public:
   //}}}
 
   //{{{
-  template<class cRenderer> void render (cRenderer& r, const sRgba& c, int dx = 0, int dy = 0) {
+  void render (cRenderer& r, const sRgba& rgba, int dx = 0, int dy = 0) {
 
     const sPixelCell* const* cells = mOutline.cells();
     if (mOutline.numCells() == 0)
@@ -1039,7 +1039,7 @@ public:
         alpha = calcAlpha ((cover << (8 + 1)) - area);
         if (alpha) {
          if (mScanline.isReady (y)) {
-            r.render (mScanline, c);
+            r.render (mScanline, rgba);
             mScanline.resetSpans();
             }
           mScanline.addCell (x, y, mGamma[alpha]);
@@ -1054,7 +1054,7 @@ public:
         alpha = calcAlpha (cover << (8 + 1));
         if (alpha) {
           if (mScanline.isReady (y)) {
-             r.render (mScanline, c);
+             r.render (mScanline, rgba);
              mScanline.resetSpans();
              }
            mScanline.addSpan (x, y, cur_cell->x - x, mGamma[alpha]);
@@ -1063,7 +1063,7 @@ public:
       }
 
     if (mScanline.numSpans())
-      r.render (mScanline, c);
+      r.render (mScanline, rgba);
     }
   //}}}
 
