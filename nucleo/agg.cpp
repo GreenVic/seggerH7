@@ -19,7 +19,7 @@
 //          http://www.antigrain.com
 //----------------------------------------------------------------------------
 //
-// Class outline - implementation.
+// Class cOutline - implementation.
 //
 // Initially the rendering algorithm was designed by David Turner and the
 // other authors of the FreeType library - see the above notice. I nearly
@@ -40,14 +40,14 @@
 //}}}
 
 //{{{
-rendering_buffer::rendering_buffer (unsigned char* buf, unsigned width, unsigned height, int stride) :
+cRenderingBuffer::cRenderingBuffer (unsigned char* buf, unsigned width, unsigned height, int stride) :
     m_buf(0), m_rows(0), m_width(0), m_height(0), m_stride(0), m_max_height(0) {
   attach(buf, width, height, stride);
   }
 //}}}
-rendering_buffer::~rendering_buffer() { delete [] m_rows; }
+cRenderingBuffer::~cRenderingBuffer() { delete [] m_rows; }
 //{{{
-void rendering_buffer::attach (unsigned char* buf, unsigned width, unsigned height, int stride) {
+void cRenderingBuffer::attach (unsigned char* buf, unsigned width, unsigned height, int stride) {
 
   m_buf = buf;
   m_width = width;
@@ -72,12 +72,12 @@ void rendering_buffer::attach (unsigned char* buf, unsigned width, unsigned heig
 //}}}
 
 //{{{
-scanline::scanline() : m_min_x(0), m_max_len(0), m_dx(0), m_dy(0), m_last_x(0x7FFF), m_last_y(0x7FFF),
+cScanline::cScanline() : m_min_x(0), m_max_len(0), m_dx(0), m_dy(0), m_last_x(0x7FFF), m_last_y(0x7FFF),
                        m_covers(0), m_start_ptrs(0), m_counts(0), m_num_spans(0), m_cur_start_ptr(0),
                        m_cur_count(0) { }
 //}}}
 //{{{
-scanline::~scanline() {
+cScanline::~cScanline() {
 
   delete [] m_counts;
   delete [] m_start_ptrs;
@@ -85,7 +85,7 @@ scanline::~scanline() {
   }
 //}}}
 //{{{
-void scanline::reset (int min_x, int max_x, int dx, int dy) {
+void cScanline::reset (int min_x, int max_x, int dx, int dy) {
 
   unsigned max_len = max_x - min_x + 2;
   if (max_len > m_max_len) {
@@ -109,7 +109,7 @@ void scanline::reset (int min_x, int max_x, int dx, int dy) {
   }
 //}}}
 //{{{
-void scanline::add_span (int x, int y, unsigned num, unsigned cover) {
+void cScanline::add_span (int x, int y, unsigned num, unsigned cover) {
 
   x -= m_min_x;
 
@@ -128,7 +128,7 @@ void scanline::add_span (int x, int y, unsigned num, unsigned cover) {
 //}}}
 
 //{{{
-const uint8_t rasterizer::s_default_gamma[] = {
+const uint8_t cRasteriser::s_default_gamma[] = {
     0,  0,  1,  1,  2,  2,  3,  4,  4,  5,  5,  6,  7,  7,  8,  8,
     9, 10, 10, 11, 11, 12, 13, 13, 14, 14, 15, 16, 16, 17, 18, 18,
    19, 19, 20, 21, 21, 22, 22, 23, 24, 24, 25, 25, 26, 27, 27, 28,
@@ -182,7 +182,7 @@ inline void cell::set (int cx, int cy, int c, int a) {
 //}}}
 
 //{{{
-outline::outline() : m_num_blocks(0), m_max_blocks(0), m_cur_block(0), m_num_cells(0), m_cells(0),
+cOutline::cOutline() : m_num_blocks(0), m_max_blocks(0), m_cur_block(0), m_num_cells(0), m_cells(0),
     m_cur_cell_ptr(0), m_sorted_cells(0), m_sorted_size(0), m_cur_x(0), m_cur_y(0),
     m_close_x(0), m_close_y(0), m_min_x(0x7FFFFFFF), m_min_y(0x7FFFFFFF), m_max_x(-0x7FFFFFFF),
     m_max_y(-0x7FFFFFFF), m_flags(sort_required) {
@@ -191,7 +191,7 @@ outline::outline() : m_num_blocks(0), m_max_blocks(0), m_cur_block(0), m_num_cel
   }
 //}}}
 //{{{
-outline::~outline() {
+cOutline::~cOutline() {
 
   delete [] m_sorted_cells;
 
@@ -206,7 +206,7 @@ outline::~outline() {
   }
 //}}}
 //{{{
-void outline::reset() {
+void cOutline::reset() {
 
   m_num_cells = 0;
   m_cur_block = 0;
@@ -220,7 +220,7 @@ void outline::reset() {
   }
 //}}}
 //{{{
-void outline::allocate_block() {
+void cOutline::allocate_block() {
 
   if (m_cur_block >= m_num_blocks) {
     if (m_num_blocks >= m_max_blocks) {
@@ -239,7 +239,7 @@ void outline::allocate_block() {
   }
 //}}}
 //{{{
-inline void outline::add_cur_cell() {
+inline void cOutline::add_cur_cell() {
 
   if (m_cur_cell.area | m_cur_cell.cover) {
     if ((m_num_cells & cell_block_mask) == 0) {
@@ -253,7 +253,7 @@ inline void outline::add_cur_cell() {
   }
 //}}}
 //{{{
-inline void outline::set_cur_cell (int x, int y) {
+inline void cOutline::set_cur_cell (int x, int y) {
 
   if (m_cur_cell.packed_coord != (y << 16) + x) {
    add_cur_cell();
@@ -262,7 +262,7 @@ inline void outline::set_cur_cell (int x, int y) {
  }
 //}}}
 //{{{
-inline void outline::render_scanline (int ey, int x1, int y1, int x2, int y2) {
+inline void cOutline::render_cScanline (int ey, int x1, int y1, int x2, int y2) {
 
   int ex1 = x1 >> poly_base_shift;
   int ex2 = x2 >> poly_base_shift;
@@ -286,7 +286,7 @@ inline void outline::render_scanline (int ey, int x1, int y1, int x2, int y2) {
     }
 
   //ok, we'll have to render a run of adjacent cells on the same
-  //scanline...
+  //cScanline...
   p = (poly_base_size - fx1) * (y2 - y1);
   first = poly_base_size;
   incr = 1;
@@ -339,7 +339,7 @@ inline void outline::render_scanline (int ey, int x1, int y1, int x2, int y2) {
   }
 //}}}
 //{{{
-void outline::render_line (int x1, int y1, int x2, int y2) {
+void cOutline::render_line (int x1, int y1, int x2, int y2) {
 
   int ey1 = y1 >> poly_base_shift;
   int ey2 = y2 >> poly_base_shift;
@@ -361,16 +361,16 @@ void outline::render_line (int x1, int y1, int x2, int y2) {
   dx = x2 - x1;
   dy = y2 - y1;
 
-  // everything is on a single scanline
+  // everything is on a single cScanline
   if (ey1 == ey2) {
-    render_scanline(ey1, x1, fy1, x2, fy2);
+    render_cScanline(ey1, x1, fy1, x2, fy2);
     return;
     }
 
   // Vertical line - we have to calculate start and end cells,
   // and then - the common values of the area and coverage for
   // all cells of the line. We know exactly there's only one
-  // cell, so, we don't have to call render_scanline().
+  // cell, so, we don't have to call render_cScanline().
   incr  = 1;
   if (dx == 0) {
     int ex = x1 >> poly_base_shift;
@@ -385,7 +385,7 @@ void outline::render_line (int x1, int y1, int x2, int y2) {
 
     x_from = x1;
 
-    //render_scanline(ey1, x_from, fy1, x_from, first)
+    //render_cScanline(ey1, x_from, fy1, x_from, first)
     delta = first - fy1;
     m_cur_cell.add_cover (delta, two_fx * delta);
 
@@ -395,19 +395,19 @@ void outline::render_line (int x1, int y1, int x2, int y2) {
     delta = first + first - poly_base_size;
     area = two_fx * delta;
     while (ey1 != ey2) {
-      //render_scanline (ey1, x_from, poly_base_size - first, x_from, first);
+      //render_cScanline (ey1, x_from, poly_base_size - first, x_from, first);
       m_cur_cell.set_cover (delta, area);
       ey1 += incr;
       set_cur_cell(ex, ey1);
       }
 
-    // render_scanline(ey1, x_from, poly_base_size - first, x_from, fy2);
+    // render_cScanline(ey1, x_from, poly_base_size - first, x_from, fy2);
     delta = fy2 - poly_base_size + first;
     m_cur_cell.add_cover (delta, two_fx * delta);
     return;
    }
 
-  // ok, we have to render several scanlines
+  // ok, we have to render several cScanlines
   p  = (poly_base_size - fy1) * dx;
   first = poly_base_size;
   if (dy < 0) {
@@ -425,7 +425,7 @@ void outline::render_line (int x1, int y1, int x2, int y2) {
     }
 
   x_from = x1 + delta;
-  render_scanline (ey1, x1, fy1, x_from, first);
+  render_cScanline (ey1, x1, fy1, x_from, first);
 
   ey1 += incr;
   set_cur_cell (x_from >> poly_base_shift, ey1);
@@ -449,18 +449,18 @@ void outline::render_line (int x1, int y1, int x2, int y2) {
         }
 
       x_to = x_from + delta;
-      render_scanline (ey1, x_from, poly_base_size - first, x_to, first);
+      render_cScanline (ey1, x_from, poly_base_size - first, x_to, first);
       x_from = x_to;
 
       ey1 += incr;
       set_cur_cell (x_from >> poly_base_shift, ey1);
       }
     }
-  render_scanline (ey1, x_from, poly_base_size - first, x2, fy2);
+  render_cScanline (ey1, x_from, poly_base_size - first, x2, fy2);
   }
 //}}}
 //{{{
-void outline::move_to (int x, int y) {
+void cOutline::move_to (int x, int y) {
 
   if ((m_flags & sort_required) == 0)
     reset();
@@ -474,7 +474,7 @@ void outline::move_to (int x, int y) {
   }
 //}}}
 //{{{
-void outline::line_to (int x, int y) {
+void cOutline::line_to (int x, int y) {
 
   if((m_flags & sort_required) && ((m_cur_x ^ x) | (m_cur_y ^ y))) {
     int c = m_cur_x >> poly_base_shift;
@@ -514,7 +514,7 @@ template <class T> static inline bool less_than (T* a, T* b) {
 //}}}
 
 //{{{
-void outline::qsort_cells (cell** start, unsigned num) {
+void cOutline::qsort_cells (cell** start, unsigned num) {
 
   cell**  stack[80];
   cell*** top;
@@ -598,7 +598,7 @@ void outline::qsort_cells (cell** start, unsigned num) {
   }
 //}}}
 //{{{
-void outline::sort_cells() {
+void cOutline::sort_cells() {
 
   if (m_num_cells == 0)
     return;
@@ -633,7 +633,7 @@ void outline::sort_cells() {
   }
 //}}}
 //{{{
-const cell* const* outline::cells() {
+const cell* const* cOutline::cells() {
 
   if (m_flags & not_closed) {
     line_to(m_close_x, m_close_y);
@@ -654,18 +654,18 @@ const cell* const* outline::cells() {
 //}}}
 
 //{{{
-void rasterizer::gamma (double g) {
+void cRasteriser::gamma (double g) {
 
   for (unsigned i = 0; i < 256; i++)
     m_gamma[i] = (unsigned char)(pow(double(i) / 255.0, g) * 255.0);
   }
 //}}}
-void rasterizer::gamma (const uint8_t* g) { memcpy(m_gamma, g, sizeof(m_gamma)); }
+void cRasteriser::gamma (const uint8_t* g) { memcpy(m_gamma, g, sizeof(m_gamma)); }
 //{{{
-bool rasterizer::hit_test (int tx, int ty) {
+bool cRasteriser::hit_test (int tx, int ty) {
 
-  const cell* const* cells = m_outline.cells();
-  if (m_outline.num_cells() == 0)
+  const cell* const* cells = mOutline.cells();
+  if (mOutline.num_cells() == 0)
     return false;
 
   int x, y;

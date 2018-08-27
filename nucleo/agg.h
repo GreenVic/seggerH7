@@ -23,7 +23,7 @@
 #include <string.h>
 
 //{{{
-struct rgba8 {
+struct tRgba {
   enum order { rgb, bgr };
 
   uint8_t r;
@@ -31,13 +31,13 @@ struct rgba8 {
   uint8_t b;
   uint8_t a;
 
-  rgba8() {}
+  tRgba() {}
   //{{{
-  rgba8 (unsigned r_, unsigned g_, unsigned b_, unsigned a_= 255) :
+  tRgba (unsigned r_, unsigned g_, unsigned b_, unsigned a_= 255) :
       r(uint8_t(r_)), g(uint8_t(g_)), b(uint8_t(b_)), a(uint8_t(a_)) {}
   //}}}
   //{{{
-  rgba8 (unsigned packed, order o) :
+  tRgba (unsigned packed, order o) :
     r((o == rgb) ? ((packed >> 16) & 0xFF) : (packed & 0xFF)),
     g((packed >> 8)  & 0xFF),
     b((o == rgb) ? (packed & 0xFF) : ((packed >> 16) & 0xFF)),
@@ -59,9 +59,9 @@ struct rgba8 {
   double opacity() const { return double(a) / 255.0; }
 
   //{{{
-  rgba8 gradient(rgba8 c, double k) const {
+  tRgba gradient(tRgba c, double k) const {
 
-    rgba8 ret;
+    tRgba ret;
     int ik = int(k * 256);
     ret.r = uint8_t(int(r) + (((int(c.r) - int(r)) * ik) >> 8));
     ret.g = uint8_t(int(g) + (((int(c.g) - int(g)) * ik) >> 8));
@@ -71,11 +71,11 @@ struct rgba8 {
     }
   //}}}
 
-  rgba8 pre() const { return rgba8((r*a) >> 8, (g*a) >> 8, (b*a) >> 8, a); }
+  tRgba pre() const { return tRgba((r*a) >> 8, (g*a) >> 8, (b*a) >> 8, a); }
   };
 //}}}
 //{{{
-class rendering_buffer {
+class cRenderingBuffer {
 //{{{  description
 // Rendering buffer wrapper. This class does not know anything about
 // memory organizations, all it does it keeps an array of pointers
@@ -93,7 +93,7 @@ class rendering_buffer {
 //    So, if you intend to use class render_bgr24, for example, you should
 //    allocate at least width*height*3 bytes of memory.
 //
-// 2. Create a rendering_buffer object and then call method attach(). It requires
+// 2. Create a cRenderingBuffer object and then call method attach(). It requires
 //    a pointer to the buffer itself, width and height of the buffer in
 //    pixels, and the length of the row in bytes. All these values must
 //    properly correspond to the memory organization. The argument stride
@@ -127,8 +127,8 @@ class rendering_buffer {
 //    responsibility and depends on the platform.
 //}}}
 public:
-  rendering_buffer (unsigned char* buf, unsigned width, unsigned height, int stride);
-  ~rendering_buffer();
+  cRenderingBuffer (unsigned char* buf, unsigned width, unsigned height, int stride);
+  ~cRenderingBuffer();
 
   void attach (unsigned char* buf, unsigned width, unsigned height, int stride);
 
@@ -144,8 +144,8 @@ public:
   const unsigned char* row (unsigned y) const { return m_rows[y]; }
 
 private:
-  rendering_buffer (const rendering_buffer&);
-  const rendering_buffer& operator = (const rendering_buffer&);
+  cRenderingBuffer (const cRenderingBuffer&);
+  const cRenderingBuffer& operator = (const cRenderingBuffer&);
 
 private:
   unsigned char*  m_buf;        // Pointer to renrdering buffer
@@ -157,7 +157,7 @@ private:
   };
 //}}}
 //{{{
-class scanline {
+class cScanline {
  //{{{  description
  //========================================================================
  //
@@ -168,36 +168,36 @@ class scanline {
  // alpha-values for each pixel. So, the restriction of using this class is 256
  // levels of Anti-Aliasing, which is quite enough for any practical purpose.
  // Before using this class you should know the minimal and maximal pixel
- // coordinates of your scanline. The protocol of using is:
+ // coordinates of your cScanline. The protocol of using is:
  // 1. reset(min_x, max_x)
- // 2. add_cell() / add_span() - accumulate scanline. You pass Y-coordinate
- //    into these functions in order to make scanline know the last Y. Before
+ // 2. add_cell() / add_span() - accumulate cScanline. You pass Y-coordinate
+ //    into these functions in order to make cScanline know the last Y. Before
  //    calling add_cell() / add_span() you should check with method is_ready(y)
  //    if the last Y has changed. It also checks if the scanline is not empty.
- //    When forming one scanline the next X coordinate must be always greater
+ //    When forming one cScanline the next X coordinate must be always greater
  //    than the last stored one, i.e. it works only with ordered coordinates.
- // 3. If the current scanline is_ready() you should render it and then call
+ // 3. If the current cScanline is_ready() you should render it and then call
  //    reset_spans() before adding new cells/spans.
  //
  // 4. Rendering:
  //
- // Scanline provides an iterator class that allows you to extract
+ // cScanline provides an iterator class that allows you to extract
  // the spans and the cover values for each pixel. Be aware that clipping
  // has not been done yet, so you should perform it yourself.
- // Use scanline::iterator to render spans:
+ // Use cScanline::iterator to render spans:
  //-------------------------------------------------------------------------
  //
  // int base_x = sl.base_x();          // base X. Should be added to the span's X
  //                                    // "sl" is a const reference to the
- //                                    // scanline passed in.
+ //                                    // cScanline passed in.
  //
- // int y = sl.y();                    // Y-coordinate of the scanline
+ // int y = sl.y();                    // Y-coordinate of the cScanline
  //
  // ************************************
  // ...Perform vertical clipping here...
  // ************************************
  //
- // scanline::iterator span(sl);
+ // cScanline::iterator span(sl);
  //
  // unsigned char* row = m_rbuf->row(y); // The the address of the beginning
  //                                      // of the current row
@@ -234,7 +234,7 @@ class scanline {
  // while(--num_spans);  // num_spans cannot be 0, so this loop is quite safe
  //------------------------------------------------------------------------
  //
- // The question is: why should we accumulate the whole scanline when we
+ // The question is: why should we accumulate the whole cScanline when we
  // could render just separate spans when they're ready?
  // That's because using the scaline is in general faster. When is consists
  // of more than one span the conditions for the processor cash system
@@ -248,7 +248,7 @@ public:
   //{{{
   class iterator {
   public:
-    iterator(const scanline& sl) : m_covers(sl.m_covers), m_cur_count(sl.m_counts),
+    iterator(const cScanline& sl) : m_covers(sl.m_covers), m_cur_count(sl.m_counts),
                                    m_cur_start_ptr(sl.m_start_ptrs) {}
     //{{{
     int next() {
@@ -269,8 +269,8 @@ public:
   //}}}
   friend class iterator;
 
-  ~scanline();
-  scanline();
+  ~cScanline();
+  cScanline();
 
   void reset (int min_x, int max_x, int dx=0, int dy=0);
 
@@ -314,8 +314,8 @@ public:
   unsigned num_spans() const { return m_num_spans; }
 
 private:
-  scanline (const scanline&);
-  const scanline& operator = (const scanline&);
+  cScanline (const cScanline&);
+  const cScanline& operator = (const cScanline&);
 
 private:
   int      m_min_x;
@@ -336,19 +336,19 @@ private:
 //{{{
 template<class Span> class renderer {
 //{{{  description
-// This class template is used basically for rendering scanlines.
+// This class template is used basically for rendering cScanlines.
 // The 'Span' argument is one of the span renderers, such as span_rgb24
 // and others.
 //
 // Usage:
 //
 //     // Creation
-//     agg::rendering_buffer rbuf(ptr, w, h, stride);
+//     agg::cRenderingBuffer rbuf(ptr, w, h, stride);
 //     agg::renderer<agg::span_rgb24> ren(rbuf);
-//     agg::rasterizer ras;
+//     agg::cRasteriser ras;
 //
 //     // Clear the frame buffer
-//     ren.clear(agg::rgba8(0,0,0));
+//     ren.clear(agg::tRgba(0,0,0));
 //
 //     // Making polygon
 //     // ras.move_to(. . .);
@@ -356,33 +356,33 @@ template<class Span> class renderer {
 //     // . . .
 //
 //     // Rendering
-//     ras.render(ren, agg::rgba8(200, 100, 80));
+//     ras.render(ren, agg::tRgba(200, 100, 80));
 //}}}
 public:
-  renderer (rendering_buffer& rbuf) : m_rbuf(&rbuf) {}
+  renderer (cRenderingBuffer& rbuf) : m_rbuf(&rbuf) {}
 
   //{{{
-  void clear (const rgba8& c) {
+  void clear (const tRgba& c) {
     for (unsigned y = 0; y < m_rbuf->height(); y++)
         m_span.hline (m_rbuf->row(y), 0, m_rbuf->width(), c);
     }
   //}}}
   //{{{
-  void pixel( int x, int y, const rgba8& c) {
+  void pixel( int x, int y, const tRgba& c) {
     if (m_rbuf->inbox(x, y))
       m_span.hline(m_rbuf->row(y), x, 1, c);
     }
   //}}}
   //{{{
-  rgba8 pixel (int x, int y) const {
+  tRgba pixel (int x, int y) const {
 
    if (m_rbuf->inbox(x, y))
       return m_span.get (m_rbuf->row(y), x);
-    return rgba8(0,0,0);
+    return tRgba(0,0,0);
     }
   //}}}
   //{{{
-  void render (const scanline& sl, const rgba8& c) {
+  void render (const cScanline& sl, const tRgba& c) {
 
     if (sl.y() < 0 || sl.y() >= int(m_rbuf->height()))
       return;
@@ -390,7 +390,7 @@ public:
     unsigned num_spans = sl.num_spans();
     int base_x = sl.base_x();
     unsigned char* row = m_rbuf->row(sl.y());
-    scanline::iterator span(sl);
+    cScanline::iterator span(sl);
 
     do {
       int x = span.next() + base_x;
@@ -414,10 +414,10 @@ public:
     while(--num_spans);
     }
   //}}}
-  rendering_buffer& rbuf() { return *m_rbuf; }
+  cRenderingBuffer& rbuf() { return *m_rbuf; }
 
 private:
-  rendering_buffer* m_rbuf;
+  cRenderingBuffer* m_rbuf;
   Span              m_span;
   };
 //}}}
@@ -452,9 +452,9 @@ struct cell {
   };
 //}}}
 //{{{
-class outline {
+class cOutline {
 // An internal class that implements the main rasterization algorithm.
-// Used in the rasterizer. Should not be used direcly.
+// Used in the cRasteriser. Should not be used direcly.
   //{{{
   enum {
     cell_block_shift = 12,
@@ -466,8 +466,8 @@ class outline {
   //}}}
 
 public:
-  ~outline();
-  outline();
+  cOutline();
+  ~cOutline();
 
   void reset();
 
@@ -483,13 +483,13 @@ public:
   const cell* const* cells();
 
 private:
-  outline(const outline&);
-  const outline& operator = (const outline&);
+  cOutline(const cOutline&);
+  const cOutline& operator = (const cOutline&);
 
   void set_cur_cell(int x, int y);
   void add_cur_cell();
   void sort_cells();
-  void render_scanline(int ey, int x1, int y1, int x2, int y2);
+  void render_cScanline(int ey, int x1, int y1, int x2, int y2);
   void render_line(int x1, int y1, int x2, int y2);
   void allocate_block();
 
@@ -519,9 +519,9 @@ private:
 
 enum filling_rule_e { fill_non_zero, fill_even_odd };
 //{{{
-class rasterizer {
+class cRasteriser {
 //{{{  description
-// Polygon rasterizer that is used to render filled polygons with
+// Polygon cRasteriser that is used to render filled polygons with
 // high-quality Anti-Aliasing. Internally, by default, the class uses
 // integer coordinates in format 24.8, i.e. 24 bits for integer part
 // and 8 bits for fractional - see poly_base_shift. This class can be
@@ -550,30 +550,30 @@ class rasterizer {
 //}}}
 public:
   enum {
-    aa_shift = scanline::aa_shift,
+    aa_shift = cScanline::aa_shift,
     aa_num   = 1 << aa_shift,
     aa_mask  = aa_num - 1,
     aa_2num  = aa_num * 2,
     aa_2mask = aa_2num - 1
     };
 
-  rasterizer() : m_filling_rule(fill_non_zero) { memcpy  (m_gamma, s_default_gamma, sizeof(m_gamma)); }
+  cRasteriser() : m_filling_rule(fill_non_zero) { memcpy  (m_gamma, s_default_gamma, sizeof(m_gamma)); }
 
-  void reset() { m_outline.reset(); }
+  void reset() { mOutline.reset(); }
   void filling_rule (filling_rule_e filling_rule) { m_filling_rule = filling_rule; }
 
   void gamma (double g);
   void gamma (const uint8_t* g);
 
-  void move_to (int x, int y) { m_outline.move_to(x, y); }
-  void line_to (int x, int y) { m_outline.line_to(x, y); }
-  void move_to_d (double x, double y) { m_outline.move_to(poly_coord(x), poly_coord(y)); }
-  void line_to_d (double x, double y) { m_outline.line_to(poly_coord(x), poly_coord(y)); }
+  void move_to (int x, int y) { mOutline.move_to(x, y); }
+  void line_to (int x, int y) { mOutline.line_to(x, y); }
+  void move_to_d (double x, double y) { mOutline.move_to(poly_coord(x), poly_coord(y)); }
+  void line_to_d (double x, double y) { mOutline.line_to(poly_coord(x), poly_coord(y)); }
 
-  int min_x() const { return m_outline.min_x(); }
-  int min_y() const { return m_outline.min_y(); }
-  int max_x() const { return m_outline.max_x(); }
-  int max_y() const { return m_outline.max_y(); }
+  int min_x() const { return mOutline.min_x(); }
+  int min_y() const { return mOutline.min_y(); }
+  int max_x() const { return mOutline.max_x(); }
+  int max_y() const { return mOutline.max_y(); }
 
   //{{{
   unsigned calculate_alpha (int area) const {
@@ -596,10 +596,10 @@ public:
   //}}}
 
   //{{{
-  template<class Renderer> void render (Renderer& r, const rgba8& c, int dx = 0, int dy = 0) {
+  template<class Renderer> void render (Renderer& r, const tRgba& c, int dx = 0, int dy = 0) {
 
-    const cell* const* cells = m_outline.cells();
-    if (m_outline.num_cells() == 0)
+    const cell* const* cells = mOutline.cells();
+    if (mOutline.num_cells() == 0)
       return;
 
     int x, y;
@@ -607,7 +607,7 @@ public:
     int alpha;
     int area;
 
-    m_scanline.reset (m_outline.min_x(), m_outline.max_x(), dx, dy);
+    mScanline.reset (mOutline.min_x(), mOutline.max_x(), dx, dy);
 
     cover = 0;
     const cell* cur_cell = *cells++;
@@ -632,11 +632,11 @@ public:
       if (area) {
         alpha = calculate_alpha ((cover << (poly_base_shift + 1)) - area);
         if (alpha) {
-         if (m_scanline.is_ready (y)) {
-            r.render (m_scanline, c);
-            m_scanline.reset_spans();
+         if (mScanline.is_ready (y)) {
+            r.render (mScanline, c);
+            mScanline.reset_spans();
             }
-          m_scanline.add_cell (x, y, m_gamma[alpha]);
+          mScanline.add_cell (x, y, m_gamma[alpha]);
           }
         x++;
         }
@@ -647,43 +647,43 @@ public:
       if (cur_cell->x > x) {
         alpha = calculate_alpha (cover << (poly_base_shift + 1));
         if (alpha) {
-          if(m_scanline.is_ready (y)) {
-            r.render (m_scanline, c);
-             m_scanline.reset_spans();
+          if(mScanline.is_ready (y)) {
+            r.render (mScanline, c);
+             mScanline.reset_spans();
              }
-           m_scanline.add_span (x, y, cur_cell->x - x, m_gamma[alpha]);
+           mScanline.add_span (x, y, cur_cell->x - x, m_gamma[alpha]);
            }
         }
       }
 
-    if (m_scanline.num_spans())
-      r.render (m_scanline, c);
+    if (mScanline.num_spans())
+      r.render (mScanline, c);
     }
   //}}}
 
   bool hit_test(int tx, int ty);
 
 private:
-  rasterizer (const rasterizer&);
-  const rasterizer& operator = (const rasterizer&);
+  cRasteriser (const cRasteriser&);
+  const cRasteriser& operator = (const cRasteriser&);
 
 private:
-  outline        m_outline;
-  scanline       m_scanline;
+  cOutline        mOutline;
+  cScanline       mScanline;
   filling_rule_e m_filling_rule;
   uint8_t          m_gamma[256];
   static const uint8_t s_default_gamma[256];
   };
 //}}}
 //{{{
-struct span_rgb565 {
+struct tSpanRgb565 {
   //{{{
   static uint16_t rgb565 (unsigned r, unsigned g, unsigned b) {
     return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
     }
   //}}}
   //{{{
-  static void render (unsigned char* ptr, int x, unsigned count, const unsigned char* covers, const rgba8& c) {
+  static void render (unsigned char* ptr, int x, unsigned count, const unsigned char* covers, const tRgba& c) {
 
     uint16_t* p = ((uint16_t*)ptr) + x;
     do {
@@ -703,7 +703,7 @@ struct span_rgb565 {
     }
   //}}}
   //{{{
-  static void hline (unsigned char* ptr, int x, unsigned count, const rgba8& c) {
+  static void hline (unsigned char* ptr, int x, unsigned count, const tRgba& c) {
 
     uint16_t* p = ((uint16_t*)ptr) + x;
     uint16_t  v = rgb565(c.r, c.g, c.b);
@@ -713,11 +713,11 @@ struct span_rgb565 {
     }
   //}}}
   //{{{
-  static rgba8 get (unsigned char* ptr, int x) {
+  static tRgba get (unsigned char* ptr, int x) {
 
     uint16_t rgb = ((uint16_t*)ptr)[x];
 
-    rgba8 c;
+    tRgba c;
     c.r = (rgb >> 8) & 0xF8;
     c.g = (rgb >> 3) & 0xFC;
     c.b = (rgb << 3) & 0xF8;

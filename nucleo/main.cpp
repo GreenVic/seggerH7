@@ -37,7 +37,7 @@ double random (double min, double max)
 }
 //}}}
 //{{{
-void draw_ellipse (rasterizer& ras, double x,  double y, double rx, double ry) {
+void draw_ellipse (cRasteriser& ras, double x,  double y, double rx, double ry) {
 
   ras.move_to_d (x + rx, y);
 
@@ -50,7 +50,7 @@ void draw_ellipse (rasterizer& ras, double x,  double y, double rx, double ry) {
   }
 //}}}
 //{{{
-void draw_line (rasterizer& ras, double x1, double y1, double x2, double y2, double width) {
+void draw_line (cRasteriser& ras, double x1, double y1, double x2, double y2, double width) {
 
   double dx = x2 - x1;
   double dy = y2 - y1;
@@ -251,14 +251,14 @@ void appThread (void* arg) {
   buf = sdRamAlloc (width * height * 2, "agg");
 
   // Create the rendering buffer
-  rendering_buffer rbuf (buf, width, height, width * 2);
+  cRenderingBuffer rbuf (buf, width, height, width * 2);
 
-  // create renderer, rasterizer
-  renderer<span_rgb565> ren(rbuf);
-  rasterizer ras;
+  // create renderer, cRasteriser
+  renderer<tSpanRgb565> ren(rbuf);
+  cRasteriser ras;
   ras.gamma (1.2);
   ras.filling_rule (fill_even_odd);
-  ren.clear (rgba8 (0,0,0));
+  ren.clear (tRgba (0,0,0));
 
   // Draw random polygons
   for (int i = 0; i < 4; i++) {
@@ -266,21 +266,21 @@ void appThread (void* arg) {
     ras.move_to_d (random(-30, rbuf.width() + 30), random(-30, rbuf.height() + 30));
     for (int j = 1; j < n; j++)
       ras.line_to_d (random(-30, rbuf.width() + 30), random(-30, rbuf.height() + 30));
-    ras.render (ren, rgba8 (255,255, 0,192));
+    ras.render (ren, tRgba (255,255, 0,192));
     }
 
   // Draw random ellipses
   //for (int i = 0; i < 2; i++) {
   //  draw_ellipse (ras,
   //    random (-30, rbuf.width() + 30), random (-30, rbuf.height() + 30), random (3, 50), random (3, 50));
-  //  ras.render (ren, agg::rgba8 (rand() & 0x7F, rand() & 0x7F, rand() & 0x7F, (rand() & 0x7F) + 100));
+  //  ras.render (ren, agg::tRgba (rand() & 0x7F, rand() & 0x7F, rand() & 0x7F, (rand() & 0x7F) + 100));
   //  }
 
   // Draw random straight lines
   for (int i = 0; i < 5; i++) {
     draw_line (ras, random(-30, rbuf.width()  + 30), random(-30, rbuf.height() + 30),
                     random(-30, rbuf.width()  + 30), random(-30, rbuf.height() + 30), random(0.1, 10));
-    ras.render (ren, rgba8 (255,255,255,255));
+    ras.render (ren, tRgba (255,255,255,255));
     }
   aggTile = new cTile (buf, cTile::eRgb565, rbuf.width(), 0,0, rbuf.width(), rbuf.height());
 
