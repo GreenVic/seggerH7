@@ -224,15 +224,17 @@ void uiThread (void* arg) {
       draw_line (rasteriser, centre.x, centre.y,
                  centre.x + (hourRadius * sin (hourAngle)),
                  centre.y + (hourRadius * cos (hourAngle)), 3.0f);
+      rasteriser.render (renderer, tRgba (255,255,255,255));
+
       draw_line (rasteriser, centre.x, centre.y,
                  centre.x + (minuteRadius * sin (minuteAngle)),
                  centre.y + (minuteRadius * cos (minuteAngle)), 2.0f);
-      rasteriser.render (renderer, tRgba (255,255,255,200));
+      rasteriser.render (renderer, tRgba (255,255,255,192));
 
       draw_line (rasteriser, centre.x, centre.y,
                  centre.x + (secondRadius * sin (secondAngle)),
                  centre.y + (secondRadius * cos (secondAngle)), 2.0f);
-      rasteriser.render (renderer, tRgba (255,0,0,200));
+      rasteriser.render (renderer, tRgba (255,0,0,180));
 
       lcd->cLcd::text (COL_BLACK, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
       lcd->cLcd::text (COL_WHITE, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600) + cPoint(-2,-2));
