@@ -666,8 +666,8 @@ private:
     int fy1 = y1 & 0xFF;
     int fy2 = y2 & 0xFF;
 
-    int dx, dy, x_from, x_to;
-    int p, rem, mod, lift, delta, first, incr;
+    int x_from, x_to;
+    int p, rem, mod, lift, delta, first;
 
     if (ey1   < mMiny)
       mMiny = ey1;
@@ -678,8 +678,8 @@ private:
     if (ey2+1 > mMaxy)
       mMaxy = ey2+1;
 
-    dx = x2 - x1;
-    dy = y2 - y1;
+    int dx = x2 - x1;
+    int dy = y2 - y1;
 
     // everything is on a single cScanline
     if (ey1 == ey2) {
@@ -687,40 +687,34 @@ private:
       return;
       }
 
-    // Vertical line - we have to calculate start and end cells,
-    // and then - the common values of the area and coverage for
-    // all cells of the line. We know exactly there's only one
-    // cell, so, we don't have to call renderScanline().
-    incr  = 1;
+    // Vertical line - we have to calculate start and end cell
+    // the common values of the area and coverage for all cells of the line.
+    // We know exactly there's only one cell, so, we don't have to call renderScanline().
+    int incr  = 1;
     if (dx == 0) {
       int ex = x1 >> 8;
       int two_fx = (x1 - (ex << 8)) << 1;
-      int area;
-
       first = 0x100;
-      if(dy < 0) {
+      if (dy < 0) {
         first = 0;
         incr  = -1;
         }
 
       x_from = x1;
-      //renderScanline(ey1, x_from, fy1, x_from, first)
       delta = first - fy1;
       mCurcell.add_cover (delta, two_fx * delta);
 
       ey1 += incr;
-      set_cur_cell(ex, ey1);
+      set_cur_cell (ex, ey1);
 
       delta = first + first - 0x100;
-      area = two_fx * delta;
+      int area = two_fx * delta;
       while (ey1 != ey2) {
-        //renderScanline (ey1, x_from, 0x100 - first, x_from, first);
         mCurcell.set_cover (delta, area);
         ey1 += incr;
         set_cur_cell (ex, ey1);
         }
 
-      // renderScanline(ey1, x_from, 0x100 - first, x_from, fy2);
       delta = fy2 - 0x100 + first;
       mCurcell.add_cover (delta, two_fx * delta);
       return;
@@ -913,8 +907,8 @@ struct tRgba {
   uint8_t a;
 
   tRgba() {}
-  tRgba (unsigned r_, unsigned g_, unsigned b_, unsigned a_= 255) :
-      r(uint8_t(r_)), g(uint8_t(g_)), b(uint8_t(b_)), a(uint8_t(a_)) {}
+  tRgba (uint8_t r_, uint8_t g_, uint8_t b_, uint8_t a_= 255) : r(r_), g(g_), b(b_), a(a_) {}
+
   //{{{
   //void opacity (double a_) {
 
