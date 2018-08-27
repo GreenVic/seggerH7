@@ -972,10 +972,34 @@ struct tRgba {
   };
 //}}}
 //{{{
-struct tSpanRgb565 {
+struct tRgb565Span {
   //{{{
   static uint16_t rgb565 (unsigned r, unsigned g, unsigned b) {
     return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+    }
+  //}}}
+  //{{{
+  static tRgba getPixel (uint8_t* ptr, int x) {
+
+    uint16_t rgb = ((uint16_t*)ptr)[x];
+
+    tRgba c;
+    c.r = (rgb >> 8) & 0xF8;
+    c.g = (rgb >> 3) & 0xFC;
+    c.b = (rgb << 3) & 0xF8;
+    c.a = 255;
+
+    return c;
+    }
+  //}}}
+  //{{{
+  static void hline (uint8_t* ptr, int x, unsigned count, const tRgba& c) {
+
+    uint16_t* p = ((uint16_t*)ptr) + x;
+    uint16_t v = rgb565 (c.r, c.g, c.b);
+    do {
+      *p++ = v;
+      } while (--count);
     }
   //}}}
   //{{{
@@ -994,30 +1018,6 @@ struct tSpanRgb565 {
              (((((c.g - g) * alpha) + (g << 16)) >> 13) & 0x7E0) |
               ((((c.b - b) * alpha) + (b << 16)) >> 19);
       } while (--count);
-    }
-  //}}}
-  //{{{
-  static void hline (uint8_t* ptr, int x, unsigned count, const tRgba& c) {
-
-    uint16_t* p = ((uint16_t*)ptr) + x;
-    uint16_t v = rgb565 (c.r, c.g, c.b);
-    do {
-      *p++ = v;
-      } while (--count);
-    }
-  //}}}
-  //{{{
-  static tRgba getPixel (uint8_t* ptr, int x) {
-
-    uint16_t rgb = ((uint16_t*)ptr)[x];
-
-    tRgba c;
-    c.r = (rgb >> 8) & 0xF8;
-    c.g = (rgb >> 3) & 0xFC;
-    c.b = (rgb << 3) & 0xF8;
-    c.a = 255;
-
-    return c;
     }
   //}}}
   };
