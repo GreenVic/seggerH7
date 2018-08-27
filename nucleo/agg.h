@@ -88,20 +88,27 @@ public:
       mRows = new uint8_t* [mMaxHeight = height];
       }
 
-    uint8_t* row_ptr = mBuf;
-    uint8_t** rows = mRows;
-    while (height--) {
-      *rows++ = row_ptr;
-      row_ptr += width*2;
-      }
+    setBuffer (buf);
     }
   //}}}
   ~cTarget() { delete [] mRows; }
 
-  const uint8_t* buf()  const { return mBuf; }
   uint16_t width() const { return mWidth;  }
   uint16_t height() const { return mHeight; }
 
+  //{{{
+  void setBuffer (uint8_t* buf) {
+
+    mBuf = buf;
+    uint8_t* row_ptr = mBuf;
+    uint8_t** rows = mRows;
+    int height = mHeight;
+    while (height--) {
+      *rows++ = row_ptr;
+      row_ptr += mWidth*2;
+      }
+    }
+  //}}}
   bool inbox (int x, int y) const { return x >= 0 && y >= 0 && x < int(mWidth) && y < int(mHeight); }
 
   uint8_t* row (uint16_t y) { return mRows[y];  }
@@ -904,46 +911,34 @@ struct tRgba {
   uint8_t a;
 
   tRgba() {}
-  //{{{
   tRgba (unsigned r_, unsigned g_, unsigned b_, unsigned a_= 255) :
       r(uint8_t(r_)), g(uint8_t(g_)), b(uint8_t(b_)), a(uint8_t(a_)) {}
-  //}}}
   //{{{
-  tRgba (unsigned packed, order o) :
-    r((o == rgb) ? ((packed >> 16) & 0xFF) : (packed & 0xFF)),
-    g((packed >> 8)  & 0xFF),
-    b((o == rgb) ? (packed & 0xFF) : ((packed >> 16) & 0xFF)),
-    a(255) {}
-  //}}}
+  //void opacity (double a_) {
 
+    //if (a_ < 0.0)
+      //a_ = 0.0;
+
+    //if (a_ > 1.0)
+      //a_ = 1.0;
+
+    //a = uint8_t(a_ * 255.0);
+    //}
+  //}}}
+  //double opacity() const { return double(a) / 255.0; }
   //{{{
-  void opacity (double a_) {
+  //tRgba gradient (tRgba c, double k) const {
 
-    if (a_ < 0.0)
-      a_ = 0.0;
-
-    if (a_ > 1.0)
-      a_ = 1.0;
-
-    a = uint8_t(a_ * 255.0);
-    }
+    //tRgba ret;
+    //int ik = int(k * 256);
+    //ret.r = uint8_t (int(r) + (((int(c.r) - int(r)) * ik) >> 8));
+    //ret.g = uint8_t (int(g) + (((int(c.g) - int(g)) * ik) >> 8));
+    //ret.b = uint8_t (int(b) + (((int(c.b) - int(b)) * ik) >> 8));
+    //ret.a = uint8_t (int(a) + (((int(c.a) - int(a)) * ik) >> 8));
+    //return ret;
+    //}
   //}}}
-  double opacity() const { return double(a) / 255.0; }
-
-  //{{{
-  tRgba gradient (tRgba c, double k) const {
-
-    tRgba ret;
-    int ik = int(k * 256);
-    ret.r = uint8_t (int(r) + (((int(c.r) - int(r)) * ik) >> 8));
-    ret.g = uint8_t (int(g) + (((int(c.g) - int(g)) * ik) >> 8));
-    ret.b = uint8_t (int(b) + (((int(c.b) - int(b)) * ik) >> 8));
-    ret.a = uint8_t (int(a) + (((int(c.a) - int(a)) * ik) >> 8));
-    return ret;
-    }
-  //}}}
-
-  tRgba pre() const { return tRgba((r*a) >> 8, (g*a) >> 8, (b*a) >> 8, a); }
+  //tRgba pre() const { return tRgba((r*a) >> 8, (g*a) >> 8, (b*a) >> 8, a); }
   };
 //}}}
 //{{{
