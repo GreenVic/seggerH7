@@ -122,8 +122,6 @@ private:
 //{{{
 class cScanline {
  //{{{  description
- //========================================================================
- //
  // This class is used to transfer data from class outline (or a similar one)
  // to the rendering buffer. It's organized very simple. The class stores
  // information of horizontal spans to render it into a pixel-map buffer.
@@ -148,7 +146,6 @@ class cScanline {
  // the spans and the cover values for each pixel. Be aware that clipping
  // has not been done yet, so you should perform it yourself.
  // Use cScanline::iterator to render spans:
- //-------------------------------------------------------------------------
  //
  // int base_x = sl.base_x();          // base X. Should be added to the span's X
  //                                    // "sl" is a const reference to the
@@ -195,7 +192,6 @@ class cScanline {
  //     while(--num_pix);
  // }
  // while(--num_spans);  // num_spans cannot be 0, so this loop is quite safe
- //------------------------------------------------------------------------
  //
  // The question is: why should we accumulate the whole cScanline when we
  // could render just separate spans when they're ready?
@@ -203,7 +199,6 @@ class cScanline {
  // of more than one span the conditions for the processor cash system
  // are better, because switching between two different areas of memory
  // (that can be large ones) occures less frequently.
- //------------------------------------------------------------------------
  //}}}
 public:
   //{{{
@@ -472,7 +467,7 @@ public:
   //{{{
   void lineTo (int x, int y) {
 
-    if((m_flags & sort_required) && ((m_cur_x ^ x) | (m_cur_y ^ y))) {
+    if ((m_flags & sort_required) && ((m_cur_x ^ x) | (m_cur_y ^ y))) {
       int c = m_cur_x >> poly_base_shift;
       if (c < m_min_x)
         m_min_x = c;
@@ -600,9 +595,6 @@ private:
     int fx1 = x1 & poly_base_mask;
     int fx2 = x2 & poly_base_mask;
 
-    int delta, p, first, dx;
-    int incr, lift, mod, rem;
-
     // trivial case. Happens often
     if (y1 == y2) {
       set_cur_cell (ex2, ey);
@@ -611,17 +603,17 @@ private:
 
     //everything is located in a single cell.  That is easy!
     if (ex1 == ex2) {
-      delta = y2 - y1;
-      m_cur_cell.add_cover(delta, (fx1 + fx2) * delta);
+      int delta = y2 - y1;
+      m_cur_cell.add_cover (delta, (fx1 + fx2) * delta);
       return;
       }
 
     //ok, we'll have to render a run of adjacent cells on the same
     //cScanline...
-    p = (poly_base_size - fx1) * (y2 - y1);
-    first = poly_base_size;
-    incr = 1;
-    dx = x2 - x1;
+    int p = (poly_base_size - fx1) * (y2 - y1);
+    int first = poly_base_size;
+    int incr = 1;
+    int dx = x2 - x1;
     if (dx < 0) {
       p     = fx1 * (y2 - y1);
       first = 0;
@@ -629,22 +621,22 @@ private:
       dx    = -dx;
       }
 
-    delta = p / dx;
-    mod   = p % dx;
+    int delta = p / dx;
+    int mod = p % dx;
     if (mod < 0) {
       delta--;
       mod += dx;
       }
 
-    m_cur_cell.add_cover(delta, (fx1 + first) * delta);
+    m_cur_cell.add_cover (delta, (fx1 + first) * delta);
 
     ex1 += incr;
     set_cur_cell(ex1, ey);
     y1  += delta;
     if (ex1 != ex2) {
-      p =  poly_base_size * (y2 - y1 + delta);
-      lift = p / dx;
-      rem = p % dx;
+      p = poly_base_size * (y2 - y1 + delta);
+      int lift = p / dx;
+      int rem = p % dx;
       if (rem < 0) {
         lift--;
         rem += dx;
@@ -659,14 +651,14 @@ private:
           delta++;
           }
 
-        m_cur_cell.add_cover(delta, (poly_base_size) * delta);
+        m_cur_cell.add_cover (delta, (poly_base_size) * delta);
         y1  += delta;
         ex1 += incr;
-        set_cur_cell(ex1, ey);
+        set_cur_cell (ex1, ey);
         }
       }
     delta = y2 - y1;
-    m_cur_cell.add_cover(delta, (fx2 + poly_base_size - first) * delta);
+    m_cur_cell.add_cover (delta, (fx2 + poly_base_size - first) * delta);
     }
   //}}}
   //{{{
@@ -694,7 +686,7 @@ private:
 
     // everything is on a single cScanline
     if (ey1 == ey2) {
-      renderScanline(ey1, x1, fy1, x2, fy2);
+      renderScanline (ey1, x1, fy1, x2, fy2);
       return;
       }
 
@@ -715,7 +707,6 @@ private:
         }
 
       x_from = x1;
-
       //renderScanline(ey1, x_from, fy1, x_from, first)
       delta = first - fy1;
       m_cur_cell.add_cover (delta, two_fx * delta);
@@ -729,14 +720,14 @@ private:
         //renderScanline (ey1, x_from, poly_base_size - first, x_from, first);
         m_cur_cell.set_cover (delta, area);
         ey1 += incr;
-        set_cur_cell(ex, ey1);
+        set_cur_cell (ex, ey1);
         }
 
       // renderScanline(ey1, x_from, poly_base_size - first, x_from, fy2);
       delta = fy2 - poly_base_size + first;
       m_cur_cell.add_cover (delta, two_fx * delta);
       return;
-     }
+      }
 
     // ok, we have to render several cScanlines
     p  = (poly_base_size - fy1) * dx;
@@ -765,13 +756,12 @@ private:
       p = poly_base_size * dx;
       lift  = p / dy;
       rem   = p % dy;
-
       if (rem < 0) {
         lift--;
         rem += dy;
         }
       mod -= dy;
-      while(ey1 != ey2) {
+      while (ey1 != ey2) {
         delta = lift;
         mod  += rem;
         if (mod >= 0) {
