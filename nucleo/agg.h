@@ -848,33 +848,7 @@ struct sRgba {
   };
 //}}}
 //{{{
-struct sRgb565Span {
-  //{{{
-  void render (uint8_t* ptr, int x, unsigned count, const uint8_t* covers, const sRgba& rgba) {
-
-    uint16_t* p = ((uint16_t*)ptr) + x;
-    do {
-      uint16_t alpha = (*covers++) * (rgba.a);
-      if (alpha >= 0xFE00)
-        *p++ = ((rgba.r >> 3) << 11) | ((rgba.g >> 2) << 5) | (rgba.b >> 3);
-      else {
-        // blend
-        uint16_t rgb = *p;
-        uint8_t r = (rgb >> 8) & 0xF8;
-        uint8_t g = (rgb >> 3) & 0xFC;
-        uint8_t b = (rgb << 3) & 0xF8;
-
-        *p++ = (((((rgba.r - r) * alpha) + (r << 16)) >> 8) & 0xF800) |
-               (((((rgba.g - g) * alpha) + (g << 16)) >> 13) & 0x7E0) |
-                ((((rgba.b - b) * alpha) + (b << 16)) >> 19);
-        }
-      } while (--count);
-    }
-  //}}}
-  };
-//}}}
-//{{{
-template <class T> class cRenderer {
+class cRenderer {
 //{{{  description
 // This class template is used basically for rendering cScanlines.
 // The 'Span' argument is one of the span renderers, such as span_rgb24  and others.
@@ -898,7 +872,6 @@ template <class T> class cRenderer {
 //}}}
 public:
   cRenderer (cTarget& target) : mTarget (&target) {}
-
   //{{{
   void render (const cScanline& scanLine, const sRgba& rgba) {
 
@@ -928,14 +901,29 @@ public:
           continue;
         }
 
-      mSpan.render (row, x, num_pix, covers, rgba);
+      uint16_t* p = ((uint16_t*)row) + x;
+      do {
+        uint16_t alpha = (*covers++) * (rgba.a);
+        if (alpha >= 0xFE00)
+          *p++ = ((rgba.r >> 3) << 11) | ((rgba.g >> 2) << 5) | (rgba.b >> 3);
+        else {
+          // blend
+          uint16_t rgb = *p;
+          uint8_t r = (rgb >> 8) & 0xF8;
+          uint8_t g = (rgb >> 3) & 0xFC;
+          uint8_t b = (rgb << 3) & 0xF8;
+
+          *p++ = (((((rgba.r - r) * alpha) + (r << 16)) >> 8) & 0xF800) |
+                 (((((rgba.g - g) * alpha) + (g << 16)) >> 13) & 0x7E0) |
+                  ((((rgba.b - b) * alpha) + (b << 16)) >> 19);
+          }
+        } while (--num_pix);
       } while (--numSpans);
     }
   //}}}
 
 private:
   cTarget* mTarget;
-  T mSpan;
   };
 //}}}
 //{{{

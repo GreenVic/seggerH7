@@ -139,7 +139,7 @@ void findFiles (const string& dirPath, const string& ext) {
 void uiThread (void* arg) {
 
   cTarget target (lcd->getDrawBuf(), lcd->getWidth(), lcd->getHeight());
-  cRenderer<sRgb565Span> renderer (target);
+  cRenderer renderer (target);
   cRasteriser rasteriser;
 
   lcd->display (70);
