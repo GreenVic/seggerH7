@@ -231,9 +231,9 @@ public:
   friend class iterator;
 
   //{{{
-  cScanline() : m_min_x(0), m_max_len(0), m_dx(0), m_dy(0), 
+  cScanline() : m_min_x(0), m_max_len(0), m_dx(0), m_dy(0),
                 m_last_x(0x7FFF), m_last_y(0x7FFF),
-                m_covers(0), m_start_ptrs(0), m_counts(0), 
+                m_covers(0), m_start_ptrs(0), m_counts(0),
                 m_num_spans(0), m_cur_start_ptr(0), m_cur_count(0) {}
   //}}}
   //{{{
@@ -447,7 +447,7 @@ public:
 
     m_num_cells = 0;
     m_cur_block = 0;
-    m_cur_cell.set(0x7FFF, 0x7FFF, 0, 0);
+    m_cur_cell.set (0x7FFF, 0x7FFF, 0, 0);
     m_flags |= sort_required;
     m_flags &= ~not_closed;
     m_min_x =  0x7FFFFFFF;
@@ -540,8 +540,8 @@ private:
   void set_cur_cell (int x, int y) {
 
     if (m_cur_cell.packed_coord != (y << 16) + x) {
-     add_cur_cell();
-      m_cur_cell.set(x, y, 0, 0);
+      add_cur_cell();
+      m_cur_cell.set (x, y, 0, 0);
       }
    }
   //}}}
@@ -606,9 +606,9 @@ private:
     int delta, p, first, dx;
     int incr, lift, mod, rem;
 
-    //trivial case. Happens often
+    // trivial case. Happens often
     if (y1 == y2) {
-      set_cur_cell(ex2, ey);
+      set_cur_cell (ex2, ey);
       return;
       }
 
@@ -1147,7 +1147,7 @@ public:
     aa_2mask = aa_2num - 1
     };
 
-  cRasteriser() : mFilling(fill_non_zero) { gamma (1.2); }
+  cRasteriser() : mFilling(fill_even_odd) { gamma (1.2); }
 
   void reset() { mOutline.reset(); }
   void filling_rule (eFilling filling) { mFilling = filling; }

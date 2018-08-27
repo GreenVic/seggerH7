@@ -250,9 +250,6 @@ void appThread (void* arg) {
   cTarget target (buf, width, height);
   cRenderer<tSpanRgb565> renderer (target);
   cRasteriser rasteriser;
-  rasteriser.gamma (1.2);
-  rasteriser.filling_rule (cRasteriser::fill_even_odd);
-
   renderer.clear (tRgba (0,0,0));
 
   // Draw random polygons
