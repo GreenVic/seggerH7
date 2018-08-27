@@ -348,19 +348,6 @@ private:
   uint16_t*  mCurcount;
   };
 //}}}
-
-//{{{
-template <class T> static inline void swapCells (T* a, T* b) {
-  T temp = *a;
-  *a = *b;
-  *b = temp;
-  }
-//}}}
-//{{{
-template <class T> static inline bool lessThan (T* a, T* b) {
-  return (*a)->packed_coord < (*b)->packed_coord;
-  }
-//}}}
 //{{{
 class cPixelCell {
 public:
@@ -515,13 +502,22 @@ public:
   //}}}
 
 private:
-  enum { qsort_threshold = 9 };
+  //{{{
+  template <class T> static inline void swapCells (T* a, T* b) {
+    T temp = *a;
+    *a = *b;
+    *b = temp;
+    }
+  //}}}
+  //{{{
+  template <class T> static inline bool lessThan (T* a, T* b) {
+    return (*a)->packed_coord < (*b)->packed_coord;
+    }
+  //}}}
+
   enum { not_closed = 1, sort_required = 2 };
-  enum { cell_block_shift = 12,
-         cell_block_size = 1 << cell_block_shift,
-         cell_block_mask = cell_block_size - 1,
-         cell_block_pool = 256,
-         cell_block_limit = 1024 };
+  static const int kCellBlockPool = 256;
+  static const int kCellBlockLimit = 1024;
 
   cOutline (const cOutline&);
   const cOutline& operator = (const cOutline&);
@@ -539,8 +535,8 @@ private:
   void add_cur_cell() {
 
     if (mCurcell.area | mCurcell.cover) {
-      if ((mNumcells & cell_block_mask) == 0) {
-        if (mNumblocks >= cell_block_limit)
+      if ((mNumcells & 0xFFF) == 0) {
+        if (mNumblocks >= kCellBlockLimit)
           return;
         allocateBlock();
         }
@@ -566,16 +562,16 @@ private:
     cPixelCell* cell_ptr;
     unsigned i;
 
-    unsigned nb = mNumcells >> cell_block_shift;
+    unsigned nb = mNumcells >> 12;
     while (nb--) {
       cell_ptr = *block_ptr++;
-      i = cell_block_size;
+      i = 0x1000;
       while (i--)
         *sorted_ptr++ = cell_ptr++;
       }
 
     cell_ptr = *block_ptr++;
-    i = mNumcells & cell_block_mask;
+    i = mNumcells & 0xFFF;
     while(i--)
       *sorted_ptr++ = cell_ptr++;
     mSortedcells[mNumcells] = 0;
@@ -776,15 +772,15 @@ private:
 
     if (mCurblock >= mNumblocks) {
       if (mNumblocks >= mMaxblocks) {
-        cPixelCell** new_cells = new cPixelCell* [mMaxblocks + cell_block_pool];
+        cPixelCell** new_cells = new cPixelCell* [mMaxblocks + kCellBlockPool];
         if (mCells) {
           memcpy (new_cells, mCells, mMaxblocks * sizeof(cPixelCell*));
           delete [] mCells;
           }
         mCells = new_cells;
-        mMaxblocks += cell_block_pool;
+        mMaxblocks += kCellBlockPool;
         }
-      mCells[mNumblocks++] = new cPixelCell [unsigned(cell_block_size)];
+      mCells[mNumblocks++] = new cPixelCell [0x1000];
       }
 
     mCurcell_ptr = mCells[mCurblock++];
@@ -810,7 +806,7 @@ private:
       cPixelCell** j;
       cPixelCell** pivot;
 
-      if (len > qsort_threshold) {
+      if (len > 9) { // qsort_threshold)
         // we use base + len/2 as the pivot
         pivot = base + len / 2;
         swapCells (base, pivot);
