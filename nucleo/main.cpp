@@ -28,29 +28,22 @@ enum {
 //}}}
 
 //{{{
-double random (double min, double max)
-{
-    int r = (rand() << 15) | rand();
-    return ((r & 0xFFFFFFF) / double(0xFFFFFFF + 1)) * (max - min) + min;
-}
-//}}}
-//{{{
-void draw_ellipse (cRasteriser& ras, double x, double y, double rx, double ry) {
+void draw_ellipse (cRasteriser& ras, float x, float y, float rx, float ry) {
 
   ras.moveTod (x + rx, y);
 
   for (int i = 1; i < 360; i++) {
-    double a = double(i) * 3.1415926 / 180.0;
+    float a = float(i) * 3.1415926 / 180.0;
     ras.lineTod (x + cos(a) * rx, y + sin(a) * ry);
     }
   }
 //}}}
 //{{{
-void draw_line (cRasteriser& ras, double x1, double y1, double x2, double y2, double width) {
+void draw_line (cRasteriser& ras, float x1, float y1, float x2, float y2, float width) {
 
-  double dx = x2 - x1;
-  double dy = y2 - y1;
-  double d = sqrt(dx*dx + dy*dy);
+  float dx = x2 - x1;
+  float dy = y2 - y1;
+  float d = sqrt(dx*dx + dy*dy);
 
   dx = width * (y2 - y1) / d;
   dy = width * (x2 - x1) / d;

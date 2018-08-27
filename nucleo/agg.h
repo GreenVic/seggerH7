@@ -1116,8 +1116,8 @@ public:
 
   void moveTo (int x, int y) { mOutline.moveTo (x, y); }
   void lineTo (int x, int y) { mOutline.lineTo (x, y); }
-  void moveTod (double x, double y) { mOutline.moveTo (int(x * 0x100), int(y * 0x100)); }
-  void lineTod (double x, double y) { mOutline.lineTo (int(x * 0x100), int(y * 0x100)); }
+  void moveTod (float x, float y) { mOutline.moveTo (int(x * 0x100), int(y * 0x100)); }
+  void lineTod (float x, float y) { mOutline.lineTo (int(x * 0x100), int(y * 0x100)); }
 
   //{{{
   template<class cRenderer> void render (cRenderer& r, const tRgba& c, int dx = 0, int dy = 0) {
