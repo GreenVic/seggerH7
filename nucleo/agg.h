@@ -433,7 +433,6 @@ public:
     mMaxy = -0x7FFFFFFF;
     }
   //}}}
-
   //{{{
   void moveTo (int x, int y) {
 
@@ -493,7 +492,7 @@ public:
       add_cur_cell();
       if(mNumcells == 0)
         return 0;
-      sort_cells();
+      sortCells();
       m_flags &= ~sort_required;
       }
 
@@ -546,7 +545,7 @@ private:
     }
   //}}}
   //{{{
-  void sort_cells() {
+  void sortCells() {
 
     if (mNumcells == 0)
       return;
@@ -576,7 +575,7 @@ private:
       *sorted_ptr++ = cell_ptr++;
     mSortedcells[mNumcells] = 0;
 
-    qsort_cells (mSortedcells, mNumcells);
+    qsortCells (mSortedcells, mNumcells);
     }
   //}}}
 
@@ -788,7 +787,7 @@ private:
   //}}}
 
   //{{{
-  void qsort_cells (cPixelCell** start, unsigned num) {
+  void qsortCells (cPixelCell** start, unsigned num) {
 
     cPixelCell**  stack[80];
     cPixelCell*** top;
@@ -872,24 +871,27 @@ private:
     }
   //}}}
 
-  unsigned     mNumblocks;
-  unsigned     mMaxblocks;
-  unsigned     mCurblock;
-  unsigned     mNumcells;
+  unsigned mNumblocks;
+  unsigned mMaxblocks;
+  unsigned mCurblock;
+  unsigned mNumcells;
+
   cPixelCell** mCells;
-  cPixelCell*  mCurcell_ptr;
+  cPixelCell* mCurcell_ptr;
   cPixelCell** mSortedcells;
-  unsigned     mSortedsize;
-  cPixelCell   mCurcell;
-  int          mCurx;
-  int          mCury;
-  int          m_close_x;
-  int          m_close_y;
-  int          mMinx;
-  int          mMiny;
-  int          mMaxx;
-  int          mMaxy;
-  unsigned     m_flags;
+  unsigned mSortedsize;
+  cPixelCell mCurcell;
+
+  int mCurx;
+  int mCury;
+  int m_close_x;
+  int m_close_y;
+
+  int mMinx;
+  int mMiny;
+  int mMaxx;
+  int mMaxy;
+  unsigned m_flags;
   };
 //}}}
 
