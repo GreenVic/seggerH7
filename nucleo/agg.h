@@ -80,21 +80,8 @@ class cTarget {
 //}}}
 public:
   //{{{
-  cTarget (uint8_t* buf, unsigned width, unsigned height, int stride) :
-      mBuf(0), mRows(0), mWidth(0), mHeight(0), mStride(0), mMaxHeight(0) {
-    attach (buf, width, height, stride);
-    }
-  //}}}
-
-  ~cTarget() { delete [] mRows; }
-
-  //{{{
-  void attach (uint8_t* buf, unsigned width, unsigned height, int stride) {
-
-    mBuf = buf;
-    mWidth = width;
-    mHeight = height;
-    mStride = stride;
+  cTarget (uint8_t* buf, uint16_t width, uint16_t height) :
+      mBuf(buf), mRows(0), mWidth(width), mHeight(height), mMaxHeight(0) {
 
     if (height > mMaxHeight) {
       delete [] mRows;
@@ -102,27 +89,23 @@ public:
       }
 
     uint8_t* row_ptr = mBuf;
-    if (stride < 0)
-      row_ptr = mBuf - int(height - 1) * stride;
-
     uint8_t** rows = mRows;
     while (height--) {
       *rows++ = row_ptr;
-      row_ptr += stride;
+      row_ptr += width*2;
       }
     }
   //}}}
+  ~cTarget() { delete [] mRows; }
 
   const uint8_t* buf()  const { return mBuf; }
-  unsigned width() const { return mWidth;  }
-  unsigned height() const { return mHeight; }
-  int stride() const { return mStride; }
+  uint16_t width() const { return mWidth;  }
+  uint16_t height() const { return mHeight; }
 
   bool inbox (int x, int y) const { return x >= 0 && y >= 0 && x < int(mWidth) && y < int(mHeight); }
-  unsigned abs_stride() const { return (mStride < 0) ? unsigned(-mStride) : unsigned(mStride); }
 
-  uint8_t* row (unsigned y) { return mRows[y];  }
-  const uint8_t* row (unsigned y) const { return mRows[y]; }
+  uint8_t* row (uint16_t y) { return mRows[y];  }
+  const uint8_t* row (uint16_t y) const { return mRows[y]; }
 
 private:
   cTarget (const cTarget&);
@@ -131,10 +114,9 @@ private:
 private:
   uint8_t*  mBuf;        // Pointer to renrdering buffer
   uint8_t** mRows;       // Pointers to each row of the buffer
-  unsigned  mWidth;      // Width in pixels
-  unsigned  mHeight;     // Height in pixels
-  int       mStride;     // Number of bytes per row. Can be < 0
-  unsigned  mMaxHeight;  // Maximal current height
+  uint16_t  mWidth;      // Width in pixels
+  uint16_t  mHeight;     // Height in pixels
+  uint16_t  mMaxHeight;  // Maximal current height
   };
 //}}}
 //{{{
@@ -151,14 +133,14 @@ class cScanline {
  // Before using this class you should know the minimal and maximal pixel
  // coordinates of your cScanline. The protocol of using is:
  // 1. reset(min_x, max_x)
- // 2. addCell() / add_span() - accumulate cScanline. You pass Y-coordinate
+ // 2. addCell() / addSpan() - accumulate cScanline. You pass Y-coordinate
  //    into these functions in order to make cScanline know the last Y. Before
- //    calling addCell() / add_span() you should check with method is_ready(y)
+ //    calling addCell() / addSpan() you should check with method is_ready(y)
  //    if the last Y has changed. It also checks if the scanline is not empty.
  //    When forming one cScanline the next X coordinate must be always greater
  //    than the last stored one, i.e. it works only with ordered coordinates.
  // 3. If the current cScanline is_ready() you should render it and then call
- //    reset_spans() before adding new cells/spans.
+ //    resetSpans() before adding new cells/spans.
  //
  // 4. Rendering:
  //
@@ -224,8 +206,6 @@ class cScanline {
  //------------------------------------------------------------------------
  //}}}
 public:
-  enum { aa_shift = 8 };
-
   //{{{
   class iterator {
   public:
@@ -251,9 +231,10 @@ public:
   friend class iterator;
 
   //{{{
-  cScanline() : m_min_x(0), m_max_len(0), m_dx(0), m_dy(0), m_last_x(0x7FFF), m_last_y(0x7FFF),
-                m_covers(0), m_start_ptrs(0), m_counts(0), m_num_spans(0), m_cur_start_ptr(0),
-                m_cur_count(0) { }
+  cScanline() : m_min_x(0), m_max_len(0), m_dx(0), m_dy(0), 
+                m_last_x(0x7FFF), m_last_y(0x7FFF),
+                m_covers(0), m_start_ptrs(0), m_counts(0), 
+                m_num_spans(0), m_cur_start_ptr(0), m_cur_count(0) {}
   //}}}
   //{{{
   ~cScanline() {
@@ -290,7 +271,7 @@ public:
   //}}}
 
   //{{{
-  void reset_spans() {
+  void resetSpans() {
 
     m_last_x        = 0x7FFF;
     m_last_y        = 0x7FFF;
@@ -318,7 +299,7 @@ public:
     }
   //}}}
   //{{{
-  void add_span (int x, int y, unsigned num, unsigned cover) {
+  void addSpan (int x, int y, unsigned num, unsigned cover) {
 
     x -= m_min_x;
 
@@ -1026,7 +1007,7 @@ struct tSpanRgb565 {
     }
   //}}}
   //{{{
-  static tRgba get (uint8_t* ptr, int x) {
+  static tRgba getPixel (uint8_t* ptr, int x) {
 
     uint16_t rgb = ((uint16_t*)ptr)[x];
 
@@ -1065,25 +1046,13 @@ template <class cSpan> class cRenderer {
 //     ras.render(ren, agg::tRgba(200, 100, 80));
 //}}}
 public:
-  cRenderer (cTarget& rbuf) : m_rbuf (&rbuf) {}
+  cRenderer (cTarget& target) : mTarget (&target) {}
 
   //{{{
-  void clear (const tRgba& c) {
-    for (unsigned y = 0; y < m_rbuf->height(); y++)
-      m_span.hline (m_rbuf->row(y), 0, m_rbuf->width(), c);
-    }
-  //}}}
-  //{{{
-  void pixel (int x, int y, const tRgba& c) {
-    if (m_rbuf->inbox (x, y))
-      m_span.hline (m_rbuf->row(y), x, 1, c);
-    }
-  //}}}
-  //{{{
-  tRgba pixel (int x, int y) const {
+  tRgba getPixel (int x, int y) const {
 
-   if (m_rbuf->inbox(x, y))
-      return m_span.get (m_rbuf->row(y), x);
+   if (mTarget->inbox(x, y))
+      return mSpan.getPixel (mTarget->row(y), x);
 
     return tRgba (0,0,0);
     }
@@ -1091,12 +1060,12 @@ public:
   //{{{
   void render (const cScanline& sl, const tRgba& c) {
 
-    if (sl.y() < 0 || sl.y() >= int(m_rbuf->height()))
+    if (sl.y() < 0 || sl.y() >= int(mTarget->height()))
       return;
 
     unsigned num_spans = sl.num_spans();
     int base_x = sl.base_x();
-    uint8_t* row = m_rbuf->row (sl.y());
+    uint8_t* row = mTarget->row (sl.y());
     cScanline::iterator span (sl);
 
     do {
@@ -1110,20 +1079,32 @@ public:
         covers -= x;
         x = 0;
         }
-      if (x + num_pix >= int(m_rbuf->width())) {
-        num_pix = m_rbuf->width() - x;
+      if (x + num_pix >= int(mTarget->width())) {
+        num_pix = mTarget->width() - x;
         if (num_pix <= 0)
           continue;
         }
-      m_span.render (row, x, num_pix, covers, c);
+
+      mSpan.render (row, x, num_pix, covers, c);
       } while (--num_spans);
     }
   //}}}
-  cTarget& rbuf() { return *m_rbuf; }
+  //{{{
+  void clear (const tRgba& c) {
+    for (unsigned y = 0; y < mTarget->height(); y++)
+      mSpan.hline (mTarget->row(y), 0, mTarget->width(), c);
+    }
+  //}}}
+  //{{{
+  void setPixel (int x, int y, const tRgba& c) {
+    if (mTarget->inbox (x, y))
+      mSpan.hline (mTarget->row(y), x, 1, c);
+    }
+  //}}}
 
 private:
-  cTarget* m_rbuf;
-  cSpan             m_span;
+  cTarget* mTarget;
+  cSpan    mSpan;
   };
 //}}}
 //{{{
@@ -1159,7 +1140,7 @@ class cRasteriser {
 public:
   enum eFilling { fill_non_zero, fill_even_odd };
   enum {
-    aa_shift = cScanline::aa_shift,
+    aa_shift = 8,
     aa_num   = 1 << aa_shift,
     aa_mask  = aa_num - 1,
     aa_2num  = aa_num * 2,
@@ -1175,7 +1156,7 @@ public:
   void gamma (double g) {
 
     for (unsigned i = 0; i < 256; i++)
-      m_gamma[i] = (uint8_t)(pow(double(i) / 255.0, g) * 255.0);
+      mGamma[i] = (uint8_t)(pow(double(i) / 255.0, g) * 255.0);
     }
   //}}}
 
@@ -1248,9 +1229,9 @@ public:
         if (alpha) {
          if (mScanline.is_ready (y)) {
             r.render (mScanline, c);
-            mScanline.reset_spans();
+            mScanline.resetSpans();
             }
-          mScanline.addCell (x, y, m_gamma[alpha]);
+          mScanline.addCell (x, y, mGamma[alpha]);
           }
         x++;
         }
@@ -1263,9 +1244,9 @@ public:
         if (alpha) {
           if (mScanline.is_ready (y)) {
             r.render (mScanline, c);
-             mScanline.reset_spans();
+             mScanline.resetSpans();
              }
-           mScanline.add_span (x, y, cur_cell->x - x, m_gamma[alpha]);
+           mScanline.addSpan (x, y, cur_cell->x - x, mGamma[alpha]);
            }
         }
       }
@@ -1338,6 +1319,6 @@ private:
   cOutline  mOutline;
   cScanline mScanline;
   eFilling  mFilling;
-  uint8_t   m_gamma[256];
+  uint8_t  mGamma[256];
   };
 //}}}

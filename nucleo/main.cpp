@@ -247,7 +247,7 @@ void appThread (void* arg) {
 
   // Create frameBuffer,  , renderer, rasteriser
   buf = sdRamAlloc (width * height * 2, "agg");
-  cTarget target (buf, width, height, width * 2);
+  cTarget target (buf, width, height);
   cRenderer<tSpanRgb565> renderer (target);
   cRasteriser rasteriser;
   rasteriser.gamma (1.2);
