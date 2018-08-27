@@ -204,32 +204,32 @@ public:
   //{{{
   class iterator {
   public:
-    iterator(const cScanline& sl) : m_covers(sl.m_covers), m_cur_count(sl.m_counts),
-                                   m_cur_start_ptr(sl.m_start_ptrs) {}
+    iterator(const cScanline& sl) : m_covers(sl.m_covers), mCurcount(sl.m_counts),
+                                   mCurstart_ptr(sl.m_start_ptrs) {}
     //{{{
     int next() {
-      ++m_cur_count;
-      ++m_cur_start_ptr;
-      return int(*m_cur_start_ptr - m_covers);
+      ++mCurcount;
+      ++mCurstart_ptr;
+      return int(*mCurstart_ptr - m_covers);
       }
     //}}}
 
-    int num_pix() const { return int(*m_cur_count); }
-    const uint8_t* covers() const { return *m_cur_start_ptr; }
+    int num_pix() const { return int(*mCurcount); }
+    const uint8_t* covers() const { return *mCurstart_ptr; }
 
   private:
     const uint8_t*        m_covers;
-    const uint16_t*       m_cur_count;
-    const uint8_t* const* m_cur_start_ptr;
+    const uint16_t*       mCurcount;
+    const uint8_t* const* mCurstart_ptr;
     };
   //}}}
   friend class iterator;
 
   //{{{
-  cScanline() : m_min_x(0), m_max_len(0), m_dx(0), m_dy(0),
+  cScanline() : mMinx(0), mMaxlen(0), m_dx(0), m_dy(0),
                 m_last_x(0x7FFF), m_last_y(0x7FFF),
                 m_covers(0), m_start_ptrs(0), m_counts(0),
-                m_num_spans(0), m_cur_start_ptr(0), m_cur_count(0) {}
+                mNumspans(0), mCurstart_ptr(0), mCurcount(0) {}
   //}}}
   //{{{
   ~cScanline() {
@@ -244,24 +244,24 @@ public:
   void reset (int min_x, int max_x, int dx, int dy) {
 
     unsigned max_len = max_x - min_x + 2;
-    if (max_len > m_max_len) {
+    if (max_len > mMaxlen) {
       delete [] m_counts;
       delete [] m_start_ptrs;
       delete [] m_covers;
       m_covers = new uint8_t [max_len];
       m_start_ptrs = new uint8_t* [max_len];
       m_counts = new uint16_t[max_len];
-      m_max_len = max_len;
+      mMaxlen = max_len;
       }
 
     m_dx = dx;
     m_dy = dy;
     m_last_x = 0x7FFF;
     m_last_y = 0x7FFF;
-    m_min_x = min_x;
-    m_cur_count = m_counts;
-    m_cur_start_ptr = m_start_ptrs;
-    m_num_spans = 0;
+    mMinx = min_x;
+    mCurcount = m_counts;
+    mCurstart_ptr = m_start_ptrs;
+    mNumspans = 0;
     }
   //}}}
 
@@ -270,23 +270,23 @@ public:
 
     m_last_x        = 0x7FFF;
     m_last_y        = 0x7FFF;
-    m_cur_count     = m_counts;
-    m_cur_start_ptr = m_start_ptrs;
-    m_num_spans     = 0;
+    mCurcount     = m_counts;
+    mCurstart_ptr = m_start_ptrs;
+    mNumspans     = 0;
     }
   //}}}
   //{{{
   void addCell (int x, int y, unsigned cover) {
 
-    x -= m_min_x;
+    x -= mMinx;
     m_covers[x] = (uint8_t)cover;
 
     if (x == m_last_x+1)
-      (*m_cur_count)++;
+      (*mCurcount)++;
     else {
-      *++m_cur_count = 1;
-      *++m_cur_start_ptr = m_covers + x;
-      m_num_spans++;
+      *++mCurcount = 1;
+      *++mCurstart_ptr = m_covers + x;
+      mNumspans++;
       }
 
     m_last_x = x;
@@ -296,15 +296,15 @@ public:
   //{{{
   void addSpan (int x, int y, unsigned num, unsigned cover) {
 
-    x -= m_min_x;
+    x -= mMinx;
 
     memset(m_covers + x, cover, num);
     if (x == m_last_x+1)
-      (*m_cur_count) += (uint16_t)num;
+      (*mCurcount) += (uint16_t)num;
     else {
-      *++m_cur_count = (uint16_t)num;
-      *++m_cur_start_ptr = m_covers + x;
-      m_num_spans++;
+      *++mCurcount = (uint16_t)num;
+      *++mCurstart_ptr = m_covers + x;
+      mNumspans++;
       }
 
     m_last_x = x + num - 1;
@@ -314,20 +314,20 @@ public:
 
   //{{{
   int is_ready(int y) const {
-    return m_num_spans && (y ^ m_last_y);
+    return mNumspans && (y ^ m_last_y);
     }
   //}}}
-  int base_x() const { return m_min_x + m_dx;  }
+  int base_x() const { return mMinx + m_dx;  }
   int y() const { return m_last_y + m_dy; }
-  unsigned num_spans() const { return m_num_spans; }
+  unsigned num_spans() const { return mNumspans; }
 
 private:
   cScanline (const cScanline&);
   const cScanline& operator = (const cScanline&);
 
 private:
-  int        m_min_x;
-  unsigned   m_max_len;
+  int        mMinx;
+  unsigned   mMaxlen;
   int        m_dx;
   int        m_dy;
   int        m_last_x;
@@ -335,24 +335,11 @@ private:
   uint8_t*   m_covers;
   uint8_t**  m_start_ptrs;
   uint16_t*  m_counts;
-  unsigned   m_num_spans;
-  uint8_t**  m_cur_start_ptr;
-  uint16_t*  m_cur_count;
+  unsigned   mNumspans;
+  uint8_t**  mCurstart_ptr;
+  uint16_t*  mCurcount;
   };
 //}}}
-
-//{{{
-// These constants determine the subpixel accuracy, to be more precise,
-// the number of bits of the fractional part of the coordinates.
-// The possible coordinate capacity in bits can be calculated by formula:
-// sizeof(int) * 8 - poly_base_shift * 2, i.e, for 32-bit integers and
-// 8-bits fractional part the capacity is 16 bits or [-32768...32767].
-enum { poly_base_shift = 8,
-       poly_base_size = 1 << poly_base_shift,
-       poly_base_mask = poly_base_size - 1
-     };
-//}}}
-inline int poly_coord (double c) { return int(c * poly_base_size); }
 
 //{{{
 template <class T> static inline void swapCells (T* a, T* b) {
@@ -411,26 +398,27 @@ struct tPixelCell {
 class cOutline {
 public:
   //{{{
-  cOutline() : m_num_blocks(0), m_max_blocks(0), m_cur_block(0), m_num_cells(0), m_cells(0),
-      m_cur_cell_ptr(0), m_sorted_cells(0), m_sorted_size(0), m_cur_x(0), m_cur_y(0),
-      m_close_x(0), m_close_y(0), m_min_x(0x7FFFFFFF), m_min_y(0x7FFFFFFF), m_max_x(-0x7FFFFFFF),
-      m_max_y(-0x7FFFFFFF), m_flags(sort_required) {
+  cOutline() : mNumblocks(0), mMaxblocks(0), mCurblock(0), mNumcells(0), mCells(0),
+      mCurcell_ptr(0), mSortedcells(0), mSortedsize(0), mCurx(0), mCury(0),
+      m_close_x(0), m_close_y(0),
+      mMinx(0x7FFFFFFF), mMiny(0x7FFFFFFF), mMaxx(-0x7FFFFFFF), mMaxy(-0x7FFFFFFF),
+      m_flags(sort_required) {
 
-    m_cur_cell.set(0x7FFF, 0x7FFF, 0, 0);
+    mCurcell.set(0x7FFF, 0x7FFF, 0, 0);
     }
   //}}}
   //{{{
   ~cOutline() {
 
-    delete [] m_sorted_cells;
+    delete [] mSortedcells;
 
-    if (m_num_blocks) {
-      tPixelCell** ptr = m_cells + m_num_blocks - 1;
-      while(m_num_blocks--) {
+    if (mNumblocks) {
+      tPixelCell** ptr = mCells + mNumblocks - 1;
+      while(mNumblocks--) {
         delete [] *ptr;
         ptr--;
         }
-      delete [] m_cells;
+      delete [] mCells;
       }
     }
   //}}}
@@ -438,15 +426,15 @@ public:
   //{{{
   void reset() {
 
-    m_num_cells = 0;
-    m_cur_block = 0;
-    m_cur_cell.set (0x7FFF, 0x7FFF, 0, 0);
+    mNumcells = 0;
+    mCurblock = 0;
+    mCurcell.set (0x7FFF, 0x7FFF, 0, 0);
     m_flags |= sort_required;
     m_flags &= ~not_closed;
-    m_min_x =  0x7FFFFFFF;
-    m_min_y =  0x7FFFFFFF;
-    m_max_x = -0x7FFFFFFF;
-    m_max_y = -0x7FFFFFFF;
+    mMinx =  0x7FFFFFFF;
+    mMiny =  0x7FFFFFFF;
+    mMaxx = -0x7FFFFFFF;
+    mMaxy = -0x7FFFFFFF;
     }
   //}}}
 
@@ -459,43 +447,43 @@ public:
     if (m_flags & not_closed)
       lineTo (m_close_x, m_close_y);
 
-    set_cur_cell (x >> poly_base_shift, y >> poly_base_shift);
-    m_close_x = m_cur_x = x;
-    m_close_y = m_cur_y = y;
+    set_cur_cell (x >> 8, y >> 8);
+    m_close_x = mCurx = x;
+    m_close_y = mCury = y;
     }
   //}}}
   //{{{
   void lineTo (int x, int y) {
 
-    if ((m_flags & sort_required) && ((m_cur_x ^ x) | (m_cur_y ^ y))) {
-      int c = m_cur_x >> poly_base_shift;
-      if (c < m_min_x)
-        m_min_x = c;
+    if ((m_flags & sort_required) && ((mCurx ^ x) | (mCury ^ y))) {
+      int c = mCurx >> 8;
+      if (c < mMinx)
+        mMinx = c;
       ++c;
-      if (c > m_max_x)
-        m_max_x = c;
+      if (c > mMaxx)
+        mMaxx = c;
 
-      c = x >> poly_base_shift;
-      if (c < m_min_x)
-        m_min_x = c;
+      c = x >> 8;
+      if (c < mMinx)
+        mMinx = c;
       ++c;
-      if (c > m_max_x)
-        m_max_x = c;
+      if (c > mMaxx)
+        mMaxx = c;
 
-      renderLine (m_cur_x, m_cur_y, x, y);
-      m_cur_x = x;
-      m_cur_y = y;
+      renderLine (mCurx, mCury, x, y);
+      mCurx = x;
+      mCury = y;
       m_flags |= not_closed;
       }
     }
   //}}}
 
-  int min_x() const { return m_min_x; }
-  int min_y() const { return m_min_y; }
-  int max_x() const { return m_max_x; }
-  int max_y() const { return m_max_y; }
+  int getMinx() const { return mMinx; }
+  int getMiny() const { return mMiny; }
+  int getMaxx() const { return mMaxx; }
+  int getMaxy() const { return mMaxy; }
 
-  unsigned num_cells() const {return m_num_cells; }
+  unsigned numCells() const {return mNumcells; }
   //{{{
   const tPixelCell* const* cells() {
 
@@ -507,13 +495,13 @@ public:
     // Perform sort only the first time.
     if(m_flags & sort_required) {
       add_cur_cell();
-      if(m_num_cells == 0)
+      if(mNumcells == 0)
         return 0;
       sort_cells();
       m_flags &= ~sort_required;
       }
 
-    return m_sorted_cells;
+    return mSortedcells;
     }
   //}}}
 
@@ -532,44 +520,44 @@ private:
   //{{{
   void set_cur_cell (int x, int y) {
 
-    if (m_cur_cell.packed_coord != (y << 16) + x) {
+    if (mCurcell.packed_coord != (y << 16) + x) {
       add_cur_cell();
-      m_cur_cell.set (x, y, 0, 0);
+      mCurcell.set (x, y, 0, 0);
       }
    }
   //}}}
   //{{{
   void add_cur_cell() {
 
-    if (m_cur_cell.area | m_cur_cell.cover) {
-      if ((m_num_cells & cell_block_mask) == 0) {
-        if (m_num_blocks >= cell_block_limit)
+    if (mCurcell.area | mCurcell.cover) {
+      if ((mNumcells & cell_block_mask) == 0) {
+        if (mNumblocks >= cell_block_limit)
           return;
         allocateBlock();
         }
-      *m_cur_cell_ptr++ = m_cur_cell;
-      m_num_cells++;
+      *mCurcell_ptr++ = mCurcell;
+      mNumcells++;
       }
     }
   //}}}
   //{{{
   void sort_cells() {
 
-    if (m_num_cells == 0)
+    if (mNumcells == 0)
       return;
 
-    if (m_num_cells > m_sorted_size) {
-      delete [] m_sorted_cells;
-      m_sorted_size = m_num_cells;
-      m_sorted_cells = new tPixelCell* [m_num_cells + 1];
+    if (mNumcells > mSortedsize) {
+      delete [] mSortedcells;
+      mSortedsize = mNumcells;
+      mSortedcells = new tPixelCell* [mNumcells + 1];
       }
 
-    tPixelCell** sorted_ptr = m_sorted_cells;
-    tPixelCell** block_ptr = m_cells;
+    tPixelCell** sorted_ptr = mSortedcells;
+    tPixelCell** block_ptr = mCells;
     tPixelCell* cell_ptr;
     unsigned i;
 
-    unsigned nb = m_num_cells >> cell_block_shift;
+    unsigned nb = mNumcells >> cell_block_shift;
     while (nb--) {
       cell_ptr = *block_ptr++;
       i = cell_block_size;
@@ -578,22 +566,22 @@ private:
       }
 
     cell_ptr = *block_ptr++;
-    i = m_num_cells & cell_block_mask;
+    i = mNumcells & cell_block_mask;
     while(i--)
       *sorted_ptr++ = cell_ptr++;
-    m_sorted_cells[m_num_cells] = 0;
+    mSortedcells[mNumcells] = 0;
 
-    qsort_cells (m_sorted_cells, m_num_cells);
+    qsort_cells (mSortedcells, mNumcells);
     }
   //}}}
 
   //{{{
   void renderScanline (int ey, int x1, int y1, int x2, int y2) {
 
-    int ex1 = x1 >> poly_base_shift;
-    int ex2 = x2 >> poly_base_shift;
-    int fx1 = x1 & poly_base_mask;
-    int fx2 = x2 & poly_base_mask;
+    int ex1 = x1 >> 8;
+    int ex2 = x2 >> 8;
+    int fx1 = x1 & 0xFF;
+    int fx2 = x2 & 0xFF;
 
     // trivial case. Happens often
     if (y1 == y2) {
@@ -604,14 +592,14 @@ private:
     //everything is located in a single cell.  That is easy!
     if (ex1 == ex2) {
       int delta = y2 - y1;
-      m_cur_cell.add_cover (delta, (fx1 + fx2) * delta);
+      mCurcell.add_cover (delta, (fx1 + fx2) * delta);
       return;
       }
 
     //ok, we'll have to render a run of adjacent cells on the same
     //cScanline...
-    int p = (poly_base_size - fx1) * (y2 - y1);
-    int first = poly_base_size;
+    int p = (0x100 - fx1) * (y2 - y1);
+    int first = 0x100;
     int incr = 1;
     int dx = x2 - x1;
     if (dx < 0) {
@@ -628,13 +616,13 @@ private:
       mod += dx;
       }
 
-    m_cur_cell.add_cover (delta, (fx1 + first) * delta);
+    mCurcell.add_cover (delta, (fx1 + first) * delta);
 
     ex1 += incr;
     set_cur_cell(ex1, ey);
     y1  += delta;
     if (ex1 != ex2) {
-      p = poly_base_size * (y2 - y1 + delta);
+      p = 0x100 * (y2 - y1 + delta);
       int lift = p / dx;
       int rem = p % dx;
       if (rem < 0) {
@@ -651,35 +639,35 @@ private:
           delta++;
           }
 
-        m_cur_cell.add_cover (delta, (poly_base_size) * delta);
+        mCurcell.add_cover (delta, (0x100) * delta);
         y1  += delta;
         ex1 += incr;
         set_cur_cell (ex1, ey);
         }
       }
     delta = y2 - y1;
-    m_cur_cell.add_cover (delta, (fx2 + poly_base_size - first) * delta);
+    mCurcell.add_cover (delta, (fx2 + 0x100 - first) * delta);
     }
   //}}}
   //{{{
   void renderLine (int x1, int y1, int x2, int y2) {
 
-    int ey1 = y1 >> poly_base_shift;
-    int ey2 = y2 >> poly_base_shift;
-    int fy1 = y1 & poly_base_mask;
-    int fy2 = y2 & poly_base_mask;
+    int ey1 = y1 >> 8;
+    int ey2 = y2 >> 8;
+    int fy1 = y1 & 0xFF;
+    int fy2 = y2 & 0xFF;
 
     int dx, dy, x_from, x_to;
     int p, rem, mod, lift, delta, first, incr;
 
-    if (ey1   < m_min_y)
-      m_min_y = ey1;
-    if (ey1+1 > m_max_y)
-      m_max_y = ey1+1;
-    if (ey2   < m_min_y)
-      m_min_y = ey2;
-    if (ey2+1 > m_max_y)
-      m_max_y = ey2+1;
+    if (ey1   < mMiny)
+      mMiny = ey1;
+    if (ey1+1 > mMaxy)
+      mMaxy = ey1+1;
+    if (ey2   < mMiny)
+      mMiny = ey2;
+    if (ey2+1 > mMaxy)
+      mMaxy = ey2+1;
 
     dx = x2 - x1;
     dy = y2 - y1;
@@ -696,11 +684,11 @@ private:
     // cell, so, we don't have to call renderScanline().
     incr  = 1;
     if (dx == 0) {
-      int ex = x1 >> poly_base_shift;
-      int two_fx = (x1 - (ex << poly_base_shift)) << 1;
+      int ex = x1 >> 8;
+      int two_fx = (x1 - (ex << 8)) << 1;
       int area;
 
-      first = poly_base_size;
+      first = 0x100;
       if(dy < 0) {
         first = 0;
         incr  = -1;
@@ -709,29 +697,29 @@ private:
       x_from = x1;
       //renderScanline(ey1, x_from, fy1, x_from, first)
       delta = first - fy1;
-      m_cur_cell.add_cover (delta, two_fx * delta);
+      mCurcell.add_cover (delta, two_fx * delta);
 
       ey1 += incr;
       set_cur_cell(ex, ey1);
 
-      delta = first + first - poly_base_size;
+      delta = first + first - 0x100;
       area = two_fx * delta;
       while (ey1 != ey2) {
-        //renderScanline (ey1, x_from, poly_base_size - first, x_from, first);
-        m_cur_cell.set_cover (delta, area);
+        //renderScanline (ey1, x_from, 0x100 - first, x_from, first);
+        mCurcell.set_cover (delta, area);
         ey1 += incr;
         set_cur_cell (ex, ey1);
         }
 
-      // renderScanline(ey1, x_from, poly_base_size - first, x_from, fy2);
-      delta = fy2 - poly_base_size + first;
-      m_cur_cell.add_cover (delta, two_fx * delta);
+      // renderScanline(ey1, x_from, 0x100 - first, x_from, fy2);
+      delta = fy2 - 0x100 + first;
+      mCurcell.add_cover (delta, two_fx * delta);
       return;
       }
 
     // ok, we have to render several cScanlines
-    p  = (poly_base_size - fy1) * dx;
-    first = poly_base_size;
+    p  = (0x100 - fy1) * dx;
+    first = 0x100;
     if (dy < 0) {
       p     = fy1 * dx;
       first = 0;
@@ -750,10 +738,10 @@ private:
     renderScanline (ey1, x1, fy1, x_from, first);
 
     ey1 += incr;
-    set_cur_cell (x_from >> poly_base_shift, ey1);
+    set_cur_cell (x_from >> 8, ey1);
 
     if (ey1 != ey2) {
-      p = poly_base_size * dx;
+      p = 0x100 * dx;
       lift  = p / dy;
       rem   = p % dy;
       if (rem < 0) {
@@ -770,33 +758,33 @@ private:
           }
 
         x_to = x_from + delta;
-        renderScanline (ey1, x_from, poly_base_size - first, x_to, first);
+        renderScanline (ey1, x_from, 0x100 - first, x_to, first);
         x_from = x_to;
 
         ey1 += incr;
-        set_cur_cell (x_from >> poly_base_shift, ey1);
+        set_cur_cell (x_from >> 8, ey1);
         }
       }
-    renderScanline (ey1, x_from, poly_base_size - first, x2, fy2);
+    renderScanline (ey1, x_from, 0x100 - first, x2, fy2);
     }
   //}}}
   //{{{
   void allocateBlock() {
 
-    if (m_cur_block >= m_num_blocks) {
-      if (m_num_blocks >= m_max_blocks) {
-        tPixelCell** new_cells = new tPixelCell* [m_max_blocks + cell_block_pool];
-        if (m_cells) {
-          memcpy (new_cells, m_cells, m_max_blocks * sizeof(tPixelCell*));
-          delete [] m_cells;
+    if (mCurblock >= mNumblocks) {
+      if (mNumblocks >= mMaxblocks) {
+        tPixelCell** new_cells = new tPixelCell* [mMaxblocks + cell_block_pool];
+        if (mCells) {
+          memcpy (new_cells, mCells, mMaxblocks * sizeof(tPixelCell*));
+          delete [] mCells;
           }
-        m_cells = new_cells;
-        m_max_blocks += cell_block_pool;
+        mCells = new_cells;
+        mMaxblocks += cell_block_pool;
         }
-      m_cells[m_num_blocks++] = new tPixelCell [unsigned(cell_block_size)];
+      mCells[mNumblocks++] = new tPixelCell [unsigned(cell_block_size)];
       }
 
-    m_cur_cell_ptr = m_cells[m_cur_block++];
+    mCurcell_ptr = mCells[mCurblock++];
     }
   //}}}
 
@@ -885,23 +873,23 @@ private:
     }
   //}}}
 
-  unsigned     m_num_blocks;
-  unsigned     m_max_blocks;
-  unsigned     m_cur_block;
-  unsigned     m_num_cells;
-  tPixelCell** m_cells;
-  tPixelCell*  m_cur_cell_ptr;
-  tPixelCell** m_sorted_cells;
-  unsigned     m_sorted_size;
-  tPixelCell   m_cur_cell;
-  int          m_cur_x;
-  int          m_cur_y;
+  unsigned     mNumblocks;
+  unsigned     mMaxblocks;
+  unsigned     mCurblock;
+  unsigned     mNumcells;
+  tPixelCell** mCells;
+  tPixelCell*  mCurcell_ptr;
+  tPixelCell** mSortedcells;
+  unsigned     mSortedsize;
+  tPixelCell   mCurcell;
+  int          mCurx;
+  int          mCury;
   int          m_close_x;
   int          m_close_y;
-  int          m_min_x;
-  int          m_min_y;
-  int          m_max_x;
-  int          m_max_y;
+  int          mMinx;
+  int          mMiny;
+  int          mMaxx;
+  int          mMaxy;
   unsigned     m_flags;
   };
 //}}}
@@ -1100,7 +1088,7 @@ class cRasteriser {
 // Polygon cRasteriser that is used to render filled polygons with
 // high-quality Anti-Aliasing. Internally, by default, the class uses
 // integer coordinates in format 24.8, i.e. 24 bits for integer part
-// and 8 bits for fractional - see poly_base_shift. This class can be
+// and 8 bits for fractional - see 8. This class can be
 // used in the following  way:
 //
 // 1. filling_rule(filling_rule_e ft) - optional.
@@ -1127,26 +1115,26 @@ class cRasteriser {
 public:
   enum eFilling { fill_non_zero, fill_even_odd };
 
-  cRasteriser() : mFilling(fill_even_odd) { gamma (1.2); }
+  cRasteriser() : mFilling (fill_even_odd) { gamma (1.2); }
 
-  int min_x() const { return mOutline.min_x(); }
-  int min_y() const { return mOutline.min_y(); }
-  int max_x() const { return mOutline.max_x(); }
-  int max_y() const { return mOutline.max_y(); }
+  int getMinx() const { return mOutline.getMinx(); }
+  int getMiny() const { return mOutline.getMiny(); }
+  int getMaxx() const { return mOutline.getMaxx(); }
+  int getMaxy() const { return mOutline.getMaxy(); }
 
   void reset() { mOutline.reset(); }
   void setFilling (eFilling filling) { mFilling = filling; }
 
   void moveTo (int x, int y) { mOutline.moveTo (x, y); }
   void lineTo (int x, int y) { mOutline.lineTo (x, y); }
-  void moveTod (double x, double y) { mOutline.moveTo (poly_coord(x), poly_coord(y)); }
-  void lineTod (double x, double y) { mOutline.lineTo (poly_coord(x), poly_coord(y)); }
+  void moveTod (double x, double y) { mOutline.moveTo (int(x * 0x100), int(y * 0x100)); }
+  void lineTod (double x, double y) { mOutline.lineTo (int(x * 0x100), int(y * 0x100)); }
 
   //{{{
   template<class cRenderer> void render (cRenderer& r, const tRgba& c, int dx = 0, int dy = 0) {
 
     const tPixelCell* const* cells = mOutline.cells();
-    if (mOutline.num_cells() == 0)
+    if (mOutline.numCells() == 0)
       return;
 
     int x, y;
@@ -1154,7 +1142,7 @@ public:
     int alpha;
     int area;
 
-    mScanline.reset (mOutline.min_x(), mOutline.max_x(), dx, dy);
+    mScanline.reset (mOutline.getMinx(), mOutline.getMaxx(), dx, dy);
 
     cover = 0;
     const tPixelCell* cur_cell = *cells++;
@@ -1177,7 +1165,7 @@ public:
         }
 
       if (area) {
-        alpha = calcAlpha ((cover << (poly_base_shift + 1)) - area);
+        alpha = calcAlpha ((cover << (8 + 1)) - area);
         if (alpha) {
          if (mScanline.is_ready (y)) {
             r.render (mScanline, c);
@@ -1192,7 +1180,7 @@ public:
         break;
 
       if (cur_cell->x > x) {
-        alpha = calcAlpha (cover << (poly_base_shift + 1));
+        alpha = calcAlpha (cover << (8 + 1));
         if (alpha) {
           if (mScanline.is_ready (y)) {
             r.render (mScanline, c);
@@ -1212,7 +1200,7 @@ public:
   bool hit_test (int tx, int ty) {
 
     const tPixelCell* const* cells = mOutline.cells();
-    if (mOutline.num_cells() == 0)
+    if (mOutline.numCells() == 0)
       return false;
 
     int x, y;
@@ -1242,7 +1230,7 @@ public:
         }
 
       if (area) {
-        alpha = calcAlpha ((cover << (poly_base_shift + 1)) - area);
+        alpha = calcAlpha ((cover << (8 + 1)) - area);
         if (alpha)
           if (tx == x && ty == y)
             return true;
@@ -1253,7 +1241,7 @@ public:
         break;
 
       if (cur_cell->x > x) {
-        alpha = calcAlpha (cover << (poly_base_shift + 1));
+        alpha = calcAlpha (cover << (8 + 1));
         if (alpha)
          if (ty == y && tx >= x && tx <= cur_cell->x)
             return true;
@@ -1265,14 +1253,6 @@ public:
   //}}}
 
 private:
-  enum {
-    aa_shift = 8,
-    aa_num   = 1 << aa_shift,
-    aa_mask  = aa_num - 1,
-    aa_2num  = aa_num * 2,
-    aa_2mask = aa_2num - 1
-    };
-
   cRasteriser (const cRasteriser&);
   const cRasteriser& operator = (const cRasteriser&);
 
@@ -1286,18 +1266,18 @@ private:
   //{{{
   unsigned calcAlpha (int area) const {
 
-    int cover = area >> (poly_base_shift*2 + 1 - aa_shift);
+    int cover = area >> (8*2 + 1 - 8);
     if (cover < 0)
       cover = -cover;
 
     if (mFilling == fill_even_odd) {
-      cover &= aa_2mask;
-      if (cover > aa_num)
-        cover = aa_2num - cover;
+      cover &= 0x1FF;
+      if (cover > 0x100)
+        cover = 0x200 - cover;
       }
 
-    if (cover > aa_mask)
-      cover = aa_mask;
+    if (cover > 0xFF)
+      cover = 0xFF;
 
     return cover;
     }
