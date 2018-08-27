@@ -16,14 +16,10 @@
 
 #include "../fatFs/ff.h"
 #include "../common/cTraceVec.h"
+#include "agg.h"
 
 using namespace std;
 //}}}
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-#include "agg.h"
 //{{{
 enum {
   width  = 500,
@@ -41,7 +37,7 @@ double random (double min, double max)
 }
 //}}}
 //{{{
-void draw_ellipse (agg::rasterizer& ras, double x,  double y, double rx, double ry) {
+void draw_ellipse (rasterizer& ras, double x,  double y, double rx, double ry) {
 
   ras.move_to_d (x + rx, y);
 
@@ -54,7 +50,7 @@ void draw_ellipse (agg::rasterizer& ras, double x,  double y, double rx, double 
   }
 //}}}
 //{{{
-void draw_line (agg::rasterizer& ras, double x1, double y1, double x2, double y2, double width) {
+void draw_line (rasterizer& ras, double x1, double y1, double x2, double y2, double width) {
 
   double dx = x2 - x1;
   double dy = y2 - y1;
@@ -255,14 +251,14 @@ void appThread (void* arg) {
   buf = sdRamAlloc (width * height * 2, "agg");
 
   // Create the rendering buffer
-  agg::rendering_buffer rbuf (buf, width, height, width * 2);
+  rendering_buffer rbuf (buf, width, height, width * 2);
 
   // create renderer, rasterizer
-  agg::renderer<agg::span_rgb565> ren(rbuf);
-  agg::rasterizer ras;
-  ras.gamma (1.3);
-  ras.filling_rule (agg::fill_even_odd);
-  ren.clear (agg::rgba8 (0,0,0));
+  renderer<span_rgb565> ren(rbuf);
+  rasterizer ras;
+  ras.gamma (1.2);
+  ras.filling_rule (fill_even_odd);
+  ren.clear (rgba8 (0,0,0));
 
   // Draw random polygons
   for (int i = 0; i < 4; i++) {
@@ -270,7 +266,7 @@ void appThread (void* arg) {
     ras.move_to_d (random(-30, rbuf.width() + 30), random(-30, rbuf.height() + 30));
     for (int j = 1; j < n; j++)
       ras.line_to_d (random(-30, rbuf.width() + 30), random(-30, rbuf.height() + 30));
-    ras.render (ren, agg::rgba8 (255,255, 0,192));
+    ras.render (ren, rgba8 (255,255, 0,192));
     }
 
   // Draw random ellipses
@@ -284,7 +280,7 @@ void appThread (void* arg) {
   for (int i = 0; i < 5; i++) {
     draw_line (ras, random(-30, rbuf.width()  + 30), random(-30, rbuf.height() + 30),
                     random(-30, rbuf.width()  + 30), random(-30, rbuf.height() + 30), random(0.1, 10));
-    ras.render (ren, agg::rgba8 (255,255,255,255));
+    ras.render (ren, rgba8 (255,255,255,255));
     }
   aggTile = new cTile (buf, cTile::eRgb565, rbuf.width(), 0,0, rbuf.width(), rbuf.height());
 
