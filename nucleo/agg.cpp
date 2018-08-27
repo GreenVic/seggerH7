@@ -41,26 +41,12 @@
 
 namespace agg {
   //{{{
-  rendering_buffer::rendering_buffer (unsigned char* buf,
-                                     unsigned width,
-                                     unsigned height,
-                                     int      stride) :
-      m_buf(0),
-      m_rows(0),
-      m_width(0),
-      m_height(0),
-      m_stride(0),
-      m_max_height(0)
-  {
-      attach(buf, width, height, stride);
-  }
+  rendering_buffer::rendering_buffer (unsigned char* buf, unsigned width, unsigned height, int stride) :
+      m_buf(0), m_rows(0), m_width(0), m_height(0), m_stride(0), m_max_height(0) {
+    attach(buf, width, height, stride);
+    }
   //}}}
-  //{{{
-  rendering_buffer::~rendering_buffer()
-  {
-      delete [] m_rows;
-  }
-  //}}}
+  rendering_buffer::~rendering_buffer() { delete [] m_rows; }
   //{{{
   void rendering_buffer::attach (unsigned char* buf, unsigned width, unsigned height, int stride) {
 
@@ -68,19 +54,18 @@ namespace agg {
     m_width = width;
     m_height = height;
     m_stride = stride;
+
     if (height > m_max_height) {
       delete [] m_rows;
       m_rows = new unsigned char* [m_max_height = height];
       }
 
     unsigned char* row_ptr = m_buf;
-
     if (stride < 0)
       row_ptr = m_buf - int(height - 1) * stride;
 
     unsigned char** rows = m_rows;
-
-    while(height--) {
+    while (height--) {
       *rows++ = row_ptr;
       row_ptr += stride;
       }
@@ -137,6 +122,7 @@ namespace agg {
       *++m_cur_start_ptr = m_covers + x;
       m_num_spans++;
       }
+
     m_last_x = x + num - 1;
     m_last_y = y;
     }
@@ -197,32 +183,19 @@ namespace agg {
   //}}}
 
   //{{{
-  outline::outline() :
-      m_num_blocks(0),
-      m_max_blocks(0),
-      m_cur_block(0),
-      m_num_cells(0),
-      m_cells(0),
-      m_cur_cell_ptr(0),
-      m_sorted_cells(0),
-      m_sorted_size(0),
-      m_cur_x(0),
-      m_cur_y(0),
-      m_close_x(0),
-      m_close_y(0),
-      m_min_x(0x7FFFFFFF),
-      m_min_y(0x7FFFFFFF),
-      m_max_x(-0x7FFFFFFF),
-      m_max_y(-0x7FFFFFFF),
-      m_flags(sort_required)
-  {
-      m_cur_cell.set(0x7FFF, 0x7FFF, 0, 0);
-  }
+  outline::outline() : m_num_blocks(0), m_max_blocks(0), m_cur_block(0), m_num_cells(0), m_cells(0),
+      m_cur_cell_ptr(0), m_sorted_cells(0), m_sorted_size(0), m_cur_x(0), m_cur_y(0),
+      m_close_x(0), m_close_y(0), m_min_x(0x7FFFFFFF), m_min_y(0x7FFFFFFF), m_max_x(-0x7FFFFFFF),
+      m_max_y(-0x7FFFFFFF), m_flags(sort_required) {
+
+    m_cur_cell.set(0x7FFF, 0x7FFF, 0, 0);
+    }
   //}}}
   //{{{
   outline::~outline() {
 
     delete [] m_sorted_cells;
+
     if (m_num_blocks) {
       cell** ptr = m_cells + m_num_blocks - 1;
       while(m_num_blocks--) {
@@ -262,6 +235,7 @@ namespace agg {
         }
       m_cells[m_num_blocks++] = new cell [unsigned(cell_block_size)];
       }
+
     m_cur_cell_ptr = m_cells[m_cur_block++];
     }
   //}}}
@@ -376,10 +350,14 @@ namespace agg {
     int dx, dy, x_from, x_to;
     int p, rem, mod, lift, delta, first, incr;
 
-    if(ey1   < m_min_y) m_min_y = ey1;
-    if(ey1+1 > m_max_y) m_max_y = ey1+1;
-    if(ey2   < m_min_y) m_min_y = ey2;
-    if(ey2+1 > m_max_y) m_max_y = ey2+1;
+    if (ey1   < m_min_y) 
+      m_min_y = ey1;
+    if (ey1+1 > m_max_y) 
+      m_max_y = ey1+1;
+    if (ey2   < m_min_y) 
+      m_min_y = ey2;
+    if (ey2+1 > m_max_y) 
+      m_max_y = ey2+1;
 
     dx = x2 - x1;
     dy = y2 - y1;
@@ -501,7 +479,7 @@ namespace agg {
 
     if((m_flags & sort_required) && ((m_cur_x ^ x) | (m_cur_y ^ y))) {
       int c = m_cur_x >> poly_base_shift;
-      if (c < m_min_x) 
+      if (c < m_min_x)
         m_min_x = c;
       ++c;
       if (c > m_max_x)

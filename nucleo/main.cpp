@@ -270,21 +270,21 @@ void appThread (void* arg) {
     ras.move_to_d (random(-30, rbuf.width() + 30), random(-30, rbuf.height() + 30));
     for (int j = 1; j < n; j++)
       ras.line_to_d (random(-30, rbuf.width() + 30), random(-30, rbuf.height() + 30));
-    ras.render (ren, agg::rgba8(rand() & 0xFF, rand() & 0xFF, rand() & 0xFF, rand() & 0xFF));
+    ras.render (ren, agg::rgba8 (255,255, 0,192));
     }
 
   // Draw random ellipses
-  for (int i = 0; i < 2; i++) {
-    draw_ellipse  (ras, random(-30, rbuf.width()  + 30), random(-30, rbuf.height() + 30),
-                        random(3, 50), random(3, 50));
-    ras.render (ren, agg::rgba8(rand() & 0x7F, rand() & 0x7F, rand() & 0x7F, (rand() & 0x7F) + 100));
-    }
+  //for (int i = 0; i < 2; i++) {
+  //  draw_ellipse (ras,
+  //    random (-30, rbuf.width() + 30), random (-30, rbuf.height() + 30), random (3, 50), random (3, 50));
+  //  ras.render (ren, agg::rgba8 (rand() & 0x7F, rand() & 0x7F, rand() & 0x7F, (rand() & 0x7F) + 100));
+  //  }
 
   // Draw random straight lines
   for (int i = 0; i < 5; i++) {
     draw_line (ras, random(-30, rbuf.width()  + 30), random(-30, rbuf.height() + 30),
                     random(-30, rbuf.width()  + 30), random(-30, rbuf.height() + 30), random(0.1, 10));
-    ras.render (ren, agg::rgba8(rand() & 0x7F, rand() & 0x7F, rand() & 0x7F));
+    ras.render (ren, agg::rgba8 (255,255,255,255));
     }
   aggTile = new cTile (buf, cTile::eRgb565, rbuf.width(), 0,0, rbuf.width(), rbuf.height());
 

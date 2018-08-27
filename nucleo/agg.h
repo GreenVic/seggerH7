@@ -40,34 +40,34 @@ namespace agg {
 
     rgba8() {}
     //{{{
-    rgba8 (unsigned r_, unsigned g_, unsigned b_, unsigned a_=255) :
+    rgba8 (unsigned r_, unsigned g_, unsigned b_, unsigned a_= 255) :
         r(int8u(r_)), g(int8u(g_)), b(int8u(b_)), a(int8u(a_)) {}
     //}}}
     //{{{
     rgba8 (unsigned packed, order o) :
-        r((o == rgb) ? ((packed >> 16) & 0xFF) : (packed & 0xFF)),
-        g((packed >> 8)  & 0xFF),
-        b((o == rgb) ? (packed & 0xFF) : ((packed >> 16) & 0xFF)),
-        a(255) {}
+      r((o == rgb) ? ((packed >> 16) & 0xFF) : (packed & 0xFF)),
+      g((packed >> 8)  & 0xFF),
+      b((o == rgb) ? (packed & 0xFF) : ((packed >> 16) & 0xFF)),
+      a(255) {}
     //}}}
 
     //{{{
-    void opacity(double a_) {
-      if (a_ < 0.0) 
+    void opacity (double a_) {
+
+      if (a_ < 0.0)
         a_ = 0.0;
-      if (a_ > 1.0) 
+
+      if (a_ > 1.0)
         a_ = 1.0;
+
       a = int8u(a_ * 255.0);
       }
     //}}}
-    //{{{
-    double opacity() const {
-      return double(a) / 255.0;
-      }
-    //}}}
+    double opacity() const { return double(a) / 255.0; }
 
     //{{{
     rgba8 gradient(rgba8 c, double k) const {
+
       rgba8 ret;
       int ik = int(k * 256);
       ret.r = int8u(int(r) + (((int(c.r) - int(r)) * ik) >> 8));
@@ -78,17 +78,12 @@ namespace agg {
       }
     //}}}
 
-    //{{{
-    rgba8 pre() const {
-      return rgba8((r*a) >> 8, (g*a) >> 8, (b*a) >> 8, a);
-      }
-    //}}}
+    rgba8 pre() const { return rgba8((r*a) >> 8, (g*a) >> 8, (b*a) >> 8, a); }
     };
   //}}}
   //{{{
   class rendering_buffer {
   //{{{  description
-  //========================================================================
   // Rendering buffer wrapper. This class does not know anything about
   // memory organizations, all it does it keeps an array of pointers
   // to each pixel row. The general rules of rendering are as follows.
@@ -137,54 +132,36 @@ namespace agg {
   //
   // 5. Display the result, or store it, or whatever. It's also your
   //    responsibility and depends on the platform.
-  //------------------------------------------------------------------------
   //}}}
   public:
-      ~rendering_buffer();
+    rendering_buffer (unsigned char* buf, unsigned width, unsigned height, int stride);
+    ~rendering_buffer();
 
-      //-----------------------------------------Initialization
-      rendering_buffer(unsigned char* buf,
-                       unsigned width,
-                       unsigned height,
-                       int      stride);
+    void attach (unsigned char* buf, unsigned width, unsigned height, int stride);
 
-      //-----------------------------------------Initialization
-      void attach(unsigned char* buf,
-                  unsigned width,
-                  unsigned height,
-                  int      stride);
+    const unsigned char* buf()  const { return m_buf; }
+    unsigned width() const { return m_width;  }
+    unsigned height() const { return m_height; }
+    int stride() const { return m_stride; }
 
-      //-----------------------------------------Acessors
-      const unsigned char* buf()    const { return m_buf;    }
-      unsigned             width()  const { return m_width;  }
-      unsigned             height() const { return m_height; }
-      int                  stride() const { return m_stride; }
+    bool inbox (int x, int y) const { return x >= 0 && y >= 0 && x < int(m_width) && y < int(m_height); }
+    unsigned abs_stride() const { return (m_stride < 0) ? unsigned(-m_stride) : unsigned(m_stride); }
 
-      bool inbox(int x, int y) const
-      {
-          return x >= 0 && y >= 0 && x < int(m_width) && y < int(m_height);
-      }
-
-      unsigned abs_stride() const
-      {
-          return (m_stride < 0) ? unsigned(-m_stride) : unsigned(m_stride);
-      }
-
-      unsigned char* row(unsigned y) { return m_rows[y];  }
-      const unsigned char* row(unsigned y) const { return m_rows[y]; }
+    unsigned char* row (unsigned y) { return m_rows[y];  }
+    const unsigned char* row (unsigned y) const { return m_rows[y]; }
 
   private:
-      rendering_buffer(const rendering_buffer&);
-      const rendering_buffer& operator = (const rendering_buffer&);
+    rendering_buffer (const rendering_buffer&);
+    const rendering_buffer& operator = (const rendering_buffer&);
 
   private:
-      unsigned char*  m_buf;        // Pointer to renrdering buffer
-      unsigned char** m_rows;       // Pointers to each row of the buffer
-      unsigned        m_width;      // Width in pixels
-      unsigned        m_height;     // Height in pixels
-      int             m_stride;     // Number of bytes per row. Can be < 0
-      unsigned        m_max_height; // Maximal current height
-  };
+    unsigned char*  m_buf;        // Pointer to renrdering buffer
+    unsigned char** m_rows;       // Pointers to each row of the buffer
+    unsigned        m_width;      // Width in pixels
+    unsigned        m_height;     // Height in pixels
+    int             m_stride;     // Number of bytes per row. Can be < 0
+    unsigned        m_max_height; // Maximal current height
+    };
   //}}}
   //{{{
   class scanline {
@@ -278,7 +255,7 @@ namespace agg {
     //{{{
     class iterator {
     public:
-      iterator(const scanline& sl) : m_covers(sl.m_covers), m_cur_count(sl.m_counts), 
+      iterator(const scanline& sl) : m_covers(sl.m_covers), m_cur_count(sl.m_counts),
                                      m_cur_start_ptr(sl.m_start_ptrs) {}
       //{{{
       int next() {
@@ -315,7 +292,7 @@ namespace agg {
       }
     //}}}
     //{{{
-    void add_cell(int x, int y, unsigned cover) {
+    void add_cell (int x, int y, unsigned cover) {
 
       x -= m_min_x;
       m_covers[x] = (unsigned char)cover;
@@ -344,7 +321,7 @@ namespace agg {
     unsigned num_spans() const { return m_num_spans; }
 
   private:
-    scanline(const scanline&);
+    scanline (const scanline&);
     const scanline& operator = (const scanline&);
 
   private:
@@ -366,7 +343,6 @@ namespace agg {
   //{{{
   template<class Span> class renderer {
   //{{{  description
-  //========================================================================
   // This class template is used basically for rendering scanlines.
   // The 'Span' argument is one of the span renderers, such as span_rgb24
   // and others.
@@ -388,71 +364,62 @@ namespace agg {
   //
   //     // Rendering
   //     ras.render(ren, agg::rgba8(200, 100, 80));
-  //
-  //------------------------------------------------------------------------
   //}}}
   public:
-    renderer(rendering_buffer& rbuf) : m_rbuf(&rbuf) {}
+    renderer (rendering_buffer& rbuf) : m_rbuf(&rbuf) {}
 
     //{{{
-    void clear(const rgba8& c) {
-        unsigned y;
-        for(y = 0; y < m_rbuf->height(); y++)
-        {
-            m_span.hline(m_rbuf->row(y), 0, m_rbuf->width(), c);
-        }
-    }
+    void clear (const rgba8& c) {
+      for (unsigned y = 0; y < m_rbuf->height(); y++)
+          m_span.hline (m_rbuf->row(y), 0, m_rbuf->width(), c);
+      }
     //}}}
     //{{{
-    void pixel(int x, int y, const rgba8& c) {
-        if(m_rbuf->inbox(x, y))
-        {
-            m_span.hline(m_rbuf->row(y), x, 1, c);
-        }
-    }
+    void pixel( int x, int y, const rgba8& c) {
+      if (m_rbuf->inbox(x, y))
+        m_span.hline(m_rbuf->row(y), x, 1, c);
+      }
     //}}}
     //{{{
-    rgba8 pixel(int x, int y) const {
-        if(m_rbuf->inbox(x, y))
-        {
-            return m_span.get(m_rbuf->row(y), x);
-        }
-        return rgba8(0,0,0);
-    }
+    rgba8 pixel (int x, int y) const {
+
+     if (m_rbuf->inbox(x, y))
+        return m_span.get (m_rbuf->row(y), x);
+      return rgba8(0,0,0);
+      }
     //}}}
     //{{{
-    void render(const scanline& sl, const rgba8& c) {
-        if(sl.y() < 0 || sl.y() >= int(m_rbuf->height()))
-        {
-            return;
+    void render (const scanline& sl, const rgba8& c) {
+
+      if (sl.y() < 0 || sl.y() >= int(m_rbuf->height()))
+        return;
+
+      unsigned num_spans = sl.num_spans();
+      int base_x = sl.base_x();
+      unsigned char* row = m_rbuf->row(sl.y());
+      scanline::iterator span(sl);
+
+      do {
+        int x = span.next() + base_x;
+        const int8u* covers = span.covers();
+        int num_pix = span.num_pix();
+        if (x < 0) {
+          num_pix += x;
+          if (num_pix <= 0) 
+            continue;
+          covers -= x;
+          x = 0;
+          }
+        if (x + num_pix >= int(m_rbuf->width())) {
+          num_pix = m_rbuf->width() - x;
+          if (num_pix <= 0) 
+            continue;
+          }
+        m_span.render(row, x, num_pix, covers, c);
         }
 
-        unsigned num_spans = sl.num_spans();
-        int base_x = sl.base_x();
-        unsigned char* row = m_rbuf->row(sl.y());
-        scanline::iterator span(sl);
-
-        do
-        {
-            int x = span.next() + base_x;
-            const int8u* covers = span.covers();
-            int num_pix = span.num_pix();
-            if(x < 0)
-            {
-                num_pix += x;
-                if(num_pix <= 0) continue;
-                covers -= x;
-                x = 0;
-            }
-            if(x + num_pix >= int(m_rbuf->width()))
-            {
-                num_pix = m_rbuf->width() - x;
-                if(num_pix <= 0) continue;
-            }
-            m_span.render(row, x, num_pix, covers, c);
-        }
-        while(--num_spans);
-    }
+      while(--num_spans);
+      }
     //}}}
     rendering_buffer& rbuf() { return *m_rbuf; }
 
@@ -468,16 +435,12 @@ namespace agg {
   // The possible coordinate capacity in bits can be calculated by formula:
   // sizeof(int) * 8 - poly_base_shift * 2, i.e, for 32-bit integers and
   // 8-bits fractional part the capacity is 16 bits or [-32768...32767].
-  enum { poly_base_shift = 8, 
-         poly_base_size  = 1 << poly_base_shift, 
+  enum { poly_base_shift = 8,
+         poly_base_size  = 1 << poly_base_shift,
          poly_base_mask  = poly_base_size - 1
        };
   //}}}
-  //{{{
-  inline int poly_coord (double c) {
-    return int(c * poly_base_size);
-    }
-  //}}}
+  inline int poly_coord (double c) { return int(c * poly_base_size); }
 
   //{{{
   struct cell {
@@ -489,10 +452,10 @@ namespace agg {
     int   cover;
     int   area;
 
-    void set(int x, int y, int c, int a);
-    void set_coord(int x, int y);
-    void set_cover(int c, int a);
-    void add_cover(int c, int a);
+    void set (int x, int y, int c, int a);
+    void set_coord (int x, int y);
+    void set_cover (int c, int a);
+    void add_cover (int c, int a);
     };
   //}}}
   //{{{
@@ -565,7 +528,6 @@ namespace agg {
   //{{{
   class rasterizer {
   //{{{  description
-  //========================================================================
   // Polygon rasterizer that is used to render filled polygons with
   // high-quality Anti-Aliasing. Internally, by default, the class uses
   // integer coordinates in format 24.8, i.e. 24 bits for integer part
@@ -573,11 +535,8 @@ namespace agg {
   // used in the following  way:
   //
   // 1. filling_rule(filling_rule_e ft) - optional.
-  //
   // 2. gamma() - optional.
-  //
   // 3. reset()
-  //
   // 4. move_to(x, y) / line_to(x, y) - make the polygon. One can create
   //    more than one contour, but each contour must consist of at least 3
   //    vertices, i.e. move_to(x1, y1); line_to(x2, y2); line_to(x3, y3);
@@ -595,7 +554,6 @@ namespace agg {
   //    while the intersecting contours with different orders will have "holes".
   //
   // filling_rule() and gamma() can be called anytime before "sweeping".
-  //------------------------------------------------------------------------
   //}}}
   public:
     enum {
@@ -628,7 +586,7 @@ namespace agg {
     unsigned calculate_alpha (int area) const {
 
       int cover = area >> (poly_base_shift*2 + 1 - aa_shift);
-      if (cover < 0) 
+      if (cover < 0)
         cover = -cover;
 
       if (m_filling_rule == fill_even_odd) {
@@ -637,7 +595,7 @@ namespace agg {
           cover = aa_2num - cover;
         }
 
-      if (cover > aa_mask) 
+      if (cover > aa_mask)
         cover = aa_mask;
 
       return cover;
@@ -648,7 +606,7 @@ namespace agg {
     template<class Renderer> void render (Renderer& r, const rgba8& c, int dx = 0, int dy = 0) {
 
       const cell* const* cells = m_outline.cells();
-      if (m_outline.num_cells() == 0) 
+      if (m_outline.num_cells() == 0)
         return;
 
       int x, y;
@@ -656,11 +614,11 @@ namespace agg {
       int alpha;
       int area;
 
-      m_scanline.reset(m_outline.min_x(), m_outline.max_x(), dx, dy);
+      m_scanline.reset (m_outline.min_x(), m_outline.max_x(), dx, dy);
 
       cover = 0;
       const cell* cur_cell = *cells++;
-      for(;;) { 
+      for(;;) {
         const cell* start_cell = cur_cell;
 
         int coord  = cur_cell->packed_coord;
@@ -670,22 +628,22 @@ namespace agg {
         area   = start_cell->area;
         cover += start_cell->cover;
 
-        //accumulate all start cells
+        // accumulate all start cells
         while ((cur_cell = *cells++) != 0) {
-          if (cur_cell->packed_coord != coord) 
+          if (cur_cell->packed_coord != coord)
             break;
           area  += cur_cell->area;
           cover += cur_cell->cover;
           }
 
         if (area) {
-          alpha = calculate_alpha((cover << (poly_base_shift + 1)) - area);
+          alpha = calculate_alpha ((cover << (poly_base_shift + 1)) - area);
           if (alpha) {
-           if (m_scanline.is_ready(y)) {
-              r.render(m_scanline, c);
+           if (m_scanline.is_ready (y)) {
+              r.render (m_scanline, c);
               m_scanline.reset_spans();
               }
-            m_scanline.add_cell(x, y, m_gamma[alpha]);
+            m_scanline.add_cell (x, y, m_gamma[alpha]);
             }
           x++;
           }
@@ -694,19 +652,19 @@ namespace agg {
           break;
 
         if (cur_cell->x > x) {
-          alpha = calculate_alpha(cover << (poly_base_shift + 1));
+          alpha = calculate_alpha (cover << (poly_base_shift + 1));
           if (alpha) {
-            if(m_scanline.is_ready(y)) {
-              r.render(m_scanline, c);
+            if(m_scanline.is_ready (y)) {
+              r.render (m_scanline, c);
                m_scanline.reset_spans();
                }
-             m_scanline.add_span(x, y, cur_cell->x - x, m_gamma[alpha]);
+             m_scanline.add_span (x, y, cur_cell->x - x, m_gamma[alpha]);
              }
           }
         }
 
       if (m_scanline.num_spans())
-        r.render(m_scanline, c);
+        r.render (m_scanline, c);
       }
     //}}}
 
@@ -756,13 +714,13 @@ namespace agg {
 
       int16u* p = ((int16u*)ptr) + x;
       int16u  v = rgb565(c.r, c.g, c.b);
-      do { 
-        *p++ = v; 
+      do {
+        *p++ = v;
         } while(--count);
       }
     //}}}
     //{{{
-    static rgba8 get (unsigned char* ptr, int x) { 
+    static rgba8 get (unsigned char* ptr, int x) {
 
       int16u rgb = ((int16u*)ptr)[x];
 
