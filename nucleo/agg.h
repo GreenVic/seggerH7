@@ -96,6 +96,7 @@ public:
 
   uint16_t width() const { return mWidth;  }
   uint16_t height() const { return mHeight; }
+  uint8_t* row (uint16_t y) { return mRows[y]; }
 
   //{{{
   void setBuffer (uint8_t* buf) {
@@ -111,9 +112,6 @@ public:
     }
   //}}}
   bool inbox (int x, int y) const { return x >= 0 && y >= 0 && x < int(mWidth) && y < int(mHeight); }
-
-  uint8_t* row (uint16_t y) { return mRows[y];  }
-  const uint8_t* row (uint16_t y) const { return mRows[y]; }
 
 private:
   cTarget (const cTarget&);
@@ -349,7 +347,7 @@ private:
   };
 //}}}
 //{{{
-struct cPixelCell {
+struct sPixelCell {
 public:
   int16_t x;
   int16_t y;
@@ -409,7 +407,7 @@ public:
     vPortFree (mSortedcells);
 
     if (mNumblocks) {
-      cPixelCell** ptr = mCells + mNumblocks - 1;
+      sPixelCell** ptr = mCells + mNumblocks - 1;
       while(mNumblocks--) {
         vPortFree (*ptr);
         ptr--;
@@ -480,7 +478,7 @@ public:
 
   unsigned numCells() const {return mNumcells; }
   //{{{
-  const cPixelCell* const* cells() {
+  const sPixelCell* const* cells() {
 
     if (m_flags & not_closed) {
       lineTo (m_close_x, m_close_y);
@@ -553,14 +551,13 @@ private:
     if (mNumcells > mSortedsize) {
       vPortFree (mSortedcells);
       mSortedsize = mNumcells;
-      mSortedcells = (cPixelCell**)pvPortMalloc ((mNumcells + 1) * 4);
+      mSortedcells = (sPixelCell**)pvPortMalloc ((mNumcells + 1) * 4);
       }
 
-    cPixelCell** sorted_ptr = mSortedcells;
-    cPixelCell** block_ptr = mCells;
-    cPixelCell* cell_ptr;
+    sPixelCell** sorted_ptr = mSortedcells;
+    sPixelCell** block_ptr = mCells;
+    sPixelCell* cell_ptr;
     unsigned i;
-
     unsigned nb = mNumcells >> 12;
     while (nb--) {
       cell_ptr = *block_ptr++;
@@ -571,7 +568,7 @@ private:
 
     cell_ptr = *block_ptr++;
     i = mNumcells & 0xFFF;
-    while(i--)
+    while (i--)
       *sorted_ptr++ = cell_ptr++;
     mSortedcells[mNumcells] = 0;
 
@@ -771,15 +768,15 @@ private:
 
     if (mCurblock >= mNumblocks) {
       if (mNumblocks >= mMaxblocks) {
-        cPixelCell** new_cells = (cPixelCell**)pvPortMalloc ((mMaxblocks + kCellBlockPool) * 4);
+        auto newCells = (sPixelCell**)pvPortMalloc ((mMaxblocks + kCellBlockPool) * 4);
         if (mCells) {
-          memcpy (new_cells, mCells, mMaxblocks * sizeof(cPixelCell*));
+          memcpy (newCells, mCells, mMaxblocks * sizeof(sPixelCell*));
           vPortFree (mCells);
           }
-        mCells = new_cells;
+        mCells = newCells;
         mMaxblocks += kCellBlockPool;
         }
-      mCells[mNumblocks++] = (cPixelCell*)pvPortMalloc (0x1000*4);
+      mCells[mNumblocks++] = (sPixelCell*)pvPortMalloc (0x1000*4);
       }
 
     mCurcell_ptr = mCells[mCurblock++];
@@ -787,12 +784,12 @@ private:
   //}}}
 
   //{{{
-  void qsortCells (cPixelCell** start, unsigned num) {
+  void qsortCells (sPixelCell** start, unsigned num) {
 
-    cPixelCell**  stack[80];
-    cPixelCell*** top;
-    cPixelCell**  limit;
-    cPixelCell**  base;
+    sPixelCell**  stack[80];
+    sPixelCell*** top;
+    sPixelCell**  limit;
+    sPixelCell**  base;
 
     limit = start + num;
     base = start;
@@ -801,9 +798,9 @@ private:
     for (;;) {
       int len = int(limit - base);
 
-      cPixelCell** i;
-      cPixelCell** j;
-      cPixelCell** pivot;
+      sPixelCell** i;
+      sPixelCell** j;
+      sPixelCell** pivot;
 
       if (len > 9) { // qsort_threshold)
         // we use base + len/2 as the pivot
@@ -876,11 +873,11 @@ private:
   unsigned mCurblock;
   unsigned mNumcells;
 
-  cPixelCell** mCells;
-  cPixelCell* mCurcell_ptr;
-  cPixelCell** mSortedcells;
+  sPixelCell** mCells;
+  sPixelCell* mCurcell_ptr;
+  sPixelCell** mSortedcells;
   unsigned mSortedsize;
-  cPixelCell mCurcell;
+  sPixelCell mCurcell;
 
   int mCurx;
   int mCury;
@@ -896,8 +893,8 @@ private:
 //}}}
 
 //{{{
-struct tRgba {
-  tRgba (uint8_t r_, uint8_t g_, uint8_t b_, uint8_t a_= 255) : r(r_), g(g_), b(b_), a(a_) {}
+struct sRgba {
+  sRgba (uint8_t r_, uint8_t g_, uint8_t b_, uint8_t a_= 255) : r(r_), g(g_), b(b_), a(a_) {}
 
   uint8_t r;
   uint8_t g;
@@ -906,20 +903,20 @@ struct tRgba {
   };
 //}}}
 //{{{
-struct tRgb565Span {
+struct sRgb565Span {
   //{{{
   uint16_t rgb565 (unsigned r, unsigned g, unsigned b) {
     return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
     }
   //}}}
   //{{{
-  tRgba getPixel (uint8_t* ptr, int x) {
+  sRgba getPixel (uint8_t* ptr, int x) {
     uint16_t rgb = ((uint16_t*)ptr)[x];
-    return tRgba ((rgb >> 8) & 0xF8, (rgb >> 3) & 0xFC, (rgb << 3) & 0xF8, 255);
+    return sRgba ((rgb >> 8) & 0xF8, (rgb >> 3) & 0xFC, (rgb << 3) & 0xF8, 255);
     }
   //}}}
   //{{{
-  void hline (uint8_t* ptr, int x, unsigned count, const tRgba& c) {
+  void hline (uint8_t* ptr, int x, unsigned count, const sRgba& c) {
 
     uint16_t* p = ((uint16_t*)ptr) + x;
     uint16_t v = rgb565 (c.r, c.g, c.b);
@@ -929,7 +926,7 @@ struct tRgb565Span {
     }
   //}}}
   //{{{
-  void render (uint8_t* ptr, int x, unsigned count, const uint8_t* covers, const tRgba& rgba) {
+  void render (uint8_t* ptr, int x, unsigned count, const uint8_t* covers, const sRgba& rgba) {
 
     uint16_t* p = ((uint16_t*)ptr) + x;
     for (int i = 0; i < count; i++) {
@@ -942,7 +939,7 @@ struct tRgb565Span {
       *p++ = (((((rgba.r - r) * alpha) + (r << 16)) >> 8) & 0xF800) |
              (((((rgba.g - g) * alpha) + (g << 16)) >> 13) & 0x7E0) |
               ((((rgba.b - b) * alpha) + (b << 16)) >> 19);
-      } 
+      }
     }
   //}}}
   };
@@ -960,7 +957,7 @@ template <class T> class cRenderer {
 //     agg::cRasteriser ras;
 //
 //     // Clear the frame buffer
-//     ren.clear(agg::tRgba(0,0,0));
+//     ren.clear(agg::sRgba(0,0,0));
 //
 //     // Making polygon
 //     // ras.move_to(. . .);
@@ -968,48 +965,44 @@ template <class T> class cRenderer {
 //     // . . .
 //
 //     // Rendering
-//     ras.render(ren, agg::tRgba(200, 100, 80));
+//     ras.render(ren, agg::sRgba(200, 100, 80));
 //}}}
 public:
   cRenderer (cTarget& target) : mTarget (&target) {}
 
   //{{{
-  tRgba getPixel (int x, int y) const {
-
-    if (mTarget->inbox(x, y))
-      return mSpan.getPixel (mTarget->row (y), x);
-
-    return tRgba (0,0,0);
+  sRgba getPixel (int x, int y) const {
+    mTarget->inbox (x,y) ? mSpan.getPixel (mTarget->row (y), x) : sRgba (0,0,0);
     }
   //}}}
   //{{{
-  void clear (const tRgba& c) {
-    for (unsigned y = 0; y < mTarget->height(); y++)
-      mSpan.hline (mTarget->row(y), 0, mTarget->width(), c);
+  void clear (const sRgba& rgba) {
+    for (uint16_t y = 0; y < mTarget->height(); y++)
+      mSpan.hline (mTarget->row (y), 0, mTarget->width(), rgba);
     }
   //}}}
   //{{{
-  void setPixel (int x, int y, const tRgba& c) {
+  void setPixel (int x, int y, const sRgba& rgba) {
     if (mTarget->inbox (x, y))
-      mSpan.hline (mTarget->row(y), x, 1, c);
+      mSpan.hline (mTarget->row(y), x, 1, rgba);
     }
   //}}}
   //{{{
-  void render (const cScanline& scanLine, const tRgba& c) {
+  void render (const cScanline& scanLine, const sRgba& rgba) {
 
     if (scanLine.y() < 0 || scanLine.y() >= int(mTarget->height()))
       return;
 
-    unsigned num_spans = scanLine.num_spans();
+    uint16_t numSpans = scanLine.num_spans();
 
     int base_x = scanLine.base_x();
-    uint8_t* row = mTarget->row (scanLine.y());
+    auto row = mTarget->row (scanLine.y());
 
     cScanline::iterator span (scanLine);
     do {
-      int x = span.next() + base_x;
+      auto x = span.next() + base_x;
       const uint8_t* covers = span.covers();
-      int num_pix = span.num_pix();
+      auto num_pix = span.num_pix();
       if (x < 0) {
         num_pix += x;
         if (num_pix <= 0)
@@ -1023,8 +1016,8 @@ public:
           continue;
         }
 
-      mSpan.render (row, x, num_pix, covers, c);
-      } while (--num_spans);
+      mSpan.render (row, x, num_pix, covers, rgba);
+      } while (--numSpans);
     }
   //}}}
 
@@ -1082,9 +1075,9 @@ public:
   void lineTod (float x, float y) { mOutline.lineTo (int(x * 0x100), int(y * 0x100)); }
 
   //{{{
-  template<class cRenderer> void render (cRenderer& r, const tRgba& c, int dx = 0, int dy = 0) {
+  template<class cRenderer> void render (cRenderer& r, const sRgba& c, int dx = 0, int dy = 0) {
 
-    const cPixelCell* const* cells = mOutline.cells();
+    const sPixelCell* const* cells = mOutline.cells();
     if (mOutline.numCells() == 0)
       return;
 
@@ -1096,9 +1089,9 @@ public:
     mScanline.reset (mOutline.getMinx(), mOutline.getMaxx(), dx, dy);
 
     cover = 0;
-    const cPixelCell* cur_cell = *cells++;
+    const sPixelCell* cur_cell = *cells++;
     for(;;) {
-      const cPixelCell* start_cell = cur_cell;
+      const sPixelCell* start_cell = cur_cell;
 
       int coord  = cur_cell->packed_coord;
       x = cur_cell->x;
@@ -1150,7 +1143,7 @@ public:
   //{{{
   bool hit_test (int tx, int ty) {
 
-    const cPixelCell* const* cells = mOutline.cells();
+    const sPixelCell* const* cells = mOutline.cells();
     if (mOutline.numCells() == 0)
       return false;
 
@@ -1160,9 +1153,9 @@ public:
     int area;
 
     cover = 0;
-    const cPixelCell* cur_cell = *cells++;
+    const sPixelCell* cur_cell = *cells++;
     for(;;) {
-      const cPixelCell* start_cell = cur_cell;
+      const sPixelCell* start_cell = cur_cell;
 
       int coord  = cur_cell->packed_coord;
       x = cur_cell->x;
