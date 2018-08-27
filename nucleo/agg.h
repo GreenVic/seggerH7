@@ -362,7 +362,7 @@ template <class T> static inline bool lessThan (T* a, T* b) {
   }
 //}}}
 //{{{
-class tPixelCell {
+class cPixelCell {
 public:
   //{{{
   void set_cover (int c, int a) {
@@ -422,7 +422,7 @@ public:
     delete [] mSortedcells;
 
     if (mNumblocks) {
-      tPixelCell** ptr = mCells + mNumblocks - 1;
+      cPixelCell** ptr = mCells + mNumblocks - 1;
       while(mNumblocks--) {
         delete [] *ptr;
         ptr--;
@@ -494,7 +494,7 @@ public:
 
   unsigned numCells() const {return mNumcells; }
   //{{{
-  const tPixelCell* const* cells() {
+  const cPixelCell* const* cells() {
 
     if (m_flags & not_closed) {
       lineTo (m_close_x, m_close_y);
@@ -558,12 +558,12 @@ private:
     if (mNumcells > mSortedsize) {
       delete [] mSortedcells;
       mSortedsize = mNumcells;
-      mSortedcells = new tPixelCell* [mNumcells + 1];
+      mSortedcells = new cPixelCell* [mNumcells + 1];
       }
 
-    tPixelCell** sorted_ptr = mSortedcells;
-    tPixelCell** block_ptr = mCells;
-    tPixelCell* cell_ptr;
+    cPixelCell** sorted_ptr = mSortedcells;
+    cPixelCell** block_ptr = mCells;
+    cPixelCell* cell_ptr;
     unsigned i;
 
     unsigned nb = mNumcells >> cell_block_shift;
@@ -782,15 +782,15 @@ private:
 
     if (mCurblock >= mNumblocks) {
       if (mNumblocks >= mMaxblocks) {
-        tPixelCell** new_cells = new tPixelCell* [mMaxblocks + cell_block_pool];
+        cPixelCell** new_cells = new cPixelCell* [mMaxblocks + cell_block_pool];
         if (mCells) {
-          memcpy (new_cells, mCells, mMaxblocks * sizeof(tPixelCell*));
+          memcpy (new_cells, mCells, mMaxblocks * sizeof(cPixelCell*));
           delete [] mCells;
           }
         mCells = new_cells;
         mMaxblocks += cell_block_pool;
         }
-      mCells[mNumblocks++] = new tPixelCell [unsigned(cell_block_size)];
+      mCells[mNumblocks++] = new cPixelCell [unsigned(cell_block_size)];
       }
 
     mCurcell_ptr = mCells[mCurblock++];
@@ -798,12 +798,12 @@ private:
   //}}}
 
   //{{{
-  void qsort_cells (tPixelCell** start, unsigned num) {
+  void qsort_cells (cPixelCell** start, unsigned num) {
 
-    tPixelCell**  stack[80];
-    tPixelCell*** top;
-    tPixelCell**  limit;
-    tPixelCell**  base;
+    cPixelCell**  stack[80];
+    cPixelCell*** top;
+    cPixelCell**  limit;
+    cPixelCell**  base;
 
     limit = start + num;
     base = start;
@@ -812,9 +812,9 @@ private:
     for (;;) {
       int len = int(limit - base);
 
-      tPixelCell** i;
-      tPixelCell** j;
-      tPixelCell** pivot;
+      cPixelCell** i;
+      cPixelCell** j;
+      cPixelCell** pivot;
 
       if (len > qsort_threshold) {
         // we use base + len/2 as the pivot
@@ -886,11 +886,11 @@ private:
   unsigned     mMaxblocks;
   unsigned     mCurblock;
   unsigned     mNumcells;
-  tPixelCell** mCells;
-  tPixelCell*  mCurcell_ptr;
-  tPixelCell** mSortedcells;
+  cPixelCell** mCells;
+  cPixelCell*  mCurcell_ptr;
+  cPixelCell** mSortedcells;
   unsigned     mSortedsize;
-  tPixelCell   mCurcell;
+  cPixelCell   mCurcell;
   int          mCurx;
   int          mCury;
   int          m_close_x;
@@ -1130,7 +1130,7 @@ public:
   //{{{
   template<class cRenderer> void render (cRenderer& r, const tRgba& c, int dx = 0, int dy = 0) {
 
-    const tPixelCell* const* cells = mOutline.cells();
+    const cPixelCell* const* cells = mOutline.cells();
     if (mOutline.numCells() == 0)
       return;
 
@@ -1142,9 +1142,9 @@ public:
     mScanline.reset (mOutline.getMinx(), mOutline.getMaxx(), dx, dy);
 
     cover = 0;
-    const tPixelCell* cur_cell = *cells++;
+    const cPixelCell* cur_cell = *cells++;
     for(;;) {
-      const tPixelCell* start_cell = cur_cell;
+      const cPixelCell* start_cell = cur_cell;
 
       int coord  = cur_cell->packed_coord;
       x = cur_cell->x;
@@ -1196,7 +1196,7 @@ public:
   //{{{
   bool hit_test (int tx, int ty) {
 
-    const tPixelCell* const* cells = mOutline.cells();
+    const cPixelCell* const* cells = mOutline.cells();
     if (mOutline.numCells() == 0)
       return false;
 
@@ -1206,9 +1206,9 @@ public:
     int area;
 
     cover = 0;
-    const tPixelCell* cur_cell = *cells++;
+    const cPixelCell* cur_cell = *cells++;
     for(;;) {
-      const tPixelCell* start_cell = cur_cell;
+      const cPixelCell* start_cell = cur_cell;
 
       int coord  = cur_cell->packed_coord;
       x = cur_cell->x;
