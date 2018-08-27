@@ -37,7 +37,7 @@ double random (double min, double max)
 }
 //}}}
 //{{{
-void draw_ellipse (cRasteriser& ras, double x,  double y, double rx, double ry) {
+void draw_ellipse (cRasteriser& ras, double x, double y, double rx, double ry) {
 
   ras.move_to_d (x + rx, y);
 
@@ -269,12 +269,8 @@ void appThread (void* arg) {
     ras.render (ren, tRgba (255,255, 0,192));
     }
 
-  // Draw random ellipses
-  //for (int i = 0; i < 2; i++) {
-  //  draw_ellipse (ras,
-  //    random (-30, rbuf.width() + 30), random (-30, rbuf.height() + 30), random (3, 50), random (3, 50));
-  //  ras.render (ren, agg::tRgba (rand() & 0x7F, rand() & 0x7F, rand() & 0x7F, (rand() & 0x7F) + 100));
-  //  }
+  draw_ellipse (ras, rbuf.width()/2, rbuf.height()/2, 50, 100);
+  ras.render (ren, tRgba (255, 0, 255, 192));
 
   // Draw random straight lines
   for (int i = 0; i < 5; i++) {
