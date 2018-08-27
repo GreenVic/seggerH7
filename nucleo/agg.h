@@ -81,17 +81,18 @@ class cTarget {
 public:
   //{{{
   cTarget (uint8_t* buf, uint16_t width, uint16_t height) :
-      mBuf(buf), mRows(0), mWidth(width), mHeight(height), mMaxHeight(0) {
+      mBuf(buf), mRows(nullptr), mWidth(width), mHeight(height), mMaxHeight(0) {
 
     if (height > mMaxHeight) {
-      delete [] mRows;
-      mRows = new uint8_t* [mMaxHeight = height];
+      vPortFree (mRows);
+      mMaxHeight = height;
+      mRows = (uint8_t**)pvPortMalloc (mMaxHeight * 4);
       }
 
     setBuffer (buf);
     }
   //}}}
-  ~cTarget() { delete [] mRows; }
+  ~cTarget() { vPortFree (mRows); }
 
   uint16_t width() const { return mWidth;  }
   uint16_t height() const { return mHeight; }
@@ -212,7 +213,7 @@ public:
   class iterator {
   public:
     iterator(const cScanline& sl) : m_covers(sl.m_covers), mCurcount(sl.m_counts),
-                                   mCurstart_ptr(sl.m_start_ptrs) {}
+                                    mCurstart_ptr(sl.m_start_ptrs) {}
     //{{{
     int next() {
       ++mCurcount;
@@ -225,8 +226,8 @@ public:
     const uint8_t* covers() const { return *mCurstart_ptr; }
 
   private:
-    const uint8_t*        m_covers;
-    const uint16_t*       mCurcount;
+    const uint8_t* m_covers;
+    const uint16_t* mCurcount;
     const uint8_t* const* mCurstart_ptr;
     };
   //}}}
@@ -241,9 +242,9 @@ public:
   //{{{
   ~cScanline() {
 
-    delete [] m_counts;
-    delete [] m_start_ptrs;
-    delete [] m_covers;
+    vPortFree (m_counts);
+    vPortFree (m_start_ptrs);
+    vPortFree (m_covers);
     }
   //}}}
 
@@ -252,12 +253,12 @@ public:
 
     unsigned max_len = max_x - min_x + 2;
     if (max_len > mMaxlen) {
-      delete [] m_counts;
-      delete [] m_start_ptrs;
-      delete [] m_covers;
-      m_covers = new uint8_t [max_len];
-      m_start_ptrs = new uint8_t* [max_len];
-      m_counts = new uint16_t[max_len];
+      vPortFree (m_counts);
+      vPortFree (m_start_ptrs);
+      vPortFree (m_covers);
+      m_covers = (uint8_t*)pvPortMalloc (max_len);
+      m_start_ptrs = (uint8_t**)pvPortMalloc (max_len*4);
+      m_counts = (uint16_t*)pvPortMalloc (max_len*2);
       mMaxlen = max_len;
       }
 
@@ -361,13 +362,8 @@ template <class T> static inline bool lessThan (T* a, T* b) {
   }
 //}}}
 //{{{
-struct tPixelCell {
-  int16_t x;
-  int16_t y;
-  int packed_coord;
-  int cover;
-  int area;
-
+class tPixelCell {
+public:
   //{{{
   void set_cover (int c, int a) {
 
@@ -399,6 +395,12 @@ struct tPixelCell {
     area = a;
     }
   //}}}
+
+  int16_t x;
+  int16_t y;
+  int packed_coord;
+  int cover;
+  int area;
   };
 //}}}
 //{{{
