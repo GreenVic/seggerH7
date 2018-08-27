@@ -19,29 +19,23 @@
 //----------------------------------------------------------------------------
 //}}}
 #pragma once
+#include <stdint.h>
 #include <string.h>
 
 namespace agg {
-  typedef signed char    int8;
-  typedef unsigned char  int8u;
-  typedef signed short   int16;
-  typedef unsigned short int16u;
-  typedef signed int     int32;
-  typedef unsigned int   int32u;
-
   //{{{
   struct rgba8 {
     enum order { rgb, bgr };
 
-    int8u r;
-    int8u g;
-    int8u b;
-    int8u a;
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+    uint8_t a;
 
     rgba8() {}
     //{{{
     rgba8 (unsigned r_, unsigned g_, unsigned b_, unsigned a_= 255) :
-        r(int8u(r_)), g(int8u(g_)), b(int8u(b_)), a(int8u(a_)) {}
+        r(uint8_t(r_)), g(uint8_t(g_)), b(uint8_t(b_)), a(uint8_t(a_)) {}
     //}}}
     //{{{
     rgba8 (unsigned packed, order o) :
@@ -60,7 +54,7 @@ namespace agg {
       if (a_ > 1.0)
         a_ = 1.0;
 
-      a = int8u(a_ * 255.0);
+      a = uint8_t(a_ * 255.0);
       }
     //}}}
     double opacity() const { return double(a) / 255.0; }
@@ -70,10 +64,10 @@ namespace agg {
 
       rgba8 ret;
       int ik = int(k * 256);
-      ret.r = int8u(int(r) + (((int(c.r) - int(r)) * ik) >> 8));
-      ret.g = int8u(int(g) + (((int(c.g) - int(g)) * ik) >> 8));
-      ret.b = int8u(int(b) + (((int(c.b) - int(b)) * ik) >> 8));
-      ret.a = int8u(int(a) + (((int(c.a) - int(a)) * ik) >> 8));
+      ret.r = uint8_t(int(r) + (((int(c.r) - int(r)) * ik) >> 8));
+      ret.g = uint8_t(int(g) + (((int(c.g) - int(g)) * ik) >> 8));
+      ret.b = uint8_t(int(b) + (((int(c.b) - int(b)) * ik) >> 8));
+      ret.a = uint8_t(int(a) + (((int(c.a) - int(a)) * ik) >> 8));
       return ret;
       }
     //}}}
@@ -216,7 +210,7 @@ namespace agg {
    // {
    //     int x = span.next() + base_x;        // The beginning X of the span
    //
-   //     const int8u covers* = span.covers(); // The array of the cover values
+   //     const uint8_t covers* = span.covers(); // The array of the cover values
    //
    //     int num_pix = span.num_pix();        // Number of pixels of the span.
    //                                          // Always greater than 0, still we
@@ -266,12 +260,12 @@ namespace agg {
       //}}}
 
       int num_pix() const { return int(*m_cur_count); }
-      const int8u* covers() const { return *m_cur_start_ptr; }
+      const uint8_t* covers() const { return *m_cur_start_ptr; }
 
     private:
-      const int8u*        m_covers;
-      const int16u*       m_cur_count;
-      const int8u* const* m_cur_start_ptr;
+      const uint8_t*        m_covers;
+      const uint16_t*       m_cur_count;
+      const uint8_t* const* m_cur_start_ptr;
       };
     //}}}
     friend class iterator;
@@ -331,12 +325,12 @@ namespace agg {
     int      m_dy;
     int      m_last_x;
     int      m_last_y;
-    int8u*   m_covers;
-    int8u**  m_start_ptrs;
-    int16u*  m_counts;
+    uint8_t*   m_covers;
+    uint8_t**  m_start_ptrs;
+    uint16_t*  m_counts;
     unsigned m_num_spans;
-    int8u**  m_cur_start_ptr;
-    int16u*  m_cur_count;
+    uint8_t**  m_cur_start_ptr;
+    uint16_t*  m_cur_count;
     };
   //}}}
 
@@ -401,18 +395,18 @@ namespace agg {
 
       do {
         int x = span.next() + base_x;
-        const int8u* covers = span.covers();
+        const uint8_t* covers = span.covers();
         int num_pix = span.num_pix();
         if (x < 0) {
           num_pix += x;
-          if (num_pix <= 0) 
+          if (num_pix <= 0)
             continue;
           covers -= x;
           x = 0;
           }
         if (x + num_pix >= int(m_rbuf->width())) {
           num_pix = m_rbuf->width() - x;
-          if (num_pix <= 0) 
+          if (num_pix <= 0)
             continue;
           }
         m_span.render(row, x, num_pix, covers, c);
@@ -446,8 +440,8 @@ namespace agg {
   struct cell {
   // A pixel cell. There're no constructors defined and it was done
   // intentionally in order to avoid extra overhead when allocating an array of cells.
-    int16 x;
-    int16 y;
+    int16_t x;
+    int16_t y;
     int   packed_coord;
     int   cover;
     int   area;
@@ -570,7 +564,7 @@ namespace agg {
     void filling_rule (filling_rule_e filling_rule) { m_filling_rule = filling_rule; }
 
     void gamma (double g);
-    void gamma (const int8u* g);
+    void gamma (const uint8_t* g);
 
     void move_to (int x, int y) { m_outline.move_to(x, y); }
     void line_to (int x, int y) { m_outline.line_to(x, y); }
@@ -678,23 +672,23 @@ namespace agg {
     outline        m_outline;
     scanline       m_scanline;
     filling_rule_e m_filling_rule;
-    int8u          m_gamma[256];
-    static const int8u s_default_gamma[256];
+    uint8_t          m_gamma[256];
+    static const uint8_t s_default_gamma[256];
     };
   //}}}
   //{{{
   struct span_rgb565 {
     //{{{
-    static int16u rgb565 (unsigned r, unsigned g, unsigned b) {
+    static uint16_t rgb565 (unsigned r, unsigned g, unsigned b) {
       return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
       }
     //}}}
     //{{{
     static void render (unsigned char* ptr, int x, unsigned count, const unsigned char* covers, const rgba8& c) {
 
-      int16u* p = ((int16u*)ptr) + x;
+      uint16_t* p = ((uint16_t*)ptr) + x;
       do {
-        int16 rgb = *p;
+        int16_t rgb = *p;
         int alpha = (*covers++) * c.a;
 
         int r = (rgb >> 8) & 0xF8;
@@ -712,8 +706,8 @@ namespace agg {
     //{{{
     static void hline (unsigned char* ptr, int x, unsigned count, const rgba8& c) {
 
-      int16u* p = ((int16u*)ptr) + x;
-      int16u  v = rgb565(c.r, c.g, c.b);
+      uint16_t* p = ((uint16_t*)ptr) + x;
+      uint16_t  v = rgb565(c.r, c.g, c.b);
       do {
         *p++ = v;
         } while(--count);
@@ -722,7 +716,7 @@ namespace agg {
     //{{{
     static rgba8 get (unsigned char* ptr, int x) {
 
-      int16u rgb = ((int16u*)ptr)[x];
+      uint16_t rgb = ((uint16_t*)ptr)[x];
 
       rgba8 c;
       c.r = (rgb >> 8) & 0xF8;

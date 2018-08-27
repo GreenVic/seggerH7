@@ -95,7 +95,7 @@ namespace agg {
       delete [] m_covers;
       m_covers = new unsigned char [max_len];
       m_start_ptrs = new unsigned char* [max_len];
-      m_counts = new int16u[max_len];
+      m_counts = new uint16_t[max_len];
       m_max_len = max_len;
       }
 
@@ -116,9 +116,9 @@ namespace agg {
 
     memset(m_covers + x, cover, num);
     if (x == m_last_x+1)
-      (*m_cur_count) += (int16u)num;
+      (*m_cur_count) += (uint16_t)num;
     else {
-      *++m_cur_count = (int16u)num;
+      *++m_cur_count = (uint16_t)num;
       *++m_cur_start_ptr = m_covers + x;
       m_num_spans++;
       }
@@ -129,7 +129,7 @@ namespace agg {
   //}}}
 
   //{{{
-  const int8u rasterizer::s_default_gamma[] = {
+  const uint8_t rasterizer::s_default_gamma[] = {
       0,  0,  1,  1,  2,  2,  3,  4,  4,  5,  5,  6,  7,  7,  8,  8,
       9, 10, 10, 11, 11, 12, 13, 13, 14, 14, 15, 16, 16, 17, 18, 18,
      19, 19, 20, 21, 21, 22, 22, 23, 24, 24, 25, 25, 26, 27, 27, 28,
@@ -166,16 +166,16 @@ namespace agg {
   //}}}
   //{{{
   inline void cell::set_coord (int cx, int cy) {
-    x = int16 (cx);
-    y = int16 (cy);
+    x = int16_t (cx);
+    y = int16_t (cy);
     packed_coord = (cy << 16) + cx;
     }
   //}}}
   //{{{
   inline void cell::set (int cx, int cy, int c, int a) {
 
-    x = int16(cx);
-    y = int16(cy);
+    x = int16_t(cx);
+    y = int16_t(cy);
     packed_coord = (cy << 16) + cx;
     cover = c;
     area = a;
@@ -350,13 +350,13 @@ namespace agg {
     int dx, dy, x_from, x_to;
     int p, rem, mod, lift, delta, first, incr;
 
-    if (ey1   < m_min_y) 
+    if (ey1   < m_min_y)
       m_min_y = ey1;
-    if (ey1+1 > m_max_y) 
+    if (ey1+1 > m_max_y)
       m_max_y = ey1+1;
-    if (ey2   < m_min_y) 
+    if (ey2   < m_min_y)
       m_min_y = ey2;
-    if (ey2+1 > m_max_y) 
+    if (ey2+1 > m_max_y)
       m_max_y = ey2+1;
 
     dx = x2 - x1;
@@ -661,7 +661,7 @@ namespace agg {
       m_gamma[i] = (unsigned char)(pow(double(i) / 255.0, g) * 255.0);
     }
   //}}}
-  void rasterizer::gamma (const int8u* g) { memcpy(m_gamma, g, sizeof(m_gamma)); }
+  void rasterizer::gamma (const uint8_t* g) { memcpy(m_gamma, g, sizeof(m_gamma)); }
   //{{{
   bool rasterizer::hit_test (int tx, int ty) {
 
