@@ -377,9 +377,9 @@ struct tCell {
 // intentionally in order to avoid extra overhead when allocating an array of cells.
   int16_t x;
   int16_t y;
-  int   packed_coord;
-  int   cover;
-  int   area;
+  int packed_coord;
+  int cover;
+  int area;
 
   //{{{
   void set_cover (int c, int a) {
