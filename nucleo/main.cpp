@@ -212,43 +212,38 @@ void uiThread (void* arg) {
 
       mTraceVec.draw (lcd, 20, 450);
       //{{{  draw clock
+      target.setBuffer (lcd->getDrawBuf());
+      draw_ellipse (rasteriser, 950, 490, 60, 60);
+      rasteriser.render (renderer, tRgba (255, 255, 255, 128));
+
       float hourAngle;
       float minuteAngle;
       float secondAngle;
       float subSecondAngle;
       mRtc->getClockAngles (hourAngle, minuteAngle, secondAngle, subSecondAngle);
 
-      int radius = 60;
       cPoint centre = cPoint (950, 490);
-      lcd->ellipseOutline (COL_WHITE, centre, cPoint(radius, radius));
-
+      float radius = 60.0f;
       float hourRadius = radius * 0.7f;
-      lcd->line (COL_WHITE, centre, centre + cPoint (int16_t(hourRadius * sin (hourAngle)), int16_t(hourRadius * cos (hourAngle))));
       float minuteRadius = radius * 0.8f;
-      lcd->line (COL_WHITE, centre, centre + cPoint (int16_t(minuteRadius * sin (minuteAngle)), int16_t(minuteRadius * cos (minuteAngle))));
-      float secondRadius = radius * 0.9f;
-      lcd->line (COL_RED, centre, centre + cPoint (int16_t(secondRadius * sin (secondAngle)), int16_t(secondRadius * cos (secondAngle))));
+      float secondRadius = radius * 0.95f;
+
+      draw_line (rasteriser, centre.x, centre.y,
+                 centre.x + (hourRadius * sin (hourAngle)),
+                 centre.y + (hourRadius * cos (hourAngle)), 3.0f);
+      draw_line (rasteriser, centre.x, centre.y,
+                 centre.x + (minuteRadius * sin (minuteAngle)),
+                 centre.y + (minuteRadius * cos (minuteAngle)), 2.0f);
+      rasteriser.render (renderer, tRgba (255,255,255,200));
+
+      draw_line (rasteriser, centre.x, centre.y,
+                 centre.x + (secondRadius * sin (secondAngle)),
+                 centre.y + (secondRadius * cos (secondAngle)), 2.0f);
+      rasteriser.render (renderer, tRgba (255,0,0,200));
 
       lcd->cLcd::text (COL_BLACK, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
       lcd->cLcd::text (COL_WHITE, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600) + cPoint(-2,-2));
       //}}}
-
-      target.setBuffer (lcd->getDrawBuf());
-      int n = rand() % 6 + 3;
-      rasteriser.moveTod (random(-30, target.width() + 30), random(-30, target.height() + 30));
-      rasteriser.lineTod (random(-30, target.width() + 30), random(-30, target.height() + 30));
-      rasteriser.lineTod (random(-30, target.width() + 30), random(-30, target.height() + 30));
-      rasteriser.lineTod (random(-30, target.width() + 30), random(-30, target.height() + 30));
-      rasteriser.render (renderer, tRgba (255,255, 0,192));
-
-      draw_ellipse (rasteriser, random(-30, target.width() + 30)/2, 
-                                random(-30, target.height() + 30)/2, 50, 100);
-      rasteriser.render (renderer, tRgba (255, 0, 255, 192));
-
-      draw_line (rasteriser,
-                 random(-30, target.width()  + 30), random(-30, target.height() + 30),
-                 random(-30, target.width()  + 30), random(-30, target.height() + 30), random(0.1, 10));
-      rasteriser.render (renderer, tRgba (255,255,255,255));
 
       lcd->present();
       }
