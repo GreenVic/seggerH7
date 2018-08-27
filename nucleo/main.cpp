@@ -251,7 +251,7 @@ void appThread (void* arg) {
   cRenderer<tSpanRgb565> renderer (renderingBuffer);
   cRasteriser rasteriser;
   rasteriser.gamma (1.2);
-  rasteriser.filling_rule (fill_even_odd);
+  rasteriser.filling_rule (cRasteriser::fill_even_odd);
 
   renderer.clear (tRgba (0,0,0));
 

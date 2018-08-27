@@ -25,58 +25,6 @@
 //}}}
 
 //{{{
-struct tRgba {
-  enum order { rgb, bgr };
-
-  uint8_t r;
-  uint8_t g;
-  uint8_t b;
-  uint8_t a;
-
-  tRgba() {}
-  //{{{
-  tRgba (unsigned r_, unsigned g_, unsigned b_, unsigned a_= 255) :
-      r(uint8_t(r_)), g(uint8_t(g_)), b(uint8_t(b_)), a(uint8_t(a_)) {}
-  //}}}
-  //{{{
-  tRgba (unsigned packed, order o) :
-    r((o == rgb) ? ((packed >> 16) & 0xFF) : (packed & 0xFF)),
-    g((packed >> 8)  & 0xFF),
-    b((o == rgb) ? (packed & 0xFF) : ((packed >> 16) & 0xFF)),
-    a(255) {}
-  //}}}
-
-  //{{{
-  void opacity (double a_) {
-
-    if (a_ < 0.0)
-      a_ = 0.0;
-
-    if (a_ > 1.0)
-      a_ = 1.0;
-
-    a = uint8_t(a_ * 255.0);
-    }
-  //}}}
-  double opacity() const { return double(a) / 255.0; }
-
-  //{{{
-  tRgba gradient (tRgba c, double k) const {
-
-    tRgba ret;
-    int ik = int(k * 256);
-    ret.r = uint8_t (int(r) + (((int(c.r) - int(r)) * ik) >> 8));
-    ret.g = uint8_t (int(g) + (((int(c.g) - int(g)) * ik) >> 8));
-    ret.b = uint8_t (int(b) + (((int(c.b) - int(b)) * ik) >> 8));
-    ret.a = uint8_t (int(a) + (((int(c.a) - int(a)) * ik) >> 8));
-    return ret;
-    }
-  //}}}
-
-  tRgba pre() const { return tRgba((r*a) >> 8, (g*a) >> 8, (b*a) >> 8, a); }
-  };
-//}}}
-//{{{
 class cRenderingBuffer {
 //{{{  description
 // Rendering buffer wrapper. This class does not know anything about
@@ -201,9 +149,9 @@ class cScanline {
  // Before using this class you should know the minimal and maximal pixel
  // coordinates of your cScanline. The protocol of using is:
  // 1. reset(min_x, max_x)
- // 2. add_cell() / add_span() - accumulate cScanline. You pass Y-coordinate
+ // 2. addCell() / add_span() - accumulate cScanline. You pass Y-coordinate
  //    into these functions in order to make cScanline know the last Y. Before
- //    calling add_cell() / add_span() you should check with method is_ready(y)
+ //    calling addCell() / add_span() you should check with method is_ready(y)
  //    if the last Y has changed. It also checks if the scanline is not empty.
  //    When forming one cScanline the next X coordinate must be always greater
  //    than the last stored one, i.e. it works only with ordered coordinates.
@@ -316,7 +264,7 @@ public:
     }
   //}}}
   //{{{
-  void add_cell (int x, int y, unsigned cover) {
+  void addCell (int x, int y, unsigned cover) {
 
     x -= m_min_x;
     m_covers[x] = (uint8_t)cover;
@@ -361,96 +309,6 @@ private:
   unsigned   m_num_spans;
   uint8_t**  m_cur_start_ptr;
   uint16_t*  m_cur_count;
-  };
-//}}}
-
-//{{{
-template <class cSpan> class cRenderer {
-//{{{  description
-// This class template is used basically for rendering cScanlines.
-// The 'Span' argument is one of the span renderers, such as span_rgb24
-// and others.
-//
-// Usage:
-//
-//     // Creation
-//     agg::cRenderingBuffer rbuf(ptr, w, h, stride);
-//     agg::renderer<agg::span_rgb24> ren(rbuf);
-//     agg::cRasteriser ras;
-//
-//     // Clear the frame buffer
-//     ren.clear(agg::tRgba(0,0,0));
-//
-//     // Making polygon
-//     // ras.move_to(. . .);
-//     // ras.line_to(. . .);
-//     // . . .
-//
-//     // Rendering
-//     ras.render(ren, agg::tRgba(200, 100, 80));
-//}}}
-public:
-  cRenderer (cRenderingBuffer& rbuf) : m_rbuf(&rbuf) {}
-
-  //{{{
-  void clear (const tRgba& c) {
-    for (unsigned y = 0; y < m_rbuf->height(); y++)
-      m_span.hline (m_rbuf->row(y), 0, m_rbuf->width(), c);
-    }
-  //}}}
-  //{{{
-  void pixel (int x, int y, const tRgba& c) {
-    if (m_rbuf->inbox (x, y))
-      m_span.hline (m_rbuf->row(y), x, 1, c);
-    }
-  //}}}
-  //{{{
-  tRgba pixel (int x, int y) const {
-
-   if (m_rbuf->inbox(x, y))
-      return m_span.get (m_rbuf->row(y), x);
-
-    return tRgba (0,0,0);
-    }
-  //}}}
-  //{{{
-  void render (const cScanline& sl, const tRgba& c) {
-
-    if (sl.y() < 0 || sl.y() >= int(m_rbuf->height()))
-      return;
-
-    unsigned num_spans = sl.num_spans();
-    int base_x = sl.base_x();
-    uint8_t* row = m_rbuf->row(sl.y());
-    cScanline::iterator span(sl);
-
-    do {
-      int x = span.next() + base_x;
-      const uint8_t* covers = span.covers();
-      int num_pix = span.num_pix();
-      if (x < 0) {
-        num_pix += x;
-        if (num_pix <= 0)
-          continue;
-        covers -= x;
-        x = 0;
-        }
-      if (x + num_pix >= int(m_rbuf->width())) {
-        num_pix = m_rbuf->width() - x;
-        if (num_pix <= 0)
-          continue;
-        }
-      m_span.render(row, x, num_pix, covers, c);
-      }
-
-    while(--num_spans);
-    }
-  //}}}
-  cRenderingBuffer& rbuf() { return *m_rbuf; }
-
-private:
-  cRenderingBuffer* m_rbuf;
-  cSpan             m_span;
   };
 //}}}
 
@@ -548,7 +406,194 @@ private:
   };
 //}}}
 
-enum filling_rule_e { fill_non_zero, fill_even_odd };
+//{{{
+struct tRgba {
+  enum order { rgb, bgr };
+
+  uint8_t r;
+  uint8_t g;
+  uint8_t b;
+  uint8_t a;
+
+  tRgba() {}
+  //{{{
+  tRgba (unsigned r_, unsigned g_, unsigned b_, unsigned a_= 255) :
+      r(uint8_t(r_)), g(uint8_t(g_)), b(uint8_t(b_)), a(uint8_t(a_)) {}
+  //}}}
+  //{{{
+  tRgba (unsigned packed, order o) :
+    r((o == rgb) ? ((packed >> 16) & 0xFF) : (packed & 0xFF)),
+    g((packed >> 8)  & 0xFF),
+    b((o == rgb) ? (packed & 0xFF) : ((packed >> 16) & 0xFF)),
+    a(255) {}
+  //}}}
+
+  //{{{
+  void opacity (double a_) {
+
+    if (a_ < 0.0)
+      a_ = 0.0;
+
+    if (a_ > 1.0)
+      a_ = 1.0;
+
+    a = uint8_t(a_ * 255.0);
+    }
+  //}}}
+  double opacity() const { return double(a) / 255.0; }
+
+  //{{{
+  tRgba gradient (tRgba c, double k) const {
+
+    tRgba ret;
+    int ik = int(k * 256);
+    ret.r = uint8_t (int(r) + (((int(c.r) - int(r)) * ik) >> 8));
+    ret.g = uint8_t (int(g) + (((int(c.g) - int(g)) * ik) >> 8));
+    ret.b = uint8_t (int(b) + (((int(c.b) - int(b)) * ik) >> 8));
+    ret.a = uint8_t (int(a) + (((int(c.a) - int(a)) * ik) >> 8));
+    return ret;
+    }
+  //}}}
+
+  tRgba pre() const { return tRgba((r*a) >> 8, (g*a) >> 8, (b*a) >> 8, a); }
+  };
+//}}}
+//{{{
+struct tSpanRgb565 {
+  //{{{
+  static uint16_t rgb565 (unsigned r, unsigned g, unsigned b) {
+    return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+    }
+  //}}}
+  //{{{
+  static void render (uint8_t* ptr, int x, unsigned count, const uint8_t* covers, const tRgba& c) {
+
+    uint16_t* p = ((uint16_t*)ptr) + x;
+    do {
+      int16_t rgb = *p;
+      int alpha = (*covers++) * c.a;
+
+      int r = (rgb >> 8) & 0xF8;
+      int g = (rgb >> 3) & 0xFC;
+      int b = (rgb << 3) & 0xF8;
+
+      *p++ = (((((c.r - r) * alpha) + (r << 16)) >> 8) & 0xF800) |
+             (((((c.g - g) * alpha) + (g << 16)) >> 13) & 0x7E0) |
+              ((((c.b - b) * alpha) + (b << 16)) >> 19);
+      } while (--count);
+    }
+  //}}}
+  //{{{
+  static void hline (uint8_t* ptr, int x, unsigned count, const tRgba& c) {
+
+    uint16_t* p = ((uint16_t*)ptr) + x;
+    uint16_t v = rgb565 (c.r, c.g, c.b);
+    do {
+      *p++ = v;
+      } while (--count);
+    }
+  //}}}
+  //{{{
+  static tRgba get (uint8_t* ptr, int x) {
+
+    uint16_t rgb = ((uint16_t*)ptr)[x];
+
+    tRgba c;
+    c.r = (rgb >> 8) & 0xF8;
+    c.g = (rgb >> 3) & 0xFC;
+    c.b = (rgb << 3) & 0xF8;
+    c.a = 255;
+
+    return c;
+    }
+  //}}}
+  };
+//}}}
+//{{{
+template <class cSpan> class cRenderer {
+//{{{  description
+// This class template is used basically for rendering cScanlines.
+// The 'Span' argument is one of the span renderers, such as span_rgb24  and others.
+//
+// Usage:
+//     // Creation
+//     agg::cRenderingBuffer rbuf(ptr, w, h, stride);
+//     agg::renderer<agg::span_rgb24> ren(rbuf);
+//     agg::cRasteriser ras;
+//
+//     // Clear the frame buffer
+//     ren.clear(agg::tRgba(0,0,0));
+//
+//     // Making polygon
+//     // ras.move_to(. . .);
+//     // ras.line_to(. . .);
+//     // . . .
+//
+//     // Rendering
+//     ras.render(ren, agg::tRgba(200, 100, 80));
+//}}}
+public:
+  cRenderer (cRenderingBuffer& rbuf) : m_rbuf (&rbuf) {}
+
+  //{{{
+  void clear (const tRgba& c) {
+    for (unsigned y = 0; y < m_rbuf->height(); y++)
+      m_span.hline (m_rbuf->row(y), 0, m_rbuf->width(), c);
+    }
+  //}}}
+  //{{{
+  void pixel (int x, int y, const tRgba& c) {
+    if (m_rbuf->inbox (x, y))
+      m_span.hline (m_rbuf->row(y), x, 1, c);
+    }
+  //}}}
+  //{{{
+  tRgba pixel (int x, int y) const {
+
+   if (m_rbuf->inbox(x, y))
+      return m_span.get (m_rbuf->row(y), x);
+
+    return tRgba (0,0,0);
+    }
+  //}}}
+  //{{{
+  void render (const cScanline& sl, const tRgba& c) {
+
+    if (sl.y() < 0 || sl.y() >= int(m_rbuf->height()))
+      return;
+
+    unsigned num_spans = sl.num_spans();
+    int base_x = sl.base_x();
+    uint8_t* row = m_rbuf->row (sl.y());
+    cScanline::iterator span (sl);
+
+    do {
+      int x = span.next() + base_x;
+      const uint8_t* covers = span.covers();
+      int num_pix = span.num_pix();
+      if (x < 0) {
+        num_pix += x;
+        if (num_pix <= 0)
+          continue;
+        covers -= x;
+        x = 0;
+        }
+      if (x + num_pix >= int(m_rbuf->width())) {
+        num_pix = m_rbuf->width() - x;
+        if (num_pix <= 0)
+          continue;
+        }
+      m_span.render (row, x, num_pix, covers, c);
+      } while (--num_spans);
+    }
+  //}}}
+  cRenderingBuffer& rbuf() { return *m_rbuf; }
+
+private:
+  cRenderingBuffer* m_rbuf;
+  cSpan             m_span;
+  };
+//}}}
 //{{{
 class cRasteriser {
 //{{{  description
@@ -580,6 +625,7 @@ class cRasteriser {
 // filling_rule() and gamma() can be called anytime before "sweeping".
 //}}}
 public:
+  enum filling_rule_e { fill_non_zero, fill_even_odd };
   enum {
     aa_shift = cScanline::aa_shift,
     aa_num   = 1 << aa_shift,
@@ -607,7 +653,7 @@ public:
   int max_y() const { return mOutline.max_y(); }
 
   //{{{
-  unsigned calculate_alpha (int area) const {
+  unsigned calcAlpha (int area) const {
 
     int cover = area >> (poly_base_shift*2 + 1 - aa_shift);
     if (cover < 0)
@@ -661,13 +707,13 @@ public:
         }
 
       if (area) {
-        alpha = calculate_alpha ((cover << (poly_base_shift + 1)) - area);
+        alpha = calcAlpha ((cover << (poly_base_shift + 1)) - area);
         if (alpha) {
          if (mScanline.is_ready (y)) {
             r.render (mScanline, c);
             mScanline.reset_spans();
             }
-          mScanline.add_cell (x, y, m_gamma[alpha]);
+          mScanline.addCell (x, y, m_gamma[alpha]);
           }
         x++;
         }
@@ -676,9 +722,9 @@ public:
         break;
 
       if (cur_cell->x > x) {
-        alpha = calculate_alpha (cover << (poly_base_shift + 1));
+        alpha = calcAlpha (cover << (poly_base_shift + 1));
         if (alpha) {
-          if(mScanline.is_ready (y)) {
+          if (mScanline.is_ready (y)) {
             r.render (mScanline, c);
              mScanline.reset_spans();
              }
@@ -704,56 +750,5 @@ private:
   filling_rule_e m_filling_rule;
   uint8_t          m_gamma[256];
   static const uint8_t s_default_gamma[256];
-  };
-//}}}
-//{{{
-struct tSpanRgb565 {
-  //{{{
-  static uint16_t rgb565 (unsigned r, unsigned g, unsigned b) {
-    return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
-    }
-  //}}}
-  //{{{
-  static void render (uint8_t* ptr, int x, unsigned count, const uint8_t* covers, const tRgba& c) {
-
-    uint16_t* p = ((uint16_t*)ptr) + x;
-    do {
-      int16_t rgb = *p;
-      int alpha = (*covers++) * c.a;
-
-      int r = (rgb >> 8) & 0xF8;
-      int g = (rgb >> 3) & 0xFC;
-      int b = (rgb << 3) & 0xF8;
-
-      *p++ = (((((c.r - r) * alpha) + (r << 16)) >> 8) & 0xF800) |
-             (((((c.g - g) * alpha) + (g << 16)) >> 13) & 0x7E0) |
-              ((((c.b - b) * alpha) + (b << 16)) >> 19);
-      } while (--count);
-    }
-  //}}}
-  //{{{
-  static void hline (uint8_t* ptr, int x, unsigned count, const tRgba& c) {
-
-    uint16_t* p = ((uint16_t*)ptr) + x;
-    uint16_t v = rgb565 (c.r, c.g, c.b);
-    do {
-      *p++ = v;
-      } while (--count);
-    }
-  //}}}
-  //{{{
-  static tRgba get (uint8_t* ptr, int x) {
-
-    uint16_t rgb = ((uint16_t*)ptr)[x];
-
-    tRgba c;
-    c.r = (rgb >> 8) & 0xF8;
-    c.g = (rgb >> 3) & 0xFC;
-    c.b = (rgb << 3) & 0xF8;
-    c.a = 255;
-
-    return c;
-    }
-  //}}}
   };
 //}}}

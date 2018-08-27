@@ -663,7 +663,7 @@ bool cRasteriser::hit_test (int tx, int ty) {
       }
 
     if (area) {
-      alpha = calculate_alpha ((cover << (poly_base_shift + 1)) - area);
+      alpha = calcAlpha ((cover << (poly_base_shift + 1)) - area);
       if (alpha)
         if (tx == x && ty == y)
           return true;
@@ -674,7 +674,7 @@ bool cRasteriser::hit_test (int tx, int ty) {
       break;
 
     if (cur_cell->x > x) {
-      alpha = calculate_alpha (cover << (poly_base_shift + 1));
+      alpha = calcAlpha (cover << (poly_base_shift + 1));
       if (alpha)
        if (ty == y && tx >= x && tx <= cur_cell->x)
           return true;
