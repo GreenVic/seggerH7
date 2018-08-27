@@ -28,56 +28,6 @@
 
 //{{{
 class cTarget {
-//{{{  description
-// Rendering buffer wrapper. This class does not know anything about
-// memory organizations, all it does it keeps an array of pointers
-// to each pixel row. The general rules of rendering are as follows.
-//
-// 1. Allocate or create somehow a rendering buffer itself. Since
-//    the library does not depend on any particular platform or
-//    architecture it was decided that it's your responsibility
-//    to create and destroy rendering buffers properly. You can use
-//    any available mechanism to create it - you can use a system API
-//    function, simple memory allocation, or even statically defined array.
-//    You also should know the memory organization (or possible variants)
-//    in your system. For example, there's an R,G,B or B,G,R organizations
-//    with one byte per component (three byter per pixel) is used very often.
-//    So, if you intend to use class render_bgr24, for example, you should
-//    allocate at least width*height*3 bytes of memory.
-//
-// 2. Create a cTarget object and then call method attach(). It requires
-//    a pointer to the buffer itself, width and height of the buffer in
-//    pixels, and the length of the row in bytes. All these values must
-//    properly correspond to the memory organization. The argument stride
-//    is used because in reality the row length in bytes does not obligatory
-//    correspond with the width of the image in pixels, i.e. it cannot be
-//    simply calculated as width_in_pixels * bytes_per_pixel. For example,
-//    it must be aligned to 4 bytes in Windows bitmaps. Besides, the value
-//    of stride can be negative - it depends on the order of displaying
-//    the rendering buffer - from top to bottom or from bottom to top.
-//    In other words, if stride > 0 the pointers to each row will start
-//    from the beginning of the buffer and increase. If it < 0, the pointers
-//    start from the end of the buffer and decrease. It gives you an
-//    additional degree of freedom.
-//    Method attach() can be called more than once. The execution time of it
-//    is very little, still it allocates memory of heigh * sizeof(char*) bytes
-//    and has a loop while(height--) {...}, so it's unreasonable to call it
-//    every time before drawing any single pixel :-)
-//
-// 3. Create an object (or a number of objects) of a rendering class, such as
-//    renderer_bgr24_solid, renderer_bgr24_image and so on. These classes
-//    require a pointer to the renderer_buffer object, but they do not perform
-//    any considerable operations except storing this pointer. So, rendering
-//    objects can be created on demand almost any time. These objects know
-//    about concrete memory organization (this knowledge is hardcoded), so
-//    actually, the memory you allocated or created in clause 1 should
-//    actually be in correspondence to the needs of the rendering class.
-//
-// 4. Rener your image using rendering classes, for example, rasterizer
-//
-// 5. Display the result, or store it, or whatever. It's also your
-//    responsibility and depends on the platform.
-//}}}
 public:
   //{{{
   cTarget (uint8_t* buf, uint16_t width, uint16_t height) :
@@ -246,6 +196,11 @@ public:
     }
   //}}}
 
+  int is_ready(int y) const { return mNumspans && (y ^ m_last_y); }
+  int base_x() const { return mMinx + m_dx;  }
+  int y() const { return m_last_y + m_dy; }
+  unsigned num_spans() const { return mNumspans; }
+
   //{{{
   void reset (int min_x, int max_x, int dx, int dy) {
 
@@ -270,17 +225,17 @@ public:
     mNumspans = 0;
     }
   //}}}
-
   //{{{
   void resetSpans() {
 
-    m_last_x        = 0x7FFF;
-    m_last_y        = 0x7FFF;
-    mCurcount     = m_counts;
+    m_last_x = 0x7FFF;
+    m_last_y = 0x7FFF;
+    mCurcount = m_counts;
     mCurstart_ptr = m_start_ptrs;
-    mNumspans     = 0;
+    mNumspans = 0;
     }
   //}}}
+
   //{{{
   void addCell (int x, int y, unsigned cover) {
 
@@ -304,7 +259,7 @@ public:
 
     x -= mMinx;
 
-    memset(m_covers + x, cover, num);
+    memset (m_covers + x, cover, num);
     if (x == m_last_x+1)
       (*mCurcount) += (uint16_t)num;
     else {
@@ -318,20 +273,10 @@ public:
     }
   //}}}
 
-  //{{{
-  int is_ready(int y) const {
-    return mNumspans && (y ^ m_last_y);
-    }
-  //}}}
-  int base_x() const { return mMinx + m_dx;  }
-  int y() const { return m_last_y + m_dy; }
-  unsigned num_spans() const { return mNumspans; }
-
 private:
   cScanline (const cScanline&);
   const cScanline& operator = (const cScanline&);
 
-private:
   int        mMinx;
   unsigned   mMaxlen;
   int        m_dx;
@@ -1227,9 +1172,9 @@ private:
     }
   //}}}
 
-  cOutline  mOutline;
+  cOutline mOutline;
   cScanline mScanline;
-  eFilling  mFilling;
-  uint8_t  mGamma[256];
+  eFilling mFilling;
+  uint8_t mGamma[256];
   };
 //}}}
