@@ -5,6 +5,8 @@
 #include "cpuUsage.h"
 #include "math.h"
 
+#include "agg.h"
+
 #include "heap.h"
 //}}}
 //{{{  screen resolution defines

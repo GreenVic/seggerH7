@@ -47,6 +47,7 @@
       <file file_name="jpeg.cpp" />
       <file file_name="heap.cpp" />
       <file file_name="lsm303c.cpp" />
+      <file file_name="agg.cpp" />
     </folder>
     <folder Name="RTT Files">
       <configuration Name="Common" macros="STLport=No" />
@@ -80,6 +81,7 @@
       <file file_name="../system/stm32h7xx.h" />
       <file file_name="../CMSIS/core_cm7.h" />
       <file file_name="lsm303c.h" />
+      <file file_name="agg.h" />
     </folder>
     <folder Name="drivers">
       <folder Name="inc">

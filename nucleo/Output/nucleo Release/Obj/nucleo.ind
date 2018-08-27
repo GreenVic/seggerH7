@@ -10,6 +10,7 @@
 "Output/nucleo Release/Obj/jpeg.o"
 "Output/nucleo Release/Obj/heap.o"
 "Output/nucleo Release/Obj/lsm303c.o"
+"Output/nucleo Release/Obj/agg.o"
 "Output/nucleo Release/Obj/SEGGER_RTT.o"
 "Output/nucleo Release/Obj/SEGGER_RTT_Syscalls_SES.o"
 "Output/nucleo Release/Obj/Cortex_M_Startup.o"
