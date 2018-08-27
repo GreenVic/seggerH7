@@ -1,3 +1,4 @@
+// agg.h
 //{{{  description
 //----------------------------------------------------------------------------
 // Anti-Grain Geometry - Version 2.1 Lite
@@ -22,10 +23,11 @@
 //{{{  includes
 #include <stdint.h>
 #include <string.h>
+#include <math.h>
 //}}}
 
 //{{{
-class cRenderingBuffer {
+class cTarget {
 //{{{  description
 // Rendering buffer wrapper. This class does not know anything about
 // memory organizations, all it does it keeps an array of pointers
@@ -43,7 +45,7 @@ class cRenderingBuffer {
 //    So, if you intend to use class render_bgr24, for example, you should
 //    allocate at least width*height*3 bytes of memory.
 //
-// 2. Create a cRenderingBuffer object and then call method attach(). It requires
+// 2. Create a cTarget object and then call method attach(). It requires
 //    a pointer to the buffer itself, width and height of the buffer in
 //    pixels, and the length of the row in bytes. All these values must
 //    properly correspond to the memory organization. The argument stride
@@ -78,16 +80,16 @@ class cRenderingBuffer {
 //}}}
 public:
   //{{{
-  cRenderingBuffer (unsigned char* buf, unsigned width, unsigned height, int stride) :
+  cTarget (uint8_t* buf, unsigned width, unsigned height, int stride) :
       mBuf(0), mRows(0), mWidth(0), mHeight(0), mStride(0), mMaxHeight(0) {
     attach (buf, width, height, stride);
     }
   //}}}
 
-  ~cRenderingBuffer() { delete [] mRows; }
+  ~cTarget() { delete [] mRows; }
 
   //{{{
-  void attach (unsigned char* buf, unsigned width, unsigned height, int stride) {
+  void attach (uint8_t* buf, unsigned width, unsigned height, int stride) {
 
     mBuf = buf;
     mWidth = width;
@@ -96,14 +98,14 @@ public:
 
     if (height > mMaxHeight) {
       delete [] mRows;
-      mRows = new unsigned char* [mMaxHeight = height];
+      mRows = new uint8_t* [mMaxHeight = height];
       }
 
-    unsigned char* row_ptr = mBuf;
+    uint8_t* row_ptr = mBuf;
     if (stride < 0)
       row_ptr = mBuf - int(height - 1) * stride;
 
-    unsigned char** rows = mRows;
+    uint8_t** rows = mRows;
     while (height--) {
       *rows++ = row_ptr;
       row_ptr += stride;
@@ -123,8 +125,8 @@ public:
   const uint8_t* row (unsigned y) const { return mRows[y]; }
 
 private:
-  cRenderingBuffer (const cRenderingBuffer&);
-  const cRenderingBuffer& operator = (const cRenderingBuffer&);
+  cTarget (const cTarget&);
+  const cTarget& operator = (const cTarget&);
 
 private:
   uint8_t*  mBuf;        // Pointer to renrdering buffer
@@ -248,10 +250,44 @@ public:
   //}}}
   friend class iterator;
 
-  cScanline();
-  ~cScanline();
+  //{{{
+  cScanline() : m_min_x(0), m_max_len(0), m_dx(0), m_dy(0), m_last_x(0x7FFF), m_last_y(0x7FFF),
+                m_covers(0), m_start_ptrs(0), m_counts(0), m_num_spans(0), m_cur_start_ptr(0),
+                m_cur_count(0) { }
+  //}}}
+  //{{{
+  ~cScanline() {
 
-  void reset (int min_x, int max_x, int dx=0, int dy=0);
+    delete [] m_counts;
+    delete [] m_start_ptrs;
+    delete [] m_covers;
+    }
+  //}}}
+
+  //{{{
+  void reset (int min_x, int max_x, int dx, int dy) {
+
+    unsigned max_len = max_x - min_x + 2;
+    if (max_len > m_max_len) {
+      delete [] m_counts;
+      delete [] m_start_ptrs;
+      delete [] m_covers;
+      m_covers = new uint8_t [max_len];
+      m_start_ptrs = new uint8_t* [max_len];
+      m_counts = new uint16_t[max_len];
+      m_max_len = max_len;
+      }
+
+    m_dx = dx;
+    m_dy = dy;
+    m_last_x = 0x7FFF;
+    m_last_y = 0x7FFF;
+    m_min_x = min_x;
+    m_cur_count = m_counts;
+    m_cur_start_ptr = m_start_ptrs;
+    m_num_spans = 0;
+    }
+  //}}}
 
   //{{{
   void reset_spans() {
@@ -281,7 +317,24 @@ public:
     m_last_y = y;
     }
   //}}}
-  void add_span (int x, int y, unsigned len, unsigned cover);
+  //{{{
+  void add_span (int x, int y, unsigned num, unsigned cover) {
+
+    x -= m_min_x;
+
+    memset(m_covers + x, cover, num);
+    if (x == m_last_x+1)
+      (*m_cur_count) += (uint16_t)num;
+    else {
+      *++m_cur_count = (uint16_t)num;
+      *++m_cur_start_ptr = m_covers + x;
+      m_num_spans++;
+      }
+
+    m_last_x = x + num - 1;
+    m_last_y = y;
+    }
+  //}}}
 
   //{{{
   int is_ready(int y) const {
@@ -326,6 +379,18 @@ enum { poly_base_shift = 8,
 inline int poly_coord (double c) { return int(c * poly_base_size); }
 
 //{{{
+template <class T> static inline void swapCells (T* a, T* b) {
+  T temp = *a;
+  *a = *b;
+  *b = temp;
+  }
+//}}}
+//{{{
+template <class T> static inline bool lessThan (T* a, T* b) {
+  return (*a)->packed_coord < (*b)->packed_coord;
+  }
+//}}}
+//{{{
 struct tCell {
 // A pixel cell. There're no constructors defined and it was done
 // intentionally in order to avoid extra overhead when allocating an array of cells.
@@ -335,32 +400,121 @@ struct tCell {
   int   cover;
   int   area;
 
-  void set (int x, int y, int c, int a);
-  void set_coord (int x, int y);
-  void set_cover (int c, int a);
-  void add_cover (int c, int a);
+  //{{{
+  void set_cover (int c, int a) {
+
+    cover = c;
+    area = a;
+    }
+  //}}}
+  //{{{
+  void add_cover (int c, int a) {
+
+    cover += c;
+    area += a;
+    }
+  //}}}
+  //{{{
+  void set_coord (int cx, int cy) {
+    x = int16_t (cx);
+    y = int16_t (cy);
+    packed_coord = (cy << 16) + cx;
+    }
+  //}}}
+  //{{{
+  void set (int cx, int cy, int c, int a) {
+
+    x = int16_t(cx);
+    y = int16_t(cy);
+    packed_coord = (cy << 16) + cx;
+    cover = c;
+    area = a;
+    }
+  //}}}
   };
 //}}}
 //{{{
 class cOutline {
+public:
   //{{{
-  enum {
-    cell_block_shift = 12,
-    cell_block_size  = 1 << cell_block_shift,
-    cell_block_mask  = cell_block_size - 1,
-    cell_block_pool  = 256,
-    cell_block_limit = 1024
-    };
+  cOutline() : m_num_blocks(0), m_max_blocks(0), m_cur_block(0), m_num_cells(0), m_cells(0),
+      m_cur_cell_ptr(0), m_sorted_cells(0), m_sorted_size(0), m_cur_x(0), m_cur_y(0),
+      m_close_x(0), m_close_y(0), m_min_x(0x7FFFFFFF), m_min_y(0x7FFFFFFF), m_max_x(-0x7FFFFFFF),
+      m_max_y(-0x7FFFFFFF), m_flags(sort_required) {
+
+    m_cur_cell.set(0x7FFF, 0x7FFF, 0, 0);
+    }
+  //}}}
+  //{{{
+  ~cOutline() {
+
+    delete [] m_sorted_cells;
+
+    if (m_num_blocks) {
+      tCell** ptr = m_cells + m_num_blocks - 1;
+      while(m_num_blocks--) {
+        delete [] *ptr;
+        ptr--;
+        }
+      delete [] m_cells;
+      }
+    }
   //}}}
 
-public:
-  cOutline();
-  ~cOutline();
+  //{{{
+  void reset() {
 
-  void reset();
+    m_num_cells = 0;
+    m_cur_block = 0;
+    m_cur_cell.set(0x7FFF, 0x7FFF, 0, 0);
+    m_flags |= sort_required;
+    m_flags &= ~not_closed;
+    m_min_x =  0x7FFFFFFF;
+    m_min_y =  0x7FFFFFFF;
+    m_max_x = -0x7FFFFFFF;
+    m_max_y = -0x7FFFFFFF;
+    }
+  //}}}
 
-  void moveTo (int x, int y);
-  void lineTo (int x, int y);
+  //{{{
+  void moveTo (int x, int y) {
+
+    if ((m_flags & sort_required) == 0)
+      reset();
+
+    if (m_flags & not_closed)
+      lineTo (m_close_x, m_close_y);
+
+    set_cur_cell (x >> poly_base_shift, y >> poly_base_shift);
+    m_close_x = m_cur_x = x;
+    m_close_y = m_cur_y = y;
+    }
+  //}}}
+  //{{{
+  void lineTo (int x, int y) {
+
+    if((m_flags & sort_required) && ((m_cur_x ^ x) | (m_cur_y ^ y))) {
+      int c = m_cur_x >> poly_base_shift;
+      if (c < m_min_x)
+        m_min_x = c;
+      ++c;
+      if (c > m_max_x)
+        m_max_x = c;
+
+      c = x >> poly_base_shift;
+      if (c < m_min_x)
+        m_min_x = c;
+      ++c;
+      if (c > m_max_x)
+        m_max_x = c;
+
+      renderLine (m_cur_x, m_cur_y, x, y);
+      m_cur_x = x;
+      m_cur_y = y;
+      m_flags |= not_closed;
+      }
+    }
+  //}}}
 
   int min_x() const { return m_min_x; }
   int min_y() const { return m_min_y; }
@@ -368,23 +522,401 @@ public:
   int max_y() const { return m_max_y; }
 
   unsigned num_cells() const {return m_num_cells; }
-  const tCell* const* cells();
+  //{{{
+  const tCell* const* cells() {
+
+    if (m_flags & not_closed) {
+      lineTo (m_close_x, m_close_y);
+      m_flags &= ~not_closed;
+      }
+
+    // Perform sort only the first time.
+    if(m_flags & sort_required) {
+      add_cur_cell();
+      if(m_num_cells == 0)
+        return 0;
+      sort_cells();
+      m_flags &= ~sort_required;
+      }
+
+    return m_sorted_cells;
+    }
+  //}}}
 
 private:
+  enum { qsort_threshold = 9 };
+  enum { not_closed = 1, sort_required = 2 };
+  enum { cell_block_shift = 12,
+         cell_block_size  = 1 << cell_block_shift,
+         cell_block_mask  = cell_block_size - 1,
+         cell_block_pool  = 256,
+         cell_block_limit = 1024 };
+
   cOutline (const cOutline&);
   const cOutline& operator = (const cOutline&);
 
-  void set_cur_cell (int x, int y);
-  void add_cur_cell();
-  void sort_cells();
+  //{{{
+  void set_cur_cell (int x, int y) {
 
-  void renderScanline (int ey, int x1, int y1, int x2, int y2);
-  void renderLine (int x1, int y1, int x2, int y2);
-  void allocateBlock();
+    if (m_cur_cell.packed_coord != (y << 16) + x) {
+     add_cur_cell();
+      m_cur_cell.set(x, y, 0, 0);
+      }
+   }
+  //}}}
+  //{{{
+  void add_cur_cell() {
 
-  static void qsort_cells (tCell** start, unsigned num);
+    if (m_cur_cell.area | m_cur_cell.cover) {
+      if ((m_num_cells & cell_block_mask) == 0) {
+        if (m_num_blocks >= cell_block_limit)
+          return;
+        allocateBlock();
+        }
+      *m_cur_cell_ptr++ = m_cur_cell;
+      m_num_cells++;
+      }
+    }
+  //}}}
+  //{{{
+  void sort_cells() {
 
-private:
+    if (m_num_cells == 0)
+      return;
+
+    if (m_num_cells > m_sorted_size) {
+      delete [] m_sorted_cells;
+      m_sorted_size = m_num_cells;
+      m_sorted_cells = new tCell* [m_num_cells + 1];
+      }
+
+    tCell** sorted_ptr = m_sorted_cells;
+    tCell** block_ptr = m_cells;
+    tCell*  cell_ptr;
+
+    unsigned nb = m_num_cells >> cell_block_shift;
+    unsigned i;
+
+    while (nb--) {
+      cell_ptr = *block_ptr++;
+      i = cell_block_size;
+      while (i--)
+        *sorted_ptr++ = cell_ptr++;
+      }
+
+    cell_ptr = *block_ptr++;
+    i = m_num_cells & cell_block_mask;
+    while(i--)
+      *sorted_ptr++ = cell_ptr++;
+    m_sorted_cells[m_num_cells] = 0;
+
+    qsort_cells (m_sorted_cells, m_num_cells);
+    }
+  //}}}
+
+  //{{{
+  void renderScanline (int ey, int x1, int y1, int x2, int y2) {
+
+    int ex1 = x1 >> poly_base_shift;
+    int ex2 = x2 >> poly_base_shift;
+    int fx1 = x1 & poly_base_mask;
+    int fx2 = x2 & poly_base_mask;
+
+    int delta, p, first, dx;
+    int incr, lift, mod, rem;
+
+    //trivial case. Happens often
+    if (y1 == y2) {
+      set_cur_cell(ex2, ey);
+      return;
+      }
+
+    //everything is located in a single cell.  That is easy!
+    if (ex1 == ex2) {
+      delta = y2 - y1;
+      m_cur_cell.add_cover(delta, (fx1 + fx2) * delta);
+      return;
+      }
+
+    //ok, we'll have to render a run of adjacent cells on the same
+    //cScanline...
+    p = (poly_base_size - fx1) * (y2 - y1);
+    first = poly_base_size;
+    incr = 1;
+    dx = x2 - x1;
+    if (dx < 0) {
+      p     = fx1 * (y2 - y1);
+      first = 0;
+      incr  = -1;
+      dx    = -dx;
+      }
+
+    delta = p / dx;
+    mod   = p % dx;
+    if (mod < 0) {
+      delta--;
+      mod += dx;
+      }
+
+    m_cur_cell.add_cover(delta, (fx1 + first) * delta);
+
+    ex1 += incr;
+    set_cur_cell(ex1, ey);
+    y1  += delta;
+    if (ex1 != ex2) {
+      p =  poly_base_size * (y2 - y1 + delta);
+      lift = p / dx;
+      rem = p % dx;
+      if (rem < 0) {
+        lift--;
+        rem += dx;
+        }
+
+      mod -= dx;
+      while (ex1 != ex2) {
+        delta = lift;
+        mod  += rem;
+        if (mod >= 0) {
+          mod -= dx;
+          delta++;
+          }
+
+        m_cur_cell.add_cover(delta, (poly_base_size) * delta);
+        y1  += delta;
+        ex1 += incr;
+        set_cur_cell(ex1, ey);
+        }
+      }
+    delta = y2 - y1;
+    m_cur_cell.add_cover(delta, (fx2 + poly_base_size - first) * delta);
+    }
+  //}}}
+  //{{{
+  void renderLine (int x1, int y1, int x2, int y2) {
+
+    int ey1 = y1 >> poly_base_shift;
+    int ey2 = y2 >> poly_base_shift;
+    int fy1 = y1 & poly_base_mask;
+    int fy2 = y2 & poly_base_mask;
+
+    int dx, dy, x_from, x_to;
+    int p, rem, mod, lift, delta, first, incr;
+
+    if (ey1   < m_min_y)
+      m_min_y = ey1;
+    if (ey1+1 > m_max_y)
+      m_max_y = ey1+1;
+    if (ey2   < m_min_y)
+      m_min_y = ey2;
+    if (ey2+1 > m_max_y)
+      m_max_y = ey2+1;
+
+    dx = x2 - x1;
+    dy = y2 - y1;
+
+    // everything is on a single cScanline
+    if (ey1 == ey2) {
+      renderScanline(ey1, x1, fy1, x2, fy2);
+      return;
+      }
+
+    // Vertical line - we have to calculate start and end cells,
+    // and then - the common values of the area and coverage for
+    // all cells of the line. We know exactly there's only one
+    // cell, so, we don't have to call renderScanline().
+    incr  = 1;
+    if (dx == 0) {
+      int ex = x1 >> poly_base_shift;
+      int two_fx = (x1 - (ex << poly_base_shift)) << 1;
+      int area;
+
+      first = poly_base_size;
+      if(dy < 0) {
+        first = 0;
+        incr  = -1;
+        }
+
+      x_from = x1;
+
+      //renderScanline(ey1, x_from, fy1, x_from, first)
+      delta = first - fy1;
+      m_cur_cell.add_cover (delta, two_fx * delta);
+
+      ey1 += incr;
+      set_cur_cell(ex, ey1);
+
+      delta = first + first - poly_base_size;
+      area = two_fx * delta;
+      while (ey1 != ey2) {
+        //renderScanline (ey1, x_from, poly_base_size - first, x_from, first);
+        m_cur_cell.set_cover (delta, area);
+        ey1 += incr;
+        set_cur_cell(ex, ey1);
+        }
+
+      // renderScanline(ey1, x_from, poly_base_size - first, x_from, fy2);
+      delta = fy2 - poly_base_size + first;
+      m_cur_cell.add_cover (delta, two_fx * delta);
+      return;
+     }
+
+    // ok, we have to render several cScanlines
+    p  = (poly_base_size - fy1) * dx;
+    first = poly_base_size;
+    if (dy < 0) {
+      p     = fy1 * dx;
+      first = 0;
+      incr  = -1;
+      dy    = -dy;
+      }
+
+    delta = p / dy;
+    mod = p % dy;
+    if (mod < 0) {
+      delta--;
+        mod += dy;
+      }
+
+    x_from = x1 + delta;
+    renderScanline (ey1, x1, fy1, x_from, first);
+
+    ey1 += incr;
+    set_cur_cell (x_from >> poly_base_shift, ey1);
+
+    if (ey1 != ey2) {
+      p = poly_base_size * dx;
+      lift  = p / dy;
+      rem   = p % dy;
+
+      if (rem < 0) {
+        lift--;
+        rem += dy;
+        }
+      mod -= dy;
+      while(ey1 != ey2) {
+        delta = lift;
+        mod  += rem;
+        if (mod >= 0) {
+          mod -= dy;
+          delta++;
+          }
+
+        x_to = x_from + delta;
+        renderScanline (ey1, x_from, poly_base_size - first, x_to, first);
+        x_from = x_to;
+
+        ey1 += incr;
+        set_cur_cell (x_from >> poly_base_shift, ey1);
+        }
+      }
+    renderScanline (ey1, x_from, poly_base_size - first, x2, fy2);
+    }
+  //}}}
+  //{{{
+  void allocateBlock() {
+
+    if (m_cur_block >= m_num_blocks) {
+      if (m_num_blocks >= m_max_blocks) {
+        tCell** new_cells = new tCell* [m_max_blocks + cell_block_pool];
+        if (m_cells) {
+          memcpy(new_cells, m_cells, m_max_blocks * sizeof(tCell*));
+          delete [] m_cells;
+          }
+        m_cells = new_cells;
+        m_max_blocks += cell_block_pool;
+        }
+      m_cells[m_num_blocks++] = new tCell [unsigned(cell_block_size)];
+      }
+
+    m_cur_cell_ptr = m_cells[m_cur_block++];
+    }
+  //}}}
+
+  //{{{
+  void qsort_cells (tCell** start, unsigned num) {
+
+    tCell**  stack[80];
+    tCell*** top;
+    tCell**  limit;
+    tCell**  base;
+
+    limit = start + num;
+    base = start;
+    top = stack;
+
+    for (;;) {
+      int len = int(limit - base);
+
+      tCell** i;
+      tCell** j;
+      tCell** pivot;
+
+      if (len > qsort_threshold) {
+        // we use base + len/2 as the pivot
+        pivot = base + len / 2;
+        swapCells (base, pivot);
+
+        i = base + 1;
+        j = limit - 1;
+        // now ensure that *i <= *base <= *j
+        if (lessThan (j, i))
+          swapCells (i, j);
+        if (lessThan (base, i))
+          swapCells (base, i);
+        if (lessThan (j, base))
+          swapCells (base, j);
+
+        for(;;) {
+          do
+            i++;
+            while (lessThan (i, base) );
+          do
+            j--;
+            while (lessThan (base, j) );
+          if ( i > j )
+            break;
+          swapCells (i, j);
+          }
+        swapCells (base, j);
+
+        // now, push the largest sub-array
+        if(j - base > limit - i) {
+          top[0] = base;
+          top[1] = j;
+          base   = i;
+          }
+        else {
+          top[0] = i;
+          top[1] = limit;
+          limit  = j;
+          }
+        top += 2;
+        }
+      else {
+        // the sub-array is small, perform insertion sort
+        j = base;
+        i = j + 1;
+
+        for (; i < limit; j = i, i++) {
+          for (; lessThan(j + 1, j); j--) {
+            swapCells (j + 1, j);
+            if (j == base)
+              break;
+            }
+          }
+
+        if (top > stack) {
+          top  -= 2;
+          base  = top[0];
+          limit = top[1];
+          }
+        else
+          break;
+        }
+      }
+    }
+  //}}}
+
   unsigned  m_num_blocks;
   unsigned  m_max_blocks;
   unsigned  m_cur_block;
@@ -517,7 +1049,7 @@ template <class cSpan> class cRenderer {
 //
 // Usage:
 //     // Creation
-//     agg::cRenderingBuffer rbuf(ptr, w, h, stride);
+//     agg::cTarget rbuf(ptr, w, h, stride);
 //     agg::renderer<agg::span_rgb24> ren(rbuf);
 //     agg::cRasteriser ras;
 //
@@ -533,7 +1065,7 @@ template <class cSpan> class cRenderer {
 //     ras.render(ren, agg::tRgba(200, 100, 80));
 //}}}
 public:
-  cRenderer (cRenderingBuffer& rbuf) : m_rbuf (&rbuf) {}
+  cRenderer (cTarget& rbuf) : m_rbuf (&rbuf) {}
 
   //{{{
   void clear (const tRgba& c) {
@@ -587,10 +1119,10 @@ public:
       } while (--num_spans);
     }
   //}}}
-  cRenderingBuffer& rbuf() { return *m_rbuf; }
+  cTarget& rbuf() { return *m_rbuf; }
 
 private:
-  cRenderingBuffer* m_rbuf;
+  cTarget* m_rbuf;
   cSpan             m_span;
   };
 //}}}
@@ -625,7 +1157,7 @@ class cRasteriser {
 // filling_rule() and gamma() can be called anytime before "sweeping".
 //}}}
 public:
-  enum filling_rule_e { fill_non_zero, fill_even_odd };
+  enum eFilling { fill_non_zero, fill_even_odd };
   enum {
     aa_shift = cScanline::aa_shift,
     aa_num   = 1 << aa_shift,
@@ -634,13 +1166,18 @@ public:
     aa_2mask = aa_2num - 1
     };
 
-  cRasteriser() : m_filling_rule(fill_non_zero) { memcpy  (m_gamma, s_default_gamma, sizeof(m_gamma)); }
+  cRasteriser() : mFilling(fill_non_zero) { gamma (1.2); }
 
   void reset() { mOutline.reset(); }
-  void filling_rule (filling_rule_e filling_rule) { m_filling_rule = filling_rule; }
+  void filling_rule (eFilling filling) { mFilling = filling; }
 
-  void gamma (double g);
-  void gamma (const uint8_t* g);
+  //{{{
+  void gamma (double g) {
+
+    for (unsigned i = 0; i < 256; i++)
+      m_gamma[i] = (uint8_t)(pow(double(i) / 255.0, g) * 255.0);
+    }
+  //}}}
 
   void moveTo (int x, int y) { mOutline.moveTo (x, y); }
   void lineTo (int x, int y) { mOutline.lineTo (x, y); }
@@ -659,7 +1196,7 @@ public:
     if (cover < 0)
       cover = -cover;
 
-    if (m_filling_rule == fill_even_odd) {
+    if (mFilling == fill_even_odd) {
       cover &= aa_2mask;
       if (cover > aa_num)
         cover = aa_2num - cover;
@@ -738,17 +1275,69 @@ public:
     }
   //}}}
 
-  bool hit_test(int tx, int ty);
+  //{{{
+  bool hit_test (int tx, int ty) {
+
+    const tCell* const* cells = mOutline.cells();
+    if (mOutline.num_cells() == 0)
+      return false;
+
+    int x, y;
+    int cover;
+    int alpha;
+    int area;
+
+    cover = 0;
+    const tCell* cur_cell = *cells++;
+    for(;;) {
+      const tCell* start_cell = cur_cell;
+
+      int coord  = cur_cell->packed_coord;
+      x = cur_cell->x;
+      y = cur_cell->y;
+
+      if (y > ty)
+        return false;
+
+      area = start_cell->area;
+      cover += start_cell->cover;
+      while ((cur_cell = *cells++) != 0) {
+        if (cur_cell->packed_coord != coord)
+          break;
+        area  += cur_cell->area;
+        cover += cur_cell->cover;
+        }
+
+      if (area) {
+        alpha = calcAlpha ((cover << (poly_base_shift + 1)) - area);
+        if (alpha)
+          if (tx == x && ty == y)
+            return true;
+        x++;
+        }
+
+      if(!cur_cell)
+        break;
+
+      if (cur_cell->x > x) {
+        alpha = calcAlpha (cover << (poly_base_shift + 1));
+        if (alpha)
+         if (ty == y && tx >= x && tx <= cur_cell->x)
+            return true;
+        }
+      }
+
+    return false;
+    }
+  //}}}
 
 private:
   cRasteriser (const cRasteriser&);
   const cRasteriser& operator = (const cRasteriser&);
 
-private:
-  cOutline        mOutline;
-  cScanline       mScanline;
-  filling_rule_e m_filling_rule;
-  uint8_t          m_gamma[256];
-  static const uint8_t s_default_gamma[256];
+  cOutline  mOutline;
+  cScanline mScanline;
+  eFilling  mFilling;
+  uint8_t   m_gamma[256];
   };
 //}}}

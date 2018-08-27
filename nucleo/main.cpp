@@ -245,10 +245,10 @@ void uiThread (void* arg) {
 //{{{
 void appThread (void* arg) {
 
-  // Create frameBuffer, renderingBuffer, renderer, rasteriser
+  // Create frameBuffer,  , renderer, rasteriser
   buf = sdRamAlloc (width * height * 2, "agg");
-  cRenderingBuffer renderingBuffer (buf, width, height, width * 2);
-  cRenderer<tSpanRgb565> renderer (renderingBuffer);
+  cTarget target (buf, width, height, width * 2);
+  cRenderer<tSpanRgb565> renderer (target);
   cRasteriser rasteriser;
   rasteriser.gamma (1.2);
   rasteriser.filling_rule (cRasteriser::fill_even_odd);
@@ -258,22 +258,22 @@ void appThread (void* arg) {
   // Draw random polygons
   for (int i = 0; i < 4; i++) {
     int n = rand() % 6 + 3;
-    rasteriser.moveTod (random(-30, renderingBuffer.width() + 30), random(-30, renderingBuffer.height() + 30));
+    rasteriser.moveTod (random(-30, target.width() + 30), random(-30, target.height() + 30));
     for (int j = 1; j < n; j++)
-      rasteriser.lineTod (random(-30, renderingBuffer.width() + 30), random(-30, renderingBuffer.height() + 30));
+      rasteriser.lineTod (random(-30, target.width() + 30), random(-30, target.height() + 30));
     rasteriser.render (renderer, tRgba (255,255, 0,192));
     }
 
-  draw_ellipse (rasteriser, renderingBuffer.width()/2, renderingBuffer.height()/2, 50, 100);
+  draw_ellipse (rasteriser, target.width()/2, target.height()/2, 50, 100);
   rasteriser.render (renderer, tRgba (255, 0, 255, 192));
 
   // Draw random straight lines
   for (int i = 0; i < 5; i++) {
-    draw_line (rasteriser, random(-30, renderingBuffer.width()  + 30), random(-30, renderingBuffer.height() + 30),
-                    random(-30, renderingBuffer.width()  + 30), random(-30, renderingBuffer.height() + 30), random(0.1, 10));
+    draw_line (rasteriser, random(-30, target.width()  + 30), random(-30, target.height() + 30),
+                    random(-30, target.width()  + 30), random(-30, target.height() + 30), random(0.1, 10));
     rasteriser.render (renderer, tRgba (255,255,255,255));
     }
-  aggTile = new cTile (buf, cTile::eRgb565, renderingBuffer.width(), 0,0, renderingBuffer.width(), renderingBuffer.height());
+  aggTile = new cTile (buf, cTile::eRgb565, target.width(), 0,0, target.width(), target.height());
 
   bool hwJpeg = BSP_PB_GetState (BUTTON_KEY) == 0;
 
