@@ -27,34 +27,6 @@ enum {
   };
 //}}}
 
-//{{{
-void draw_ellipse (cRasteriser& ras, float x, float y, float rx, float ry) {
-
-  ras.moveTod (x + rx, y);
-
-  for (int i = 1; i < 360; i++) {
-    float a = float(i) * 3.1415926 / 180.0;
-    ras.lineTod (x + cos(a) * rx, y + sin(a) * ry);
-    }
-  }
-//}}}
-//{{{
-void draw_line (cRasteriser& ras, float x1, float y1, float x2, float y2, float width) {
-
-  float dx = x2 - x1;
-  float dy = y2 - y1;
-  float d = sqrt(dx*dx + dy*dy);
-
-  dx = width * (y2 - y1) / d;
-  dy = width * (x2 - x1) / d;
-
-  ras.moveTod (x1 - dx,  y1 + dy);
-  ras.lineTod (x2 - dx,  y2 + dy);
-  ras.lineTod (x2 + dx,  y2 - dy);
-  ras.lineTod (x1 + dx,  y1 - dy);
-  }
-//}}}
-
 #define SW_JPEG
 #define SW_SCALE 4
 #define FMC_PERIOD  FMC_SDRAM_CLOCK_PERIOD_2
@@ -206,7 +178,7 @@ void uiThread (void* arg) {
       mTraceVec.draw (lcd, 20, 450);
       //{{{  draw clock
       target.setBuffer (lcd->getDrawBuf());
-      draw_ellipse (rasteriser, 950, 490, 60, 60);
+      rasteriser.drawEllipse (950, 490, 60, 60);
       rasteriser.render (renderer, sRgba (255,255,255, 128));
 
       float hourAngle;
@@ -221,19 +193,17 @@ void uiThread (void* arg) {
       float minuteRadius = radius * 0.8f;
       float secondRadius = radius * 0.95f;
 
-      draw_line (rasteriser, centre.x, centre.y,
-                 centre.x + (hourRadius * sin (hourAngle)),
-                 centre.y + (hourRadius * cos (hourAngle)), 3.0f);
-      rasteriser.render (renderer, sRgba (255,255,255, 255));
-
-      draw_line (rasteriser, centre.x, centre.y,
-                 centre.x + (minuteRadius * sin (minuteAngle)),
-                 centre.y + (minuteRadius * cos (minuteAngle)), 2.0f);
+      rasteriser.drawLine (centre.x, centre.y,
+                           centre.x + (hourRadius * sin (hourAngle)),
+                           centre.y + (hourRadius * cos (hourAngle)), 3.0f);
+      rasteriser.drawLine (centre.x, centre.y,
+                           centre.x + (minuteRadius * sin (minuteAngle)),
+                           centre.y + (minuteRadius * cos (minuteAngle)), 2.0f);
       rasteriser.render (renderer, sRgba (255,255,200, 192));
 
-      draw_line (rasteriser, centre.x, centre.y,
-                 centre.x + (secondRadius * sin (secondAngle)),
-                 centre.y + (secondRadius * cos (secondAngle)), 2.0f);
+      rasteriser.drawLine (centre.x, centre.y,
+                           centre.x + (secondRadius * sin (secondAngle)),
+                           centre.y + (secondRadius * cos (secondAngle)), 2.0f);
       rasteriser.render (renderer, sRgba (255,0,0, 180));
 
       lcd->cLcd::text (COL_BLACK, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));

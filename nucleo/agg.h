@@ -196,10 +196,10 @@ public:
     }
   //}}}
 
-  int is_ready(int y) const { return mNumspans && (y ^ m_last_y); }
   int base_x() const { return mMinx + m_dx;  }
-  int y() const { return m_last_y + m_dy; }
-  unsigned num_spans() const { return mNumspans; }
+  int getY() const { return m_last_y + m_dy; }
+  unsigned numSpans() const { return mNumspans; }
+  int isReady (int y) const { return mNumspans && (y ^ m_last_y); }
 
   //{{{
   void reset (int min_x, int max_x, int dx, int dy) {
@@ -850,41 +850,25 @@ struct sRgba {
 //{{{
 struct sRgb565Span {
   //{{{
-  uint16_t rgb565 (unsigned r, unsigned g, unsigned b) {
-    return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
-    }
-  //}}}
-  //{{{
-  sRgba getPixel (uint8_t* ptr, int x) {
-    uint16_t rgb = ((uint16_t*)ptr)[x];
-    return sRgba ((rgb >> 8) & 0xF8, (rgb >> 3) & 0xFC, (rgb << 3) & 0xF8, 255);
-    }
-  //}}}
-  //{{{
-  void hline (uint8_t* ptr, int x, unsigned count, const sRgba& c) {
-
-    uint16_t* p = ((uint16_t*)ptr) + x;
-    uint16_t v = rgb565 (c.r, c.g, c.b);
-    do {
-      *p++ = v;
-      } while (--count);
-    }
-  //}}}
-  //{{{
   void render (uint8_t* ptr, int x, unsigned count, const uint8_t* covers, const sRgba& rgba) {
 
     uint16_t* p = ((uint16_t*)ptr) + x;
-    for (int i = 0; i < count; i++) {
-      uint16_t rgb = *p;
-      uint8_t r = (rgb >> 8) & 0xF8;
-      uint8_t g = (rgb >> 3) & 0xFC;
-      uint8_t b = (rgb << 3) & 0xF8;
-      int alpha = (*covers++) * rgba.a;
+    do {
+      uint16_t alpha = (*covers++) * (rgba.a);
+      if (alpha >= 0xFE00)
+        *p++ = ((rgba.r >> 3) << 11) | ((rgba.g >> 2) << 5) | (rgba.b >> 3);
+      else {
+        // blend
+        uint16_t rgb = *p;
+        uint8_t r = (rgb >> 8) & 0xF8;
+        uint8_t g = (rgb >> 3) & 0xFC;
+        uint8_t b = (rgb << 3) & 0xF8;
 
-      *p++ = (((((rgba.r - r) * alpha) + (r << 16)) >> 8) & 0xF800) |
-             (((((rgba.g - g) * alpha) + (g << 16)) >> 13) & 0x7E0) |
-              ((((rgba.b - b) * alpha) + (b << 16)) >> 19);
-      }
+        *p++ = (((((rgba.r - r) * alpha) + (r << 16)) >> 8) & 0xF800) |
+               (((((rgba.g - g) * alpha) + (g << 16)) >> 13) & 0x7E0) |
+                ((((rgba.b - b) * alpha) + (b << 16)) >> 19);
+        }
+      } while (--count);
     }
   //}}}
   };
@@ -916,32 +900,15 @@ public:
   cRenderer (cTarget& target) : mTarget (&target) {}
 
   //{{{
-  sRgba getPixel (int x, int y) const {
-    mTarget->inbox (x,y) ? mSpan.getPixel (mTarget->row (y), x) : sRgba (0,0,0);
-    }
-  //}}}
-  //{{{
-  void clear (const sRgba& rgba) {
-    for (uint16_t y = 0; y < mTarget->height(); y++)
-      mSpan.hline (mTarget->row (y), 0, mTarget->width(), rgba);
-    }
-  //}}}
-  //{{{
-  void setPixel (int x, int y, const sRgba& rgba) {
-    if (mTarget->inbox (x, y))
-      mSpan.hline (mTarget->row(y), x, 1, rgba);
-    }
-  //}}}
-  //{{{
   void render (const cScanline& scanLine, const sRgba& rgba) {
 
-    if (scanLine.y() < 0 || scanLine.y() >= int(mTarget->height()))
+    if ((scanLine.getY() < 0) || (scanLine.getY() >= int(mTarget->height())))
       return;
 
-    uint16_t numSpans = scanLine.num_spans();
+    uint16_t numSpans = scanLine.numSpans();
 
     int base_x = scanLine.base_x();
-    auto row = mTarget->row (scanLine.y());
+    auto row = mTarget->row (scanLine.getY());
 
     cScanline::iterator span (scanLine);
     do {
@@ -1004,7 +971,7 @@ class cRasteriser {
 public:
   enum eFilling { fill_non_zero, fill_even_odd };
 
-  cRasteriser() : mFilling (fill_even_odd) { gamma (1.2); }
+  cRasteriser() : mFilling (fill_non_zero) { gamma (1.2); }
 
   int getMinx() const { return mOutline.getMinx(); }
   int getMiny() const { return mOutline.getMiny(); }
@@ -1018,6 +985,33 @@ public:
   void lineTo (int x, int y) { mOutline.lineTo (x, y); }
   void moveTod (float x, float y) { mOutline.moveTo (int(x * 0x100), int(y * 0x100)); }
   void lineTod (float x, float y) { mOutline.lineTo (int(x * 0x100), int(y * 0x100)); }
+
+  //{{{
+  void drawLine (float x1, float y1, float x2, float y2, float width) {
+
+    float dx = x2 - x1;
+    float dy = y2 - y1;
+    float d = sqrt(dx*dx + dy*dy);
+
+    dx = width * (y2 - y1) / d;
+    dy = width * (x2 - x1) / d;
+
+    moveTod (x1 - dx,  y1 + dy);
+    lineTod (x2 - dx,  y2 + dy);
+    lineTod (x2 + dx,  y2 - dy);
+    lineTod (x1 + dx,  y1 - dy);
+    }
+  //}}}
+  //{{{
+  void drawEllipse (float x, float y, float rx, float ry) {
+
+    moveTod (x + rx, y);
+    for (int i = 1; i < 360; i += 10) {
+      float a = float(i) * 3.1415926 / 180.0;
+      lineTod (x + cos(a) * rx, y + sin(a) * ry);
+      }
+    }
+  //}}}
 
   //{{{
   template<class cRenderer> void render (cRenderer& r, const sRgba& c, int dx = 0, int dy = 0) {
@@ -1056,7 +1050,7 @@ public:
       if (area) {
         alpha = calcAlpha ((cover << (8 + 1)) - area);
         if (alpha) {
-         if (mScanline.is_ready (y)) {
+         if (mScanline.isReady (y)) {
             r.render (mScanline, c);
             mScanline.resetSpans();
             }
@@ -1071,8 +1065,8 @@ public:
       if (cur_cell->x > x) {
         alpha = calcAlpha (cover << (8 + 1));
         if (alpha) {
-          if (mScanline.is_ready (y)) {
-            r.render (mScanline, c);
+          if (mScanline.isReady (y)) {
+             r.render (mScanline, c);
              mScanline.resetSpans();
              }
            mScanline.addSpan (x, y, cur_cell->x - x, mGamma[alpha]);
@@ -1080,64 +1074,8 @@ public:
         }
       }
 
-    if (mScanline.num_spans())
+    if (mScanline.numSpans())
       r.render (mScanline, c);
-    }
-  //}}}
-
-  //{{{
-  bool hit_test (int tx, int ty) {
-
-    const sPixelCell* const* cells = mOutline.cells();
-    if (mOutline.numCells() == 0)
-      return false;
-
-    int x, y;
-    int cover;
-    int alpha;
-    int area;
-
-    cover = 0;
-    const sPixelCell* cur_cell = *cells++;
-    for(;;) {
-      const sPixelCell* start_cell = cur_cell;
-
-      int coord  = cur_cell->packed_coord;
-      x = cur_cell->x;
-      y = cur_cell->y;
-
-      if (y > ty)
-        return false;
-
-      area = start_cell->area;
-      cover += start_cell->cover;
-      while ((cur_cell = *cells++) != 0) {
-        if (cur_cell->packed_coord != coord)
-          break;
-        area  += cur_cell->area;
-        cover += cur_cell->cover;
-        }
-
-      if (area) {
-        alpha = calcAlpha ((cover << (8 + 1)) - area);
-        if (alpha)
-          if (tx == x && ty == y)
-            return true;
-        x++;
-        }
-
-      if(!cur_cell)
-        break;
-
-      if (cur_cell->x > x) {
-        alpha = calcAlpha (cover << (8 + 1));
-        if (alpha)
-         if (ty == y && tx >= x && tx <= cur_cell->x)
-            return true;
-        }
-      }
-
-    return false;
     }
   //}}}
 
