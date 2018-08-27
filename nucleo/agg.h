@@ -573,11 +573,10 @@ private:
 
     tCell** sorted_ptr = m_sorted_cells;
     tCell** block_ptr = m_cells;
-    tCell*  cell_ptr;
-
-    unsigned nb = m_num_cells >> cell_block_shift;
+    tCell* cell_ptr;
     unsigned i;
 
+    unsigned nb = m_num_cells >> cell_block_shift;
     while (nb--) {
       cell_ptr = *block_ptr++;
       i = cell_block_size;
@@ -800,7 +799,7 @@ private:
       if (m_num_blocks >= m_max_blocks) {
         tCell** new_cells = new tCell* [m_max_blocks + cell_block_pool];
         if (m_cells) {
-          memcpy(new_cells, m_cells, m_max_blocks * sizeof(tCell*));
+          memcpy (new_cells, m_cells, m_max_blocks * sizeof(tCell*));
           delete [] m_cells;
           }
         m_cells = new_cells;
@@ -1139,56 +1138,21 @@ class cRasteriser {
 //}}}
 public:
   enum eFilling { fill_non_zero, fill_even_odd };
-  enum {
-    aa_shift = 8,
-    aa_num   = 1 << aa_shift,
-    aa_mask  = aa_num - 1,
-    aa_2num  = aa_num * 2,
-    aa_2mask = aa_2num - 1
-    };
 
   cRasteriser() : mFilling(fill_even_odd) { gamma (1.2); }
-
-  void reset() { mOutline.reset(); }
-  void filling_rule (eFilling filling) { mFilling = filling; }
-
-  //{{{
-  void gamma (double g) {
-
-    for (unsigned i = 0; i < 256; i++)
-      mGamma[i] = (uint8_t)(pow(double(i) / 255.0, g) * 255.0);
-    }
-  //}}}
-
-  void moveTo (int x, int y) { mOutline.moveTo (x, y); }
-  void lineTo (int x, int y) { mOutline.lineTo (x, y); }
-  void moveTod (double x, double y) { mOutline.moveTo (poly_coord(x), poly_coord(y)); }
-  void lineTod (double x, double y) { mOutline.lineTo (poly_coord(x), poly_coord(y)); }
 
   int min_x() const { return mOutline.min_x(); }
   int min_y() const { return mOutline.min_y(); }
   int max_x() const { return mOutline.max_x(); }
   int max_y() const { return mOutline.max_y(); }
 
-  //{{{
-  unsigned calcAlpha (int area) const {
+  void reset() { mOutline.reset(); }
+  void setFilling (eFilling filling) { mFilling = filling; }
 
-    int cover = area >> (poly_base_shift*2 + 1 - aa_shift);
-    if (cover < 0)
-      cover = -cover;
-
-    if (mFilling == fill_even_odd) {
-      cover &= aa_2mask;
-      if (cover > aa_num)
-        cover = aa_2num - cover;
-      }
-
-    if (cover > aa_mask)
-      cover = aa_mask;
-
-    return cover;
-    }
-  //}}}
+  void moveTo (int x, int y) { mOutline.moveTo (x, y); }
+  void lineTo (int x, int y) { mOutline.lineTo (x, y); }
+  void moveTod (double x, double y) { mOutline.moveTo (poly_coord(x), poly_coord(y)); }
+  void lineTod (double x, double y) { mOutline.lineTo (poly_coord(x), poly_coord(y)); }
 
   //{{{
   template<class cRenderer> void render (cRenderer& r, const tRgba& c, int dx = 0, int dy = 0) {
@@ -1313,8 +1277,43 @@ public:
   //}}}
 
 private:
+  enum {
+    aa_shift = 8,
+    aa_num   = 1 << aa_shift,
+    aa_mask  = aa_num - 1,
+    aa_2num  = aa_num * 2,
+    aa_2mask = aa_2num - 1
+    };
+
   cRasteriser (const cRasteriser&);
   const cRasteriser& operator = (const cRasteriser&);
+
+  //{{{
+  void gamma (double g) {
+
+    for (unsigned i = 0; i < 256; i++)
+      mGamma[i] = (uint8_t)(pow(double(i) / 255.0, g) * 255.0);
+    }
+  //}}}
+  //{{{
+  unsigned calcAlpha (int area) const {
+
+    int cover = area >> (poly_base_shift*2 + 1 - aa_shift);
+    if (cover < 0)
+      cover = -cover;
+
+    if (mFilling == fill_even_odd) {
+      cover &= aa_2mask;
+      if (cover > aa_num)
+        cover = aa_2num - cover;
+      }
+
+    if (cover > aa_mask)
+      cover = aa_mask;
+
+    return cover;
+    }
+  //}}}
 
   cOutline  mOutline;
   cScanline mScanline;
