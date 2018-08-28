@@ -483,7 +483,7 @@ private:
     base = start;
     top = stack;
 
-    for (;;) {
+    while (true) {
       int len = int(limit - base);
 
       sCell** i;
@@ -505,13 +505,13 @@ private:
         if (lessThan (j, base))
           swapCells (base, j);
 
-        for(;;) {
-          do
+        while (true) {
+          do {
             i++;
-            while (lessThan (i, base) );
-          do
+            } while (lessThan (i, base) );
+          do {
             j--;
-            while (lessThan (base, j) );
+            } while (lessThan (base, j) );
           if ( i > j )
             break;
           swapCells (i, j);
