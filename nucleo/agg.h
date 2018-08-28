@@ -98,7 +98,7 @@ public:
 
     if (mNumBlocks) {
       sCell** ptr = mCells + mNumBlocks - 1;
-      while(mNumBlocks--) {
+      while (mNumBlocks--) {
         vPortFree (*ptr);
         ptr--;
         }
@@ -212,8 +212,23 @@ private:
   void addCurCell() {
 
     if (mCurCell.area | mCurCell.coverage) {
-      if ((mNumCells % 1024) == 0)
-        allocateBlock();
+      if ((mNumCells % 1024) == 0) {
+        printf ("allocateBlock cur:%d num:%d max:%d\n", mCurblock, mNumBlocks, mMaxBlocks);
+        if (mCurblock >= mNumBlocks) {
+          if (mNumBlocks >= mMaxBlocks) {
+            auto newCells = (sCell**)pvPortMalloc ((mMaxBlocks + kCellBlockPool) * 4);
+            if (mCells) {
+              memcpy (newCells, mCells, mMaxBlocks * sizeof(sCell*));
+              vPortFree (mCells);
+              }
+            mCells = newCells;
+            mMaxBlocks += kCellBlockPool;
+            }
+          mCells[mNumBlocks++] = (sCell*)pvPortMalloc (kCellBlockSize*4*4);
+          }
+        mCurCellPtr = mCells[mCurblock++];
+        }
+
       *mCurCellPtr++ = mCurCell;
       mNumCells++;
       }
@@ -446,27 +461,6 @@ private:
         }
       }
     renderScanLine (ey1, x_from, 0x100 - first, x2, fy2);
-    }
-  //}}}
-  //{{{
-  void allocateBlock() {
-
-    printf ("allocateBlock cur:%d num:%d max:%d\n", mCurblock, mNumBlocks, mMaxBlocks);
-
-    if (mCurblock >= mNumBlocks) {
-      if (mNumBlocks >= mMaxBlocks) {
-        auto newCells = (sCell**)pvPortMalloc ((mMaxBlocks + kCellBlockPool) * 4);
-        if (mCells) {
-          memcpy (newCells, mCells, mMaxBlocks * sizeof(sCell*));
-          vPortFree (mCells);
-          }
-        mCells = newCells;
-        mMaxBlocks += kCellBlockPool;
-        }
-      mCells[mNumBlocks++] = (sCell*)pvPortMalloc (kCellBlockSize*4*4);
-      }
-
-    mCurCellPtr = mCells[mCurblock++];
     }
   //}}}
 
