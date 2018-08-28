@@ -209,14 +209,6 @@ public:
 
   cRasteriser() { gamma (1.2); }
 
-  int getMinx() const { return mOutline.getMinx(); }
-  int getMiny() const { return mOutline.getMiny(); }
-  int getMaxx() const { return mOutline.getMaxx(); }
-  int getMaxy() const { return mOutline.getMaxy(); }
-
-  void reset() { mOutline.reset(); }
-  void setFilling (eFilling filling) { mFilling = filling; }
-
   void moveTo (int x, int y) { mOutline.moveTo (x, y); }
   void lineTo (int x, int y) { mOutline.lineTo (x, y); }
   void moveTod (float x, float y) { mOutline.moveTo (int(x * 0x100), int(y * 0x100)); }
