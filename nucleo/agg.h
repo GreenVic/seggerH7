@@ -57,91 +57,13 @@ struct sRgb565 {
 //}}}
 
 //{{{
-class cScanline {
- //{{{  description
- // This class is used to transfer data from class outline (or a similar one)
- // to the rendering buffer. It's organized very simple. The class stores
- // information of horizontal spans to render it into a pixel-map buffer.
- // Each span has initial X, length, and an array of bytes that determine the
- // alpha-values for each pixel. So, the restriction of using this class is 256
- // levels of Anti-Aliasing, which is quite enough for any practical purpose.
- // Before using this class you should know the minimal and maximal pixel
- // coordinates of your cScanline. The protocol of using is:
- // 1. reset(min_x, max_x)
- // 2. addCell() / addSpan() - accumulate cScanline. You pass Y-coordinate
- //    into these functions in order to make cScanline know the last Y. Before
- //    calling addCell() / addSpan() you should check with method is_ready(y)
- //    if the last Y has changed. It also checks if the scanline is not empty.
- //    When forming one cScanline the next X coordinate must be always greater
- //    than the last stored one, i.e. it works only with ordered coordinates.
- // 3. If the current cScanline is_ready() you should render it and then call
- //    resetSpans() before adding new cells/spans.
- //
- // 4. Rendering:
- //
- // cScanline provides an iterator class that allows you to extract
- // the spans and the cover values for each pixel. Be aware that clipping
- // has not been done yet, so you should perform it yourself.
- // Use cScanline::iterator to render spans:
- //
- // int base_x = sl.base_x();          // base X. Should be added to the span's X
- //                                    // "sl" is a const reference to the
- //                                    // cScanline passed in.
- //
- // int y = sl.y();                    // Y-coordinate of the cScanline
- //
- // ************************************
- // ...Perform vertical clipping here...
- // ************************************
- //
- // cScanline::iterator span(sl);
- //
- // uint8_t* row = m_rbuf->row(y); // The the address of the beginning
- //                                      // of the current row
- //
- // unsigned num_spans = sl.num_spans(); // Number of spans. It's guaranteed that
- //                                      // num_spans is always greater than 0.
- //
- // do
- // {
- //     int x = span.next() + base_x;        // The beginning X of the span
- //
- //     const uint8_t covers* = span.covers(); // The array of the cover values
- //
- //     int num_pix = span.num_pix();        // Number of pixels of the span.
- //                                          // Always greater than 0, still we
- //                                          // shoud use "int" instead of
- //                                          // "unsigned" because it's more
- //                                          // convenient for clipping
- //
- //     **************************************
- //     ...Perform horizontal clipping here...
- //     ...you have x, covers, and pix_count..
- //     **************************************
- //
- //     uint8_t* dst = row + x;  // Calculate the start address of the row.
- //                                    // In this case we assume a simple
- //                                    // grayscale image 1-byte per pixel.
- //     do
- //     {
- //         *dst++ = *covers++;        // Hypotetical rendering.
- //     }
- //     while(--num_pix);
- // }
- // while(--num_spans);  // num_spans cannot be 0, so this loop is quite safe
- //
- // The question is: why should we accumulate the whole cScanline when we
- // could render just separate spans when they're ready?
- // That's because using the scaline is in general faster. When is consists
- // of more than one span the conditions for the processor cash system
- // are better, because switching between two different areas of memory
- // (that can be large ones) occures less frequently.
- //}}}
+class cScanLine {
 public:
   //{{{
   class iterator {
   public:
-    iterator (const cScanline& sl) : mCover(sl.mCover), mCurcount(sl.m_counts), mCurstart_ptr(sl.m_start_ptrs) {}
+    iterator (const cScanLine& scanLine) :
+      mCover(scanLine.mCover), mCurcount(scanLine.mCounts), mCurstart_ptr(scanLine.mStartPtrs) {}
     //{{{
     int next() {
       ++mCurcount;
@@ -162,111 +84,89 @@ public:
   friend class iterator;
 
   //{{{
-  cScanline() : mMinx(0), mMaxlen(0), m_dx(0), m_dy(0), m_last_x(0x7FFF), m_last_y(0x7FFF),
-                mCover(0), m_start_ptrs(0), m_counts(0), mNumspans(0), mCurstart_ptr(0), mCurcount(0) {}
+  cScanLine() : mMinx(0), mMaxlen(0), mLastX(0x7FFF), mLastY(0x7FFF),
+                mCover(0), mStartPtrs(0), mCounts(0), mNumSpans(0), mCurstart_ptr(0), mCurcount(0) {}
   //}}}
   //{{{
-  ~cScanline() {
+  ~cScanLine() {
 
-    vPortFree (m_counts);
-    vPortFree (m_start_ptrs);
+    vPortFree (mCounts);
+    vPortFree (mStartPtrs);
     vPortFree (mCover);
     }
   //}}}
 
-  int getY() const { return m_last_y + m_dy; }
-  int getBaseX() const { return mMinx + m_dx;  }
-  unsigned getNumSpans() const { return mNumspans; }
-  int isReady (int y) const { return mNumspans && (y ^ m_last_y); }
+  int16_t getY() const { return mLastY; }
+  int16_t getBaseX() const { return mMinx;  }
+  uint16_t getNumSpans() const { return mNumSpans; }
+  int isReady (int16_t y) const { return mNumSpans && (y ^ mLastY); }
 
-  //{{{
-  void reset (int min_x, int max_x, int dx, int dy) {
-
-    unsigned max_len = max_x - min_x + 2;
-    if (max_len > mMaxlen) {
-      vPortFree (m_counts);
-      vPortFree (m_start_ptrs);
-      vPortFree (mCover);
-      mCover = (uint8_t*)pvPortMalloc (max_len);
-      m_start_ptrs = (uint8_t**)pvPortMalloc (max_len*4);
-      m_counts = (uint16_t*)pvPortMalloc (max_len*2);
-      mMaxlen = max_len;
-      }
-
-    m_dx = dx;
-    m_dy = dy;
-    m_last_x = 0x7FFF;
-    m_last_y = 0x7FFF;
-    mMinx = min_x;
-    mCurcount = m_counts;
-    mCurstart_ptr = m_start_ptrs;
-    mNumspans = 0;
-    }
-  //}}}
   //{{{
   void resetSpans() {
 
-    m_last_x = 0x7FFF;
-    m_last_y = 0x7FFF;
-    mCurcount = m_counts;
-    mCurstart_ptr = m_start_ptrs;
-    mNumspans = 0;
+    mLastX = 0x7FFF;
+    mLastY = 0x7FFF;
+    mCurcount = mCounts;
+    mCurstart_ptr = mStartPtrs;
+    mNumSpans = 0;
     }
   //}}}
-
   //{{{
-  void addCell (int x, int y, unsigned cover) {
+  void reset (int16_t min_x, int16_t max_x) {
 
-    x -= mMinx;
-    mCover[x] = (uint8_t)cover;
-
-    if (x == m_last_x+1)
-      (*mCurcount)++;
-    else {
-      *++mCurcount = 1;
-      *++mCurstart_ptr = mCover + x;
-      mNumspans++;
+    unsigned max_len = max_x - min_x + 2;
+    if (max_len > mMaxlen) {
+      vPortFree (mCounts);
+      vPortFree (mStartPtrs);
+      vPortFree (mCover);
+      mCover = (uint8_t*)pvPortMalloc (max_len);
+      mStartPtrs = (uint8_t**)pvPortMalloc (max_len*4);
+      mCounts = (uint16_t*)pvPortMalloc (max_len*2);
+      mMaxlen = max_len;
       }
 
-    m_last_x = x;
-    m_last_y = y;
+    mLastX = 0x7FFF;
+    mLastY = 0x7FFF;
+    mMinx = min_x;
+    mCurcount = mCounts;
+    mCurstart_ptr = mStartPtrs;
+    mNumSpans = 0;
     }
   //}}}
+
   //{{{
-  void addSpan (int x, int y, unsigned num, unsigned cover) {
+  void addSpan (int16_t x, int16_t y, uint16_t num, uint16_t cover) {
 
     x -= mMinx;
 
     memset (mCover + x, cover, num);
-    if (x == m_last_x+1)
+    if (x == mLastX+1)
       (*mCurcount) += (uint16_t)num;
     else {
       *++mCurcount = (uint16_t)num;
       *++mCurstart_ptr = mCover + x;
-      mNumspans++;
+      mNumSpans++;
       }
 
-    m_last_x = x + num - 1;
-    m_last_y = y;
+    mLastX = x + num - 1;
+    mLastY = y;
     }
   //}}}
 
 private:
-  cScanline (const cScanline&);
-  const cScanline& operator = (const cScanline&);
+  cScanLine (const cScanLine&);
+  const cScanLine& operator = (const cScanLine&);
 
-  int        mMinx;
-  unsigned   mMaxlen;
-  int        m_dx;
-  int        m_dy;
-  int        m_last_x;
-  int        m_last_y;
-  uint8_t*   mCover;
-  uint8_t**  m_start_ptrs;
-  uint16_t*  m_counts;
-  unsigned   mNumspans;
-  uint8_t**  mCurstart_ptr;
-  uint16_t*  mCurcount;
+  int16_t    mMinx = 0;
+  uint16_t   mMaxlen = 0;
+  int16_t    mLastX = 0x7FFF;
+  int16_t    mLastY = 0x7FFF;
+  uint8_t*   mCover = nullptr;
+  uint8_t**  mStartPtrs = nullptr;
+  uint16_t*  mCounts = nullptr;
+  uint16_t   mNumSpans = 0;
+  uint8_t**  mCurstart_ptr = nullptr;
+  uint16_t*  mCurcount = nullptr;
   };
 //}}}
 
@@ -324,7 +224,7 @@ class cRenderer {
 public:
   cRenderer (cTarget& target) : mTarget (&target) {}
   //{{{
-  void render (const cScanline& scanLine, const sRgb888a& rgba) {
+  void render (const cScanLine& scanLine, const sRgb888a& rgba) {
 
     if ((scanLine.getY() < 0) || (scanLine.getY() >= int(mTarget->height())))
       return;
@@ -334,7 +234,7 @@ public:
     int base_x = scanLine.getBaseX();
     auto row = mTarget->row (scanLine.getY());
 
-    cScanline::iterator span (scanLine);
+    cScanLine::iterator span (scanLine);
     do {
       auto x = span.next() + base_x;
       const uint8_t* covers = span.covers();
@@ -445,15 +345,15 @@ public:
   void ellipse (float x, float y, float rx, float ry) {
 
     moveTod (x + rx, y);
-    for (int i = 1; i < 360; i += 10) {
-      float a = float(i) * 3.1415926 / 180.0;
+    for (int i = 1; i < 360; i += 6) {
+      auto a = i * 3.1415926f / 180.0f;
       lineTod (x + cos(a) * rx, y + sin(a) * ry);
       }
     }
   //}}}
 
   //{{{
-  void render (cRenderer& r, const sRgb888a& rgba, int dx = 0, int dy = 0) {
+  void render (cRenderer& r, const sRgb888a& rgba) {
 
     const sPixelCell* const* cells = mOutline.cells();
     if (mOutline.numCells() == 0)
@@ -464,7 +364,7 @@ public:
     int alpha;
     int area;
 
-    mScanline.reset (mOutline.getMinx(), mOutline.getMaxx(), dx, dy);
+    mScanLine.reset (mOutline.getMinx(), mOutline.getMaxx());
 
     cover = 0;
     const sPixelCell* cur_cell = *cells++;
@@ -489,11 +389,11 @@ public:
       if (area) {
         alpha = calcAlpha ((cover << (8 + 1)) - area);
         if (alpha) {
-         if (mScanline.isReady (y)) {
-            r.render (mScanline, rgba);
-            mScanline.resetSpans();
+          if (mScanLine.isReady (y)) {
+            r.render (mScanLine, rgba);
+            mScanLine.resetSpans();
             }
-          mScanline.addCell (x, y, mGamma[alpha]);
+          mScanLine.addSpan (x, y, 1, mGamma[alpha]);
           }
         x++;
         }
@@ -504,17 +404,17 @@ public:
       if (cur_cell->x > x) {
         alpha = calcAlpha (cover << (8 + 1));
         if (alpha) {
-          if (mScanline.isReady (y)) {
-             r.render (mScanline, rgba);
-             mScanline.resetSpans();
+          if (mScanLine.isReady (y)) {
+             r.render (mScanLine, rgba);
+             mScanLine.resetSpans();
              }
-           mScanline.addSpan (x, y, cur_cell->x - x, mGamma[alpha]);
+           mScanLine.addSpan (x, y, cur_cell->x - x, mGamma[alpha]);
            }
         }
       }
 
-    if (mScanline.getNumSpans())
-      r.render (mScanline, rgba);
+    if (mScanLine.getNumSpans())
+      r.render (mScanLine, rgba);
     }
   //}}}
 
@@ -750,7 +650,7 @@ private:
     //}}}
 
     //{{{
-    void renderScanline (int ey, int x1, int y1, int x2, int y2) {
+    void renderScanLine (int ey, int x1, int y1, int x2, int y2) {
 
       int ex1 = x1 >> 8;
       int ex2 = x2 >> 8;
@@ -771,7 +671,7 @@ private:
         }
 
       //ok, we'll have to render a run of adjacent cells on the same
-      //cScanline...
+      //cScanLine...
       int p = (0x100 - fx1) * (y2 - y1);
       int first = 0x100;
       int incr = 1;
@@ -846,15 +746,15 @@ private:
       int dx = x2 - x1;
       int dy = y2 - y1;
 
-      // everything is on a single cScanline
+      // everything is on a single cScanLine
       if (ey1 == ey2) {
-        renderScanline (ey1, x1, fy1, x2, fy2);
+        renderScanLine (ey1, x1, fy1, x2, fy2);
         return;
         }
 
       // Vertical line - we have to calculate start and end cell
       // the common values of the area and coverage for all cells of the line.
-      // We know exactly there's only one cell, so, we don't have to call renderScanline().
+      // We know exactly there's only one cell, so, we don't have to call renderScanLine().
       int incr  = 1;
       if (dx == 0) {
         int ex = x1 >> 8;
@@ -885,7 +785,7 @@ private:
         return;
         }
 
-      // ok, we have to render several cScanlines
+      // ok, we have to render several cScanLines
       p  = (0x100 - fy1) * dx;
       first = 0x100;
       if (dy < 0) {
@@ -903,7 +803,7 @@ private:
         }
 
       x_from = x1 + delta;
-      renderScanline (ey1, x1, fy1, x_from, first);
+      renderScanLine (ey1, x1, fy1, x_from, first);
 
       ey1 += incr;
       set_cur_cell (x_from >> 8, ey1);
@@ -926,14 +826,14 @@ private:
             }
 
           x_to = x_from + delta;
-          renderScanline (ey1, x_from, 0x100 - first, x_to, first);
+          renderScanLine (ey1, x_from, 0x100 - first, x_to, first);
           x_from = x_to;
 
           ey1 += incr;
           set_cur_cell (x_from >> 8, ey1);
           }
         }
-      renderScanline (ey1, x_from, 0x100 - first, x2, fy2);
+      renderScanLine (ey1, x_from, 0x100 - first, x2, fy2);
       }
     //}}}
     //{{{
@@ -1096,7 +996,7 @@ private:
   //}}}
 
   cOutline mOutline;
-  cScanline mScanline;
+  cScanLine mScanLine;
   eFilling mFilling;
   uint8_t mGamma[256];
   };
