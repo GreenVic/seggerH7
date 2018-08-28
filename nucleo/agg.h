@@ -37,7 +37,7 @@ struct sRgb888a {
 //}}}
 
 //{{{
-struct sPixelCell {
+struct sCell {
 public:
   int16_t x;
   int16_t y;
@@ -97,7 +97,7 @@ public:
     vPortFree (mSortedcells);
 
     if (mNumBlocks) {
-      sPixelCell** ptr = mCells + mNumBlocks - 1;
+      sCell** ptr = mCells + mNumBlocks - 1;
       while(mNumBlocks--) {
         vPortFree (*ptr);
         ptr--;
@@ -167,7 +167,7 @@ public:
   int getMaxy() const { return mMaxy; }
 
   //{{{
-  const sPixelCell* const* getCells() {
+  const sCell* const* getCells() {
 
     if (mFlags & not_closed) {
       lineTo (m_close_x, m_close_y);
@@ -209,9 +209,6 @@ private:
   static const uint16_t kCellBlockPool = 256;
   static const uint16_t kCellBlockLimit = 1024;
 
-  cOutline (const cOutline&);
-  const cOutline& operator = (const cOutline&);
-
   //{{{
   void addCurCell() {
 
@@ -241,21 +238,21 @@ private:
     if (mNumCells > mSortedsize) {
       vPortFree (mSortedcells);
       mSortedsize = mNumCells;
-      mSortedcells = (sPixelCell**)pvPortMalloc ((mNumCells + 1) * 4);
+      mSortedcells = (sCell**)pvPortMalloc ((mNumCells + 1) * 4);
       }
 
-    sPixelCell** blockPtr = mCells;
-    sPixelCell** sortedPtr = mSortedcells;
+    sCell** blockPtr = mCells;
+    sCell** sortedPtr = mSortedcells;
 
     unsigned numBlocks = mNumCells / 4096;
     while (numBlocks--) {
-      sPixelCell* cellPtr = *blockPtr++;
+      sCell* cellPtr = *blockPtr++;
       unsigned i = kCellBlockSize * 4;
       while (i--)
         *sortedPtr++ = cellPtr++;
       }
 
-    sPixelCell* cellPtr = *blockPtr++;
+    sCell* cellPtr = *blockPtr++;
     unsigned i = mNumCells % 4096;
     while (i--)
       *sortedPtr++ = cellPtr++;
@@ -459,15 +456,15 @@ private:
 
     if (mCurblock >= mNumBlocks) {
       if (mNumBlocks >= mMaxBlocks) {
-        auto newCells = (sPixelCell**)pvPortMalloc ((mMaxBlocks + kCellBlockPool) * 4);
+        auto newCells = (sCell**)pvPortMalloc ((mMaxBlocks + kCellBlockPool) * 4);
         if (mCells) {
-          memcpy (newCells, mCells, mMaxBlocks * sizeof(sPixelCell*));
+          memcpy (newCells, mCells, mMaxBlocks * sizeof(sCell*));
           vPortFree (mCells);
           }
         mCells = newCells;
         mMaxBlocks += kCellBlockPool;
         }
-      mCells[mNumBlocks++] = (sPixelCell*)pvPortMalloc (kCellBlockSize*4*4);
+      mCells[mNumBlocks++] = (sCell*)pvPortMalloc (kCellBlockSize*4*4);
       }
 
     mCurCellPtr = mCells[mCurblock++];
@@ -475,12 +472,12 @@ private:
   //}}}
 
   //{{{
-  void qsortCells (sPixelCell** start, unsigned num) {
+  void qsortCells (sCell** start, unsigned num) {
 
-    sPixelCell**  stack[80];
-    sPixelCell*** top;
-    sPixelCell**  limit;
-    sPixelCell**  base;
+    sCell**  stack[80];
+    sCell*** top;
+    sCell**  limit;
+    sCell**  base;
 
     limit = start + num;
     base = start;
@@ -489,9 +486,9 @@ private:
     for (;;) {
       int len = int(limit - base);
 
-      sPixelCell** i;
-      sPixelCell** j;
-      sPixelCell** pivot;
+      sCell** i;
+      sCell** j;
+      sCell** pivot;
 
       if (len > 9) { // qsort_threshold)
         // we use base + len/2 as the pivot
@@ -564,11 +561,11 @@ private:
   uint16_t mCurblock;
   uint16_t mNumCells;
 
-  sPixelCell** mCells;
-  sPixelCell* mCurCellPtr;
-  sPixelCell** mSortedcells;
+  sCell** mCells;
+  sCell* mCurCellPtr;
+  sCell** mSortedcells;
   unsigned mSortedsize;
-  sPixelCell mCurCell;
+  sCell mCurCell;
 
   int mCurx;
   int mCury;
@@ -676,9 +673,6 @@ public:
   //}}}
 
 private:
-  cScanLine (const cScanLine&);
-  const cScanLine& operator = (const cScanLine&);
-
   int16_t   mMinx = 0;
   uint16_t  mMaxlen = 0;
   int16_t   mLastX = 0x7FFF;
@@ -828,7 +822,7 @@ public:
 
     mFillNonZero = fillNonZero;
 
-    const sPixelCell* const* cells = mOutline.getCells();
+    const sCell* const* cells = mOutline.getCells();
     printf ("render %d cells %d:blocks %d:maxBlocks\n",
             mOutline.getNumCells(), mOutline.getNumBlocks(), mOutline.getMaxBlocks());
     if (mOutline.getNumCells() == 0)
@@ -837,13 +831,13 @@ public:
     mScanLine.reset (mOutline.getMinx(), mOutline.getMaxx());
 
     int coverage = 0;
-    const sPixelCell* curCell = *cells++;
+    const sCell* curCell = *cells++;
     while (true) {
       int x = curCell->x;
       int y = curCell->y;
       int packedCoord = curCell->packedCoord;
 
-      const sPixelCell* startCell = curCell;
+      const sCell* startCell = curCell;
       int area = startCell->area;
       coverage += startCell->coverage;
 
@@ -888,9 +882,6 @@ public:
   //}}}
 
 private:
-  cRasteriser (const cRasteriser&);
-  const cRasteriser& operator = (const cRasteriser&);
-
   //{{{
   unsigned calcAlpha (int area) const {
 
