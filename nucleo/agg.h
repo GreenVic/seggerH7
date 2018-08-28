@@ -37,6 +37,551 @@ struct sRgb888a {
 //}}}
 
 //{{{
+struct sPixelCell {
+public:
+  int16_t x;
+  int16_t y;
+  int packedCoord;
+  int coverage;
+  int area;
+
+  //{{{
+  void set_coverage (int c, int a) {
+
+    coverage = c;
+    area = a;
+    }
+  //}}}
+  //{{{
+  void add_coverage (int c, int a) {
+
+    coverage += c;
+    area += a;
+    }
+  //}}}
+  //{{{
+  void set_coord (int16_t cx, int16_t cy) {
+    x = cx;
+    y = cy;
+    packedCoord = (cy << 16) + cx;
+    }
+  //}}}
+  //{{{
+  void set (int16_t cx, int16_t cy, int c, int a) {
+
+    x = cx;
+    y = cy;
+    packedCoord = (cy << 16) + cx;
+    coverage = c;
+    area = a;
+    }
+  //}}}
+  };
+//}}}
+//{{{
+class cOutline {
+public:
+  //{{{
+  cOutline() : mNumblocks(0), mMaxblocks(0), mCurblock(0), mNumcells(0), mCells(0),
+      mCurcell_ptr(0), mSortedcells(0), mSortedsize(0), mCurx(0), mCury(0),
+      m_close_x(0), m_close_y(0),
+      mMinx(0x7FFFFFFF), mMiny(0x7FFFFFFF), mMaxx(-0x7FFFFFFF), mMaxy(-0x7FFFFFFF),
+      mFlags(sort_required) {
+
+    mCurcell.set(0x7FFF, 0x7FFF, 0, 0);
+    }
+  //}}}
+  //{{{
+  ~cOutline() {
+
+    vPortFree (mSortedcells);
+
+    if (mNumblocks) {
+      sPixelCell** ptr = mCells + mNumblocks - 1;
+      while(mNumblocks--) {
+        vPortFree (*ptr);
+        ptr--;
+        }
+      vPortFree (mCells);
+      }
+    }
+  //}}}
+
+  //{{{
+  void reset() {
+
+    mNumcells = 0;
+    mCurblock = 0;
+    mCurcell.set (0x7FFF, 0x7FFF, 0, 0);
+    mFlags |= sort_required;
+    mFlags &= ~not_closed;
+    mMinx =  0x7FFFFFFF;
+    mMiny =  0x7FFFFFFF;
+    mMaxx = -0x7FFFFFFF;
+    mMaxy = -0x7FFFFFFF;
+    }
+  //}}}
+  //{{{
+  void moveTo (int x, int y) {
+
+    if ((mFlags & sort_required) == 0)
+      reset();
+
+    if (mFlags & not_closed)
+      lineTo (m_close_x, m_close_y);
+
+    setCurCell (x >> 8, y >> 8);
+    m_close_x = mCurx = x;
+    m_close_y = mCury = y;
+    }
+  //}}}
+  //{{{
+  void lineTo (int x, int y) {
+
+    if ((mFlags & sort_required) && ((mCurx ^ x) | (mCury ^ y))) {
+      int c = mCurx >> 8;
+      if (c < mMinx)
+        mMinx = c;
+      ++c;
+      if (c > mMaxx)
+        mMaxx = c;
+
+      c = x >> 8;
+      if (c < mMinx)
+        mMinx = c;
+      ++c;
+      if (c > mMaxx)
+        mMaxx = c;
+
+      renderLine (mCurx, mCury, x, y);
+      mCurx = x;
+      mCury = y;
+      mFlags |= not_closed;
+      }
+    }
+  //}}}
+
+  int getMinx() const { return mMinx; }
+  int getMiny() const { return mMiny; }
+  int getMaxx() const { return mMaxx; }
+  int getMaxy() const { return mMaxy; }
+
+  //{{{
+  const sPixelCell* const* getCells() {
+
+    if (mFlags & not_closed) {
+      lineTo (m_close_x, m_close_y);
+      mFlags &= ~not_closed;
+      }
+
+    // Perform sort only the first time.
+    if (mFlags & sort_required) {
+      addCurCell();
+      if (mNumcells == 0)
+        return 0;
+      sortCells();
+      mFlags &= ~sort_required;
+      }
+
+    return mSortedcells;
+    }
+  //}}}
+  unsigned getNumCells() const { return mNumcells; }
+
+private:
+  //{{{
+  template <class T> static inline void swapCells (T* a, T* b) {
+    T temp = *a;
+    *a = *b;
+    *b = temp;
+    }
+  //}}}
+  //{{{
+  template <class T> static inline bool lessThan (T* a, T* b) {
+    return (*a)->packedCoord < (*b)->packedCoord;
+    }
+  //}}}
+
+  enum { not_closed = 1, sort_required = 2 };
+  static const int kCellBlockPool = 256;
+  static const int kCellBlockLimit = 1024;
+
+  cOutline (const cOutline&);
+  const cOutline& operator = (const cOutline&);
+
+  //{{{
+  void addCurCell() {
+
+    if (mCurcell.area | mCurcell.coverage) {
+      if ((mNumcells & 0xFFF) == 0) {
+        if (mNumblocks >= kCellBlockLimit)
+          return;
+        allocateBlock();
+        }
+      *mCurcell_ptr++ = mCurcell;
+      mNumcells++;
+      }
+    }
+  //}}}
+  //{{{
+  void setCurCell (int x, int y) {
+
+    if (mCurcell.packedCoord != (y << 16) + x) {
+      addCurCell();
+      mCurcell.set (x, y, 0, 0);
+      }
+   }
+  //}}}
+  //{{{
+  void sortCells() {
+
+    if (mNumcells == 0)
+      return;
+
+    if (mNumcells > mSortedsize) {
+      vPortFree (mSortedcells);
+      mSortedsize = mNumcells;
+      mSortedcells = (sPixelCell**)pvPortMalloc ((mNumcells + 1) * 4);
+      }
+
+    sPixelCell** sorted_ptr = mSortedcells;
+    sPixelCell** block_ptr = mCells;
+    sPixelCell* cell_ptr;
+    unsigned i;
+    unsigned nb = mNumcells >> 12;
+    while (nb--) {
+      cell_ptr = *block_ptr++;
+      i = 0x1000;
+      while (i--)
+        *sorted_ptr++ = cell_ptr++;
+      }
+
+    cell_ptr = *block_ptr++;
+    i = mNumcells & 0xFFF;
+    while (i--)
+      *sorted_ptr++ = cell_ptr++;
+    mSortedcells[mNumcells] = 0;
+
+    qsortCells (mSortedcells, mNumcells);
+    }
+  //}}}
+
+  //{{{
+  void renderScanLine (int ey, int x1, int y1, int x2, int y2) {
+
+    int ex1 = x1 >> 8;
+    int ex2 = x2 >> 8;
+    int fx1 = x1 & 0xFF;
+    int fx2 = x2 & 0xFF;
+
+    // trivial case. Happens often
+    if (y1 == y2) {
+      setCurCell (ex2, ey);
+      return;
+      }
+
+    //everything is located in a single cell.  That is easy!
+    if (ex1 == ex2) {
+      int delta = y2 - y1;
+      mCurcell.add_coverage (delta, (fx1 + fx2) * delta);
+      return;
+      }
+
+    //ok, we'll have to render a run of adjacent cells on the same
+    //cScanLine...
+    int p = (0x100 - fx1) * (y2 - y1);
+    int first = 0x100;
+    int incr = 1;
+    int dx = x2 - x1;
+    if (dx < 0) {
+      p     = fx1 * (y2 - y1);
+      first = 0;
+      incr  = -1;
+      dx    = -dx;
+      }
+
+    int delta = p / dx;
+    int mod = p % dx;
+    if (mod < 0) {
+      delta--;
+      mod += dx;
+      }
+
+    mCurcell.add_coverage (delta, (fx1 + first) * delta);
+
+    ex1 += incr;
+    setCurCell (ex1, ey);
+    y1  += delta;
+    if (ex1 != ex2) {
+      p = 0x100 * (y2 - y1 + delta);
+      int lift = p / dx;
+      int rem = p % dx;
+      if (rem < 0) {
+        lift--;
+        rem += dx;
+        }
+
+      mod -= dx;
+      while (ex1 != ex2) {
+        delta = lift;
+        mod  += rem;
+        if (mod >= 0) {
+          mod -= dx;
+          delta++;
+          }
+
+        mCurcell.add_coverage (delta, (0x100) * delta);
+        y1  += delta;
+        ex1 += incr;
+        setCurCell (ex1, ey);
+        }
+      }
+    delta = y2 - y1;
+    mCurcell.add_coverage (delta, (fx2 + 0x100 - first) * delta);
+    }
+  //}}}
+  //{{{
+  void renderLine (int x1, int y1, int x2, int y2) {
+
+    int ey1 = y1 >> 8;
+    int ey2 = y2 >> 8;
+    int fy1 = y1 & 0xFF;
+    int fy2 = y2 & 0xFF;
+
+    int x_from, x_to;
+    int p, rem, mod, lift, delta, first;
+
+    if (ey1   < mMiny)
+      mMiny = ey1;
+    if (ey1+1 > mMaxy)
+      mMaxy = ey1+1;
+    if (ey2   < mMiny)
+      mMiny = ey2;
+    if (ey2+1 > mMaxy)
+      mMaxy = ey2+1;
+
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+
+    // everything is on a single cScanLine
+    if (ey1 == ey2) {
+      renderScanLine (ey1, x1, fy1, x2, fy2);
+      return;
+      }
+
+    // Vertical line - we have to calculate start and end cell
+    // the common values of the area and coverage for all cells of the line.
+    // We know exactly there's only one cell, so, we don't have to call renderScanLine().
+    int incr  = 1;
+    if (dx == 0) {
+      int ex = x1 >> 8;
+      int two_fx = (x1 - (ex << 8)) << 1;
+      first = 0x100;
+      if (dy < 0) {
+        first = 0;
+        incr  = -1;
+        }
+
+      x_from = x1;
+      delta = first - fy1;
+      mCurcell.add_coverage (delta, two_fx * delta);
+
+      ey1 += incr;
+      setCurCell (ex, ey1);
+
+      delta = first + first - 0x100;
+      int area = two_fx * delta;
+      while (ey1 != ey2) {
+        mCurcell.set_coverage (delta, area);
+        ey1 += incr;
+        setCurCell (ex, ey1);
+        }
+
+      delta = fy2 - 0x100 + first;
+      mCurcell.add_coverage (delta, two_fx * delta);
+      return;
+      }
+
+    // ok, we have to render several cScanLines
+    p  = (0x100 - fy1) * dx;
+    first = 0x100;
+    if (dy < 0) {
+      p     = fy1 * dx;
+      first = 0;
+      incr  = -1;
+      dy    = -dy;
+      }
+
+    delta = p / dy;
+    mod = p % dy;
+    if (mod < 0) {
+      delta--;
+        mod += dy;
+      }
+
+    x_from = x1 + delta;
+    renderScanLine (ey1, x1, fy1, x_from, first);
+
+    ey1 += incr;
+    setCurCell (x_from >> 8, ey1);
+
+    if (ey1 != ey2) {
+      p = 0x100 * dx;
+      lift  = p / dy;
+      rem   = p % dy;
+      if (rem < 0) {
+        lift--;
+        rem += dy;
+        }
+      mod -= dy;
+      while (ey1 != ey2) {
+        delta = lift;
+        mod  += rem;
+        if (mod >= 0) {
+          mod -= dy;
+          delta++;
+          }
+
+        x_to = x_from + delta;
+        renderScanLine (ey1, x_from, 0x100 - first, x_to, first);
+        x_from = x_to;
+
+        ey1 += incr;
+        setCurCell (x_from >> 8, ey1);
+        }
+      }
+    renderScanLine (ey1, x_from, 0x100 - first, x2, fy2);
+    }
+  //}}}
+  //{{{
+  void allocateBlock() {
+
+    if (mCurblock >= mNumblocks) {
+      if (mNumblocks >= mMaxblocks) {
+        auto newCells = (sPixelCell**)pvPortMalloc ((mMaxblocks + kCellBlockPool) * 4);
+        if (mCells) {
+          memcpy (newCells, mCells, mMaxblocks * sizeof(sPixelCell*));
+          vPortFree (mCells);
+          }
+        mCells = newCells;
+        mMaxblocks += kCellBlockPool;
+        }
+      mCells[mNumblocks++] = (sPixelCell*)pvPortMalloc (0x1000*4);
+      }
+
+    mCurcell_ptr = mCells[mCurblock++];
+    }
+  //}}}
+
+  //{{{
+  void qsortCells (sPixelCell** start, unsigned num) {
+
+    sPixelCell**  stack[80];
+    sPixelCell*** top;
+    sPixelCell**  limit;
+    sPixelCell**  base;
+
+    limit = start + num;
+    base = start;
+    top = stack;
+
+    for (;;) {
+      int len = int(limit - base);
+
+      sPixelCell** i;
+      sPixelCell** j;
+      sPixelCell** pivot;
+
+      if (len > 9) { // qsort_threshold)
+        // we use base + len/2 as the pivot
+        pivot = base + len / 2;
+        swapCells (base, pivot);
+
+        i = base + 1;
+        j = limit - 1;
+        // now ensure that *i <= *base <= *j
+        if (lessThan (j, i))
+          swapCells (i, j);
+        if (lessThan (base, i))
+          swapCells (base, i);
+        if (lessThan (j, base))
+          swapCells (base, j);
+
+        for(;;) {
+          do
+            i++;
+            while (lessThan (i, base) );
+          do
+            j--;
+            while (lessThan (base, j) );
+          if ( i > j )
+            break;
+          swapCells (i, j);
+          }
+        swapCells (base, j);
+
+        // now, push the largest sub-array
+        if(j - base > limit - i) {
+          top[0] = base;
+          top[1] = j;
+          base   = i;
+          }
+        else {
+          top[0] = i;
+          top[1] = limit;
+          limit  = j;
+          }
+        top += 2;
+        }
+      else {
+        // the sub-array is small, perform insertion sort
+        j = base;
+        i = j + 1;
+
+        for (; i < limit; j = i, i++) {
+          for (; lessThan(j + 1, j); j--) {
+            swapCells (j + 1, j);
+            if (j == base)
+              break;
+            }
+          }
+
+        if (top > stack) {
+          top  -= 2;
+          base  = top[0];
+          limit = top[1];
+          }
+        else
+          break;
+        }
+      }
+    }
+  //}}}
+
+  unsigned mNumblocks;
+  unsigned mMaxblocks;
+  unsigned mCurblock;
+  unsigned mNumcells;
+
+  sPixelCell** mCells;
+  sPixelCell* mCurcell_ptr;
+  sPixelCell** mSortedcells;
+  unsigned mSortedsize;
+  sPixelCell mCurcell;
+
+  int mCurx;
+  int mCury;
+  int m_close_x;
+  int m_close_y;
+
+  int mMinx;
+  int mMiny;
+  int mMaxx;
+  int mMaxy;
+  unsigned mFlags;
+  };
+//}}}
+//{{{
 class cScanLine {
 public:
   //{{{
@@ -149,6 +694,7 @@ private:
   uint16_t  mNumSpans = 0;
   };
 //}}}
+
 //{{{
 class cRenderer {
 public:
@@ -280,30 +826,31 @@ public:
   void render (cRenderer& renderer, const sRgb888a& rgba, bool fillNonZero = true) {
 
     mFillNonZero = fillNonZero;
-    const sPixelCell* const* cells = mOutline.cells();
+
+    const sPixelCell* const* cells = mOutline.getCells();
+    printf ("render %d cells\n", mOutline.getNumCells());
     if (mOutline.getNumCells() == 0)
       return;
 
     mScanLine.reset (mOutline.getMinx(), mOutline.getMaxx());
 
     int coverage = 0;
-    const sPixelCell* cur_cell = *cells++;
+    const sPixelCell* curCell = *cells++;
     while (true) {
-      const sPixelCell* start_cell = cur_cell;
+      int x = curCell->x;
+      int y = curCell->y;
+      int packedCoord = curCell->packedCoord;
 
-      int x = cur_cell->x;
-      int y = cur_cell->y;
-      int packedCoord = cur_cell->packedCoord;
-
-      int area = start_cell->area;
-      coverage += start_cell->coverage;
+      const sPixelCell* startCell = curCell;
+      int area = startCell->area;
+      coverage += startCell->coverage;
 
       // accumulate all start cells
-      while ((cur_cell = *cells++) != 0) {
-        if (cur_cell->packedCoord != packedCoord)
+      while ((curCell = *cells++) != 0) {
+        if (curCell->packedCoord != packedCoord)
           break;
-        area += cur_cell->area;
-        coverage += cur_cell->coverage;
+        area += curCell->area;
+        coverage += curCell->coverage;
         }
 
       if (area) {
@@ -318,17 +865,17 @@ public:
         x++;
         }
 
-      if (!cur_cell)
+      if (!curCell)
         break;
 
-      if (cur_cell->x > x) {
+      if (curCell->x > x) {
         int alpha = calcAlpha (coverage << (8 + 1));
         if (alpha) {
           if (mScanLine.isReady (y)) {
              renderer.render (mScanLine, rgba);
              mScanLine.resetSpans();
              }
-           mScanLine.addSpan (x, y, cur_cell->x - x, mGamma[alpha]);
+           mScanLine.addSpan (x, y, curCell->x - x, mGamma[alpha]);
            }
         }
       }
@@ -339,552 +886,6 @@ public:
   //}}}
 
 private:
-  //{{{
-  struct sPixelCell {
-  public:
-    int16_t x;
-    int16_t y;
-    int packedCoord;
-    int coverage;
-    int area;
-
-    //{{{
-    void set_coverage (int c, int a) {
-
-      coverage = c;
-      area = a;
-      }
-    //}}}
-    //{{{
-    void add_coverage (int c, int a) {
-
-      coverage += c;
-      area += a;
-      }
-    //}}}
-    //{{{
-    void set_coord (int16_t cx, int16_t cy) {
-      x = cx;
-      y = cy;
-      packedCoord = (cy << 16) + cx;
-      }
-    //}}}
-    //{{{
-    void set (int16_t cx, int16_t cy, int c, int a) {
-
-      x = cx;
-      y = cy;
-      packedCoord = (cy << 16) + cx;
-      coverage = c;
-      area = a;
-      }
-    //}}}
-    };
-  //}}}
-  //{{{
-  class cOutline {
-  public:
-    //{{{
-    cOutline() : mNumblocks(0), mMaxblocks(0), mCurblock(0), mNumcells(0), mCells(0),
-        mCurcell_ptr(0), mSortedcells(0), mSortedsize(0), mCurx(0), mCury(0),
-        m_close_x(0), m_close_y(0),
-        mMinx(0x7FFFFFFF), mMiny(0x7FFFFFFF), mMaxx(-0x7FFFFFFF), mMaxy(-0x7FFFFFFF),
-        mFlags(sort_required) {
-
-      mCurcell.set(0x7FFF, 0x7FFF, 0, 0);
-      }
-    //}}}
-    //{{{
-    ~cOutline() {
-
-      vPortFree (mSortedcells);
-
-      if (mNumblocks) {
-        sPixelCell** ptr = mCells + mNumblocks - 1;
-        while(mNumblocks--) {
-          vPortFree (*ptr);
-          ptr--;
-          }
-        vPortFree (mCells);
-        }
-      }
-    //}}}
-
-    //{{{
-    void reset() {
-
-      mNumcells = 0;
-      mCurblock = 0;
-      mCurcell.set (0x7FFF, 0x7FFF, 0, 0);
-      mFlags |= sort_required;
-      mFlags &= ~not_closed;
-      mMinx =  0x7FFFFFFF;
-      mMiny =  0x7FFFFFFF;
-      mMaxx = -0x7FFFFFFF;
-      mMaxy = -0x7FFFFFFF;
-      }
-    //}}}
-    //{{{
-    void moveTo (int x, int y) {
-
-      if ((mFlags & sort_required) == 0)
-        reset();
-
-      if (mFlags & not_closed)
-        lineTo (m_close_x, m_close_y);
-
-      setCurCell (x >> 8, y >> 8);
-      m_close_x = mCurx = x;
-      m_close_y = mCury = y;
-      }
-    //}}}
-    //{{{
-    void lineTo (int x, int y) {
-
-      if ((mFlags & sort_required) && ((mCurx ^ x) | (mCury ^ y))) {
-        int c = mCurx >> 8;
-        if (c < mMinx)
-          mMinx = c;
-        ++c;
-        if (c > mMaxx)
-          mMaxx = c;
-
-        c = x >> 8;
-        if (c < mMinx)
-          mMinx = c;
-        ++c;
-        if (c > mMaxx)
-          mMaxx = c;
-
-        renderLine (mCurx, mCury, x, y);
-        mCurx = x;
-        mCury = y;
-        mFlags |= not_closed;
-        }
-      }
-    //}}}
-
-    int getMinx() const { return mMinx; }
-    int getMiny() const { return mMiny; }
-    int getMaxx() const { return mMaxx; }
-    int getMaxy() const { return mMaxy; }
-
-    unsigned getNumCells() const { return mNumcells; }
-    //{{{
-    const sPixelCell* const* cells() {
-
-      if (mFlags & not_closed) {
-        lineTo (m_close_x, m_close_y);
-        mFlags &= ~not_closed;
-        }
-
-      // Perform sort only the first time.
-      if(mFlags & sort_required) {
-        addCurCell();
-        if(mNumcells == 0)
-          return 0;
-        sortCells();
-        mFlags &= ~sort_required;
-        }
-
-      return mSortedcells;
-      }
-    //}}}
-
-  private:
-    //{{{
-    template <class T> static inline void swapCells (T* a, T* b) {
-      T temp = *a;
-      *a = *b;
-      *b = temp;
-      }
-    //}}}
-    //{{{
-    template <class T> static inline bool lessThan (T* a, T* b) {
-      return (*a)->packedCoord < (*b)->packedCoord;
-      }
-    //}}}
-
-    enum { not_closed = 1, sort_required = 2 };
-    static const int kCellBlockPool = 256;
-    static const int kCellBlockLimit = 1024;
-
-    cOutline (const cOutline&);
-    const cOutline& operator = (const cOutline&);
-
-    //{{{
-    void setCurCell (int x, int y) {
-
-      if (mCurcell.packedCoord != (y << 16) + x) {
-        addCurCell();
-        mCurcell.set (x, y, 0, 0);
-        }
-     }
-    //}}}
-    //{{{
-    void addCurCell() {
-
-      if (mCurcell.area | mCurcell.coverage) {
-        if ((mNumcells & 0xFFF) == 0) {
-          if (mNumblocks >= kCellBlockLimit)
-            return;
-          allocateBlock();
-          }
-        *mCurcell_ptr++ = mCurcell;
-        mNumcells++;
-        }
-      }
-    //}}}
-    //{{{
-    void sortCells() {
-
-      if (mNumcells == 0)
-        return;
-
-      if (mNumcells > mSortedsize) {
-        vPortFree (mSortedcells);
-        mSortedsize = mNumcells;
-        mSortedcells = (sPixelCell**)pvPortMalloc ((mNumcells + 1) * 4);
-        }
-
-      sPixelCell** sorted_ptr = mSortedcells;
-      sPixelCell** block_ptr = mCells;
-      sPixelCell* cell_ptr;
-      unsigned i;
-      unsigned nb = mNumcells >> 12;
-      while (nb--) {
-        cell_ptr = *block_ptr++;
-        i = 0x1000;
-        while (i--)
-          *sorted_ptr++ = cell_ptr++;
-        }
-
-      cell_ptr = *block_ptr++;
-      i = mNumcells & 0xFFF;
-      while (i--)
-        *sorted_ptr++ = cell_ptr++;
-      mSortedcells[mNumcells] = 0;
-
-      qsortCells (mSortedcells, mNumcells);
-      }
-    //}}}
-
-    //{{{
-    void renderScanLine (int ey, int x1, int y1, int x2, int y2) {
-
-      int ex1 = x1 >> 8;
-      int ex2 = x2 >> 8;
-      int fx1 = x1 & 0xFF;
-      int fx2 = x2 & 0xFF;
-
-      // trivial case. Happens often
-      if (y1 == y2) {
-        setCurCell (ex2, ey);
-        return;
-        }
-
-      //everything is located in a single cell.  That is easy!
-      if (ex1 == ex2) {
-        int delta = y2 - y1;
-        mCurcell.add_coverage (delta, (fx1 + fx2) * delta);
-        return;
-        }
-
-      //ok, we'll have to render a run of adjacent cells on the same
-      //cScanLine...
-      int p = (0x100 - fx1) * (y2 - y1);
-      int first = 0x100;
-      int incr = 1;
-      int dx = x2 - x1;
-      if (dx < 0) {
-        p     = fx1 * (y2 - y1);
-        first = 0;
-        incr  = -1;
-        dx    = -dx;
-        }
-
-      int delta = p / dx;
-      int mod = p % dx;
-      if (mod < 0) {
-        delta--;
-        mod += dx;
-        }
-
-      mCurcell.add_coverage (delta, (fx1 + first) * delta);
-
-      ex1 += incr;
-      setCurCell (ex1, ey);
-      y1  += delta;
-      if (ex1 != ex2) {
-        p = 0x100 * (y2 - y1 + delta);
-        int lift = p / dx;
-        int rem = p % dx;
-        if (rem < 0) {
-          lift--;
-          rem += dx;
-          }
-
-        mod -= dx;
-        while (ex1 != ex2) {
-          delta = lift;
-          mod  += rem;
-          if (mod >= 0) {
-            mod -= dx;
-            delta++;
-            }
-
-          mCurcell.add_coverage (delta, (0x100) * delta);
-          y1  += delta;
-          ex1 += incr;
-          setCurCell (ex1, ey);
-          }
-        }
-      delta = y2 - y1;
-      mCurcell.add_coverage (delta, (fx2 + 0x100 - first) * delta);
-      }
-    //}}}
-    //{{{
-    void renderLine (int x1, int y1, int x2, int y2) {
-
-      int ey1 = y1 >> 8;
-      int ey2 = y2 >> 8;
-      int fy1 = y1 & 0xFF;
-      int fy2 = y2 & 0xFF;
-
-      int x_from, x_to;
-      int p, rem, mod, lift, delta, first;
-
-      if (ey1   < mMiny)
-        mMiny = ey1;
-      if (ey1+1 > mMaxy)
-        mMaxy = ey1+1;
-      if (ey2   < mMiny)
-        mMiny = ey2;
-      if (ey2+1 > mMaxy)
-        mMaxy = ey2+1;
-
-      int dx = x2 - x1;
-      int dy = y2 - y1;
-
-      // everything is on a single cScanLine
-      if (ey1 == ey2) {
-        renderScanLine (ey1, x1, fy1, x2, fy2);
-        return;
-        }
-
-      // Vertical line - we have to calculate start and end cell
-      // the common values of the area and coverage for all cells of the line.
-      // We know exactly there's only one cell, so, we don't have to call renderScanLine().
-      int incr  = 1;
-      if (dx == 0) {
-        int ex = x1 >> 8;
-        int two_fx = (x1 - (ex << 8)) << 1;
-        first = 0x100;
-        if (dy < 0) {
-          first = 0;
-          incr  = -1;
-          }
-
-        x_from = x1;
-        delta = first - fy1;
-        mCurcell.add_coverage (delta, two_fx * delta);
-
-        ey1 += incr;
-        setCurCell (ex, ey1);
-
-        delta = first + first - 0x100;
-        int area = two_fx * delta;
-        while (ey1 != ey2) {
-          mCurcell.set_coverage (delta, area);
-          ey1 += incr;
-          setCurCell (ex, ey1);
-          }
-
-        delta = fy2 - 0x100 + first;
-        mCurcell.add_coverage (delta, two_fx * delta);
-        return;
-        }
-
-      // ok, we have to render several cScanLines
-      p  = (0x100 - fy1) * dx;
-      first = 0x100;
-      if (dy < 0) {
-        p     = fy1 * dx;
-        first = 0;
-        incr  = -1;
-        dy    = -dy;
-        }
-
-      delta = p / dy;
-      mod = p % dy;
-      if (mod < 0) {
-        delta--;
-          mod += dy;
-        }
-
-      x_from = x1 + delta;
-      renderScanLine (ey1, x1, fy1, x_from, first);
-
-      ey1 += incr;
-      setCurCell (x_from >> 8, ey1);
-
-      if (ey1 != ey2) {
-        p = 0x100 * dx;
-        lift  = p / dy;
-        rem   = p % dy;
-        if (rem < 0) {
-          lift--;
-          rem += dy;
-          }
-        mod -= dy;
-        while (ey1 != ey2) {
-          delta = lift;
-          mod  += rem;
-          if (mod >= 0) {
-            mod -= dy;
-            delta++;
-            }
-
-          x_to = x_from + delta;
-          renderScanLine (ey1, x_from, 0x100 - first, x_to, first);
-          x_from = x_to;
-
-          ey1 += incr;
-          setCurCell (x_from >> 8, ey1);
-          }
-        }
-      renderScanLine (ey1, x_from, 0x100 - first, x2, fy2);
-      }
-    //}}}
-    //{{{
-    void allocateBlock() {
-
-      if (mCurblock >= mNumblocks) {
-        if (mNumblocks >= mMaxblocks) {
-          auto newCells = (sPixelCell**)pvPortMalloc ((mMaxblocks + kCellBlockPool) * 4);
-          if (mCells) {
-            memcpy (newCells, mCells, mMaxblocks * sizeof(sPixelCell*));
-            vPortFree (mCells);
-            }
-          mCells = newCells;
-          mMaxblocks += kCellBlockPool;
-          }
-        mCells[mNumblocks++] = (sPixelCell*)pvPortMalloc (0x1000*4);
-        }
-
-      mCurcell_ptr = mCells[mCurblock++];
-      }
-    //}}}
-
-    //{{{
-    void qsortCells (sPixelCell** start, unsigned num) {
-
-      sPixelCell**  stack[80];
-      sPixelCell*** top;
-      sPixelCell**  limit;
-      sPixelCell**  base;
-
-      limit = start + num;
-      base = start;
-      top = stack;
-
-      for (;;) {
-        int len = int(limit - base);
-
-        sPixelCell** i;
-        sPixelCell** j;
-        sPixelCell** pivot;
-
-        if (len > 9) { // qsort_threshold)
-          // we use base + len/2 as the pivot
-          pivot = base + len / 2;
-          swapCells (base, pivot);
-
-          i = base + 1;
-          j = limit - 1;
-          // now ensure that *i <= *base <= *j
-          if (lessThan (j, i))
-            swapCells (i, j);
-          if (lessThan (base, i))
-            swapCells (base, i);
-          if (lessThan (j, base))
-            swapCells (base, j);
-
-          for(;;) {
-            do
-              i++;
-              while (lessThan (i, base) );
-            do
-              j--;
-              while (lessThan (base, j) );
-            if ( i > j )
-              break;
-            swapCells (i, j);
-            }
-          swapCells (base, j);
-
-          // now, push the largest sub-array
-          if(j - base > limit - i) {
-            top[0] = base;
-            top[1] = j;
-            base   = i;
-            }
-          else {
-            top[0] = i;
-            top[1] = limit;
-            limit  = j;
-            }
-          top += 2;
-          }
-        else {
-          // the sub-array is small, perform insertion sort
-          j = base;
-          i = j + 1;
-
-          for (; i < limit; j = i, i++) {
-            for (; lessThan(j + 1, j); j--) {
-              swapCells (j + 1, j);
-              if (j == base)
-                break;
-              }
-            }
-
-          if (top > stack) {
-            top  -= 2;
-            base  = top[0];
-            limit = top[1];
-            }
-          else
-            break;
-          }
-        }
-      }
-    //}}}
-
-    unsigned mNumblocks;
-    unsigned mMaxblocks;
-    unsigned mCurblock;
-    unsigned mNumcells;
-
-    sPixelCell** mCells;
-    sPixelCell* mCurcell_ptr;
-    sPixelCell** mSortedcells;
-    unsigned mSortedsize;
-    sPixelCell mCurcell;
-
-    int mCurx;
-    int mCury;
-    int m_close_x;
-    int m_close_y;
-
-    int mMinx;
-    int mMiny;
-    int mMaxx;
-    int mMaxy;
-    unsigned mFlags;
-    };
-  //}}}
-
   cRasteriser (const cRasteriser&);
   const cRasteriser& operator = (const cRasteriser&);
 
