@@ -174,8 +174,7 @@ private:
 class cTarget {
 public:
   //{{{
-  cTarget (uint8_t* buf, uint16_t width, uint16_t height) :
-      mBuf(buf), mRows(nullptr), mWidth(width), mHeight(height), mMaxHeight(0) {
+  cTarget (uint8_t* buf, uint16_t width, uint16_t height) : mBuf(buf), mWidth(width), mHeight(height) {
 
     if (height > mMaxHeight) {
       vPortFree (mRows);
@@ -196,6 +195,7 @@ public:
   void setBuffer (uint8_t* buf) {
 
     mBuf = buf;
+
     uint8_t* row_ptr = mBuf;
     uint8_t** rows = mRows;
     int height = mHeight;
@@ -211,12 +211,11 @@ private:
   cTarget (const cTarget&);
   const cTarget& operator = (const cTarget&);
 
-private:
-  uint8_t*  mBuf;        // Pointer to renrdering buffer
-  uint8_t** mRows;       // Pointers to each row of the buffer
-  uint16_t  mWidth;      // Width in pixels
-  uint16_t  mHeight;     // Height in pixels
-  uint16_t  mMaxHeight;  // Maximal current height
+  uint8_t*  mBuf;            // Pointer to renrdering buffer
+  uint8_t** mRows = nullptr; // Pointers to each row of the buffer
+  uint16_t  mWidth;          // Width in pixels
+  uint16_t  mHeight;         // Height in pixels
+  uint16_t  mMaxHeight = 0;  // Maximal current height
   };
 //}}}
 //{{{
@@ -310,6 +309,21 @@ public:
     }
   //}}}
   //{{{
+  void pointedLine (float x1, float y1, float x2, float y2, float width) {
+
+    float dx = x2 - x1;
+    float dy = y2 - y1;
+    float d = sqrt(dx*dx + dy*dy);
+
+    dx = width * (y2 - y1) / d;
+    dy = width * (x2 - x1) / d;
+
+    moveTod (x1 - dx,  y1 + dy);
+    lineTod (x2,  y2);
+    lineTod (x1 + dx,  y1 - dy);
+    }
+  //}}}
+  //{{{
   void ellipse (float x, float y, float rx, float ry) {
 
     moveTod (x + rx, y);
@@ -321,44 +335,39 @@ public:
   //}}}
 
   //{{{
-  void render (cRenderer& r, const sRgb888a& rgba) {
+  void render (cRenderer& renderer, const sRgb888a& rgba) {
 
     const sPixelCell* const* cells = mOutline.cells();
     if (mOutline.numCells() == 0)
       return;
 
-    int x, y;
-    int cover;
-    int alpha;
-    int area;
-
     mScanLine.reset (mOutline.getMinx(), mOutline.getMaxx());
 
-    cover = 0;
+    int cover = 0;
     const sPixelCell* cur_cell = *cells++;
-    for(;;) {
+    while (true) {
       const sPixelCell* start_cell = cur_cell;
 
-      int coord  = cur_cell->packed_coord;
-      x = cur_cell->x;
-      y = cur_cell->y;
+      int x = cur_cell->x;
+      int y = cur_cell->y;
+      int packedCoord = cur_cell->packedCoord;
 
-      area   = start_cell->area;
+      int area = start_cell->area;
       cover += start_cell->cover;
 
       // accumulate all start cells
       while ((cur_cell = *cells++) != 0) {
-        if (cur_cell->packed_coord != coord)
+        if (cur_cell->packedCoord != packedCoord)
           break;
-        area  += cur_cell->area;
+        area += cur_cell->area;
         cover += cur_cell->cover;
         }
 
       if (area) {
-        alpha = calcAlpha ((cover << (8 + 1)) - area);
+        int alpha = calcAlpha ((cover << (8 + 1)) - area);
         if (alpha) {
           if (mScanLine.isReady (y)) {
-            r.render (mScanLine, rgba);
+            renderer.render (mScanLine, rgba);
             mScanLine.resetSpans();
             }
           mScanLine.addSpan (x, y, 1, mGamma[alpha]);
@@ -370,10 +379,10 @@ public:
         break;
 
       if (cur_cell->x > x) {
-        alpha = calcAlpha (cover << (8 + 1));
+        int alpha = calcAlpha (cover << (8 + 1));
         if (alpha) {
           if (mScanLine.isReady (y)) {
-             r.render (mScanLine, rgba);
+             renderer.render (mScanLine, rgba);
              mScanLine.resetSpans();
              }
            mScanLine.addSpan (x, y, cur_cell->x - x, mGamma[alpha]);
@@ -382,7 +391,7 @@ public:
       }
 
     if (mScanLine.getNumSpans())
-      r.render (mScanLine, rgba);
+      renderer.render (mScanLine, rgba);
     }
   //}}}
 
@@ -392,7 +401,7 @@ private:
   public:
     int16_t x;
     int16_t y;
-    int packed_coord;
+    int packedCoord;
     int cover;
     int area;
 
@@ -411,18 +420,18 @@ private:
       }
     //}}}
     //{{{
-    void set_coord (int cx, int cy) {
-      x = int16_t (cx);
-      y = int16_t (cy);
-      packed_coord = (cy << 16) + cx;
+    void set_coord (int16_t cx, int16_t cy) {
+      x = cx;
+      y = cy;
+      packedCoord = (cy << 16) + cx;
       }
     //}}}
     //{{{
-    void set (int cx, int cy, int c, int a) {
+    void set (int16_t cx, int16_t cy, int c, int a) {
 
-      x = int16_t(cx);
-      y = int16_t(cy);
-      packed_coord = (cy << 16) + cx;
+      x = cx;
+      y = cy;
+      packedCoord = (cy << 16) + cx;
       cover = c;
       area = a;
       }
@@ -437,7 +446,7 @@ private:
         mCurcell_ptr(0), mSortedcells(0), mSortedsize(0), mCurx(0), mCury(0),
         m_close_x(0), m_close_y(0),
         mMinx(0x7FFFFFFF), mMiny(0x7FFFFFFF), mMaxx(-0x7FFFFFFF), mMaxy(-0x7FFFFFFF),
-        m_flags(sort_required) {
+        mFlags(sort_required) {
 
       mCurcell.set(0x7FFF, 0x7FFF, 0, 0);
       }
@@ -464,8 +473,8 @@ private:
       mNumcells = 0;
       mCurblock = 0;
       mCurcell.set (0x7FFF, 0x7FFF, 0, 0);
-      m_flags |= sort_required;
-      m_flags &= ~not_closed;
+      mFlags |= sort_required;
+      mFlags &= ~not_closed;
       mMinx =  0x7FFFFFFF;
       mMiny =  0x7FFFFFFF;
       mMaxx = -0x7FFFFFFF;
@@ -475,13 +484,13 @@ private:
     //{{{
     void moveTo (int x, int y) {
 
-      if ((m_flags & sort_required) == 0)
+      if ((mFlags & sort_required) == 0)
         reset();
 
-      if (m_flags & not_closed)
+      if (mFlags & not_closed)
         lineTo (m_close_x, m_close_y);
 
-      set_cur_cell (x >> 8, y >> 8);
+      setCurCell (x >> 8, y >> 8);
       m_close_x = mCurx = x;
       m_close_y = mCury = y;
       }
@@ -489,7 +498,7 @@ private:
     //{{{
     void lineTo (int x, int y) {
 
-      if ((m_flags & sort_required) && ((mCurx ^ x) | (mCury ^ y))) {
+      if ((mFlags & sort_required) && ((mCurx ^ x) | (mCury ^ y))) {
         int c = mCurx >> 8;
         if (c < mMinx)
           mMinx = c;
@@ -507,7 +516,7 @@ private:
         renderLine (mCurx, mCury, x, y);
         mCurx = x;
         mCury = y;
-        m_flags |= not_closed;
+        mFlags |= not_closed;
         }
       }
     //}}}
@@ -521,18 +530,18 @@ private:
     //{{{
     const sPixelCell* const* cells() {
 
-      if (m_flags & not_closed) {
+      if (mFlags & not_closed) {
         lineTo (m_close_x, m_close_y);
-        m_flags &= ~not_closed;
+        mFlags &= ~not_closed;
         }
 
       // Perform sort only the first time.
-      if(m_flags & sort_required) {
-        add_cur_cell();
+      if(mFlags & sort_required) {
+        addCurCell();
         if(mNumcells == 0)
           return 0;
         sortCells();
-        m_flags &= ~sort_required;
+        mFlags &= ~sort_required;
         }
 
       return mSortedcells;
@@ -549,7 +558,7 @@ private:
     //}}}
     //{{{
     template <class T> static inline bool lessThan (T* a, T* b) {
-      return (*a)->packed_coord < (*b)->packed_coord;
+      return (*a)->packedCoord < (*b)->packedCoord;
       }
     //}}}
 
@@ -561,16 +570,16 @@ private:
     const cOutline& operator = (const cOutline&);
 
     //{{{
-    void set_cur_cell (int x, int y) {
+    void setCurCell (int x, int y) {
 
-      if (mCurcell.packed_coord != (y << 16) + x) {
-        add_cur_cell();
+      if (mCurcell.packedCoord != (y << 16) + x) {
+        addCurCell();
         mCurcell.set (x, y, 0, 0);
         }
      }
     //}}}
     //{{{
-    void add_cur_cell() {
+    void addCurCell() {
 
       if (mCurcell.area | mCurcell.cover) {
         if ((mNumcells & 0xFFF) == 0) {
@@ -627,7 +636,7 @@ private:
 
       // trivial case. Happens often
       if (y1 == y2) {
-        set_cur_cell (ex2, ey);
+        setCurCell (ex2, ey);
         return;
         }
 
@@ -661,7 +670,7 @@ private:
       mCurcell.add_cover (delta, (fx1 + first) * delta);
 
       ex1 += incr;
-      set_cur_cell(ex1, ey);
+      setCurCell (ex1, ey);
       y1  += delta;
       if (ex1 != ex2) {
         p = 0x100 * (y2 - y1 + delta);
@@ -684,7 +693,7 @@ private:
           mCurcell.add_cover (delta, (0x100) * delta);
           y1  += delta;
           ex1 += incr;
-          set_cur_cell (ex1, ey);
+          setCurCell (ex1, ey);
           }
         }
       delta = y2 - y1;
@@ -738,14 +747,14 @@ private:
         mCurcell.add_cover (delta, two_fx * delta);
 
         ey1 += incr;
-        set_cur_cell (ex, ey1);
+        setCurCell (ex, ey1);
 
         delta = first + first - 0x100;
         int area = two_fx * delta;
         while (ey1 != ey2) {
           mCurcell.set_cover (delta, area);
           ey1 += incr;
-          set_cur_cell (ex, ey1);
+          setCurCell (ex, ey1);
           }
 
         delta = fy2 - 0x100 + first;
@@ -774,7 +783,7 @@ private:
       renderScanLine (ey1, x1, fy1, x_from, first);
 
       ey1 += incr;
-      set_cur_cell (x_from >> 8, ey1);
+      setCurCell (x_from >> 8, ey1);
 
       if (ey1 != ey2) {
         p = 0x100 * dx;
@@ -798,7 +807,7 @@ private:
           x_from = x_to;
 
           ey1 += incr;
-          set_cur_cell (x_from >> 8, ey1);
+          setCurCell (x_from >> 8, ey1);
           }
         }
       renderScanLine (ey1, x_from, 0x100 - first, x2, fy2);
@@ -929,7 +938,7 @@ private:
     int mMiny;
     int mMaxx;
     int mMaxy;
-    unsigned m_flags;
+    unsigned mFlags;
     };
   //}}}
 
