@@ -818,10 +818,8 @@ public:
       int x = curCell->mPackedCoord & 0xFFFF;
       int y = curCell->mPackedCoord >> 16;
       int packedCoord = curCell->mPackedCoord;
-
-      const sCell* startCell = curCell;
-      int area = startCell->mArea;
-      coverage += startCell->mCoverage;
+      int area = curCell->mArea;
+      coverage += curCell->mCoverage;
 
       // accumulate all start cells
       while ((curCell = *cells++) != 0) {
