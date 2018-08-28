@@ -82,13 +82,13 @@ public:
 class cOutline {
 public:
   //{{{
-  cOutline() : mNumblocks(0), mMaxblocks(0), mCurblock(0), mNumCells(0), mCells(0),
-      mCurcellPtr(0), mSortedcells(0), mSortedsize(0), mCurx(0), mCury(0),
+  cOutline() : mNumBlocks(0), mMaxBlocks(0), mCurblock(0), mNumCells(0), mCells(0),
+      mCurCellPtr(0), mSortedcells(0), mSortedsize(0), mCurx(0), mCury(0),
       m_close_x(0), m_close_y(0),
       mMinx(0x7FFFFFFF), mMiny(0x7FFFFFFF), mMaxx(-0x7FFFFFFF), mMaxy(-0x7FFFFFFF),
       mFlags(sort_required) {
 
-    mCurcell.set(0x7FFF, 0x7FFF, 0, 0);
+    mCurCell.set(0x7FFF, 0x7FFF, 0, 0);
     }
   //}}}
   //{{{
@@ -96,9 +96,9 @@ public:
 
     vPortFree (mSortedcells);
 
-    if (mNumblocks) {
-      sPixelCell** ptr = mCells + mNumblocks - 1;
-      while(mNumblocks--) {
+    if (mNumBlocks) {
+      sPixelCell** ptr = mCells + mNumBlocks - 1;
+      while(mNumBlocks--) {
         vPortFree (*ptr);
         ptr--;
         }
@@ -112,7 +112,7 @@ public:
 
     mNumCells = 0;
     mCurblock = 0;
-    mCurcell.set (0x7FFF, 0x7FFF, 0, 0);
+    mCurCell.set (0x7FFF, 0x7FFF, 0, 0);
     mFlags |= sort_required;
     mFlags &= ~not_closed;
     mMinx =  0x7FFFFFFF;
@@ -187,8 +187,8 @@ public:
     }
   //}}}
   uint16_t getNumCells() const { return mNumCells; }
-  uint16_t getNumBlocks() const { return mNumblocks; }
-  uint16_t getMaxBlocks() const { return mMaxblocks; }
+  uint16_t getNumBlocks() const { return mNumBlocks; }
+  uint16_t getMaxBlocks() const { return mMaxBlocks; }
 
 private:
   //{{{
@@ -215,15 +215,10 @@ private:
   //{{{
   void addCurCell() {
 
-    if (mCurcell.area | mCurcell.coverage) {
-      if ((mNumCells % 4096) == 0) {
-        if (mNumblocks >= kCellBlockLimit) {
-          printf ("too many blocks\n");
-          return;
-          }
+    if (mCurCell.area | mCurCell.coverage) {
+      if ((mNumCells % 4096) == 0)
         allocateBlock();
-        }
-      *mCurcellPtr++ = mCurcell;
+      *mCurCellPtr++ = mCurCell;
       mNumCells++;
       }
     }
@@ -231,9 +226,9 @@ private:
   //{{{
   void setCurCell (int x, int y) {
 
-    if (mCurcell.packedCoord != (y << 16) + x) {
+    if (mCurCell.packedCoord != (y << 16) + x) {
       addCurCell();
-      mCurcell.set (x, y, 0, 0);
+      mCurCell.set (x, y, 0, 0);
       }
    }
   //}}}
@@ -287,7 +282,7 @@ private:
     //everything is located in a single cell.  That is easy!
     if (ex1 == ex2) {
       int delta = y2 - y1;
-      mCurcell.add_coverage (delta, (fx1 + fx2) * delta);
+      mCurCell.add_coverage (delta, (fx1 + fx2) * delta);
       return;
       }
 
@@ -311,7 +306,7 @@ private:
       mod += dx;
       }
 
-    mCurcell.add_coverage (delta, (fx1 + first) * delta);
+    mCurCell.add_coverage (delta, (fx1 + first) * delta);
 
     ex1 += incr;
     setCurCell (ex1, ey);
@@ -334,14 +329,14 @@ private:
           delta++;
           }
 
-        mCurcell.add_coverage (delta, (0x100) * delta);
+        mCurCell.add_coverage (delta, (0x100) * delta);
         y1  += delta;
         ex1 += incr;
         setCurCell (ex1, ey);
         }
       }
     delta = y2 - y1;
-    mCurcell.add_coverage (delta, (fx2 + 0x100 - first) * delta);
+    mCurCell.add_coverage (delta, (fx2 + 0x100 - first) * delta);
     }
   //}}}
   //{{{
@@ -388,7 +383,7 @@ private:
 
       x_from = x1;
       delta = first - fy1;
-      mCurcell.add_coverage (delta, two_fx * delta);
+      mCurCell.add_coverage (delta, two_fx * delta);
 
       ey1 += incr;
       setCurCell (ex, ey1);
@@ -396,13 +391,13 @@ private:
       delta = first + first - 0x100;
       int area = two_fx * delta;
       while (ey1 != ey2) {
-        mCurcell.set_coverage (delta, area);
+        mCurCell.set_coverage (delta, area);
         ey1 += incr;
         setCurCell (ex, ey1);
         }
 
       delta = fy2 - 0x100 + first;
-      mCurcell.add_coverage (delta, two_fx * delta);
+      mCurCell.add_coverage (delta, two_fx * delta);
       return;
       }
 
@@ -460,22 +455,22 @@ private:
   //{{{
   void allocateBlock() {
 
-    printf ("allocateBlock\n");
+    printf ("allocateBlock cur:%d num:%d max:%d\n", mCurblock, mNumBlocks, mMaxBlocks);
 
-    if (mCurblock >= mNumblocks) {
-      if (mNumblocks >= mMaxblocks) {
-        auto newCells = (sPixelCell**)pvPortMalloc ((mMaxblocks + kCellBlockPool) * 4);
+    if (mCurblock >= mNumBlocks) {
+      if (mNumBlocks >= mMaxBlocks) {
+        auto newCells = (sPixelCell**)pvPortMalloc ((mMaxBlocks + kCellBlockPool) * 4);
         if (mCells) {
-          memcpy (newCells, mCells, mMaxblocks * sizeof(sPixelCell*));
+          memcpy (newCells, mCells, mMaxBlocks * sizeof(sPixelCell*));
           vPortFree (mCells);
           }
         mCells = newCells;
-        mMaxblocks += kCellBlockPool;
+        mMaxBlocks += kCellBlockPool;
         }
-      mCells[mNumblocks++] = (sPixelCell*)pvPortMalloc (kCellBlockSize*4*4);
+      mCells[mNumBlocks++] = (sPixelCell*)pvPortMalloc (kCellBlockSize*4*4);
       }
 
-    mCurcellPtr = mCells[mCurblock++];
+    mCurCellPtr = mCells[mCurblock++];
     }
   //}}}
 
@@ -564,16 +559,16 @@ private:
     }
   //}}}
 
-  uint16_t mNumblocks;
-  uint16_t mMaxblocks;
+  uint16_t mNumBlocks;
+  uint16_t mMaxBlocks;
   uint16_t mCurblock;
   uint16_t mNumCells;
 
   sPixelCell** mCells;
-  sPixelCell* mCurcellPtr;
+  sPixelCell* mCurCellPtr;
   sPixelCell** mSortedcells;
   unsigned mSortedsize;
-  sPixelCell mCurcell;
+  sPixelCell mCurCell;
 
   int mCurx;
   int mCury;
