@@ -83,7 +83,7 @@ class cOutline {
 public:
   //{{{
   cOutline() : mNumBlocks(0), mMaxBlocks(0), mCurblock(0), mNumCells(0), mCells(0),
-      mCurCellPtr(0), mSortedcells(0), mSortedsize(0), mCurx(0), mCury(0),
+      mCurCellPtr(0), mSortedCells(0), mSortedSize(0), mCurx(0), mCury(0),
       m_close_x(0), m_close_y(0),
       mMinx(0x7FFFFFFF), mMiny(0x7FFFFFFF), mMaxx(-0x7FFFFFFF), mMaxy(-0x7FFFFFFF),
       mFlags(sort_required) {
@@ -94,7 +94,7 @@ public:
   //{{{
   ~cOutline() {
 
-    vPortFree (mSortedcells);
+    vPortFree (mSortedCells);
 
     if (mNumBlocks) {
       sCell** ptr = mCells + mNumBlocks - 1;
@@ -183,7 +183,7 @@ public:
       mFlags &= ~sort_required;
       }
 
-    return mSortedcells;
+    return mSortedCells;
     }
   //}}}
   uint16_t getNumCells() const { return mNumCells; }
@@ -207,7 +207,6 @@ private:
   enum { not_closed = 1, sort_required = 2 };
   static const uint16_t kCellBlockSize = 1024;
   static const uint16_t kCellBlockPool = 256;
-  static const uint16_t kCellBlockLimit = 1024;
 
   //{{{
   void addCurCell() {
@@ -235,14 +234,14 @@ private:
     if (mNumCells == 0)
       return;
 
-    if (mNumCells > mSortedsize) {
-      vPortFree (mSortedcells);
-      mSortedsize = mNumCells;
-      mSortedcells = (sCell**)pvPortMalloc ((mNumCells + 1) * 4);
+    if (mNumCells > mSortedSize) {
+      vPortFree (mSortedCells);
+      mSortedSize = mNumCells;
+      mSortedCells = (sCell**)pvPortMalloc ((mNumCells + 1) * 4);
       }
 
     sCell** blockPtr = mCells;
-    sCell** sortedPtr = mSortedcells;
+    sCell** sortedPtr = mSortedCells;
 
     unsigned numBlocks = mNumCells / 4096;
     while (numBlocks--) {
@@ -256,9 +255,9 @@ private:
     unsigned i = mNumCells % 4096;
     while (i--)
       *sortedPtr++ = cellPtr++;
-    mSortedcells[mNumCells] = 0;
+    mSortedCells[mNumCells] = 0;
 
-    qsortCells (mSortedcells, mNumCells);
+    qsortCells (mSortedCells, mNumCells);
     }
   //}}}
 
@@ -563,8 +562,8 @@ private:
 
   sCell** mCells;
   sCell* mCurCellPtr;
-  sCell** mSortedcells;
-  unsigned mSortedsize;
+  sCell** mSortedCells;
+  unsigned mSortedSize;
   sCell mCurCell;
 
   int mCurx;
