@@ -17,23 +17,23 @@ struct sRgb888a {
   };
 //}}}
 //{{{
-struct sRgb565a {
-  sRgb565a (uint8_t r_, uint8_t g_, uint8_t b_, uint8_t a_= 255) : r(r_), g(g_), b(b_), a(a_) {}
+//struct sRgb565a {
+  //sRgb565a (uint8_t r_, uint8_t g_, uint8_t b_, uint8_t a_= 255) : r(r_), g(g_), b(b_), a(a_) {}
 
-  unsigned int r:5;
-  unsigned int g:6;
-  unsigned int b:5;
-  unsigned int a:8;
-  };
+  //unsigned int r:5;
+  //unsigned int g:6;
+  //unsigned int b:5;
+  //unsigned int a:8;
+  //};
 //}}}
 //{{{
-struct sRgb565 {
-  sRgb565 (uint8_t r_, uint8_t g_, uint8_t b_) : r(r_), g(g_), b(b_) {}
+//struct sRgb565 {
+  //sRgb565 (uint8_t r_, uint8_t g_, uint8_t b_) : r(r_), g(g_), b(b_) {}
 
-  unsigned int r:5;
-  unsigned int g:6;
-  unsigned int b:5;
-  };
+  //unsigned int r:5;
+  //unsigned int g:6;
+  //unsigned int b:5;
+  //};
 //}}}
 
 //{{{
@@ -52,7 +52,7 @@ public:
       }
 
     int getNumPix() const { return int(*mCurCount); }
-    const uint8_t* getCover() const { return *mCurStartPtr; }
+    const uint8_t* getCoverage() const { return *mCurStartPtr; }
 
   private:
     const uint8_t* mCoverage;
@@ -111,11 +111,11 @@ public:
   //}}}
 
   //{{{
-  void addSpan (int16_t x, int16_t y, uint16_t num, uint16_t cover) {
+  void addSpan (int16_t x, int16_t y, uint16_t num, uint16_t coverage) {
 
     x -= mMinx;
 
-    memset (mCoverage + x, cover, num);
+    memset (mCoverage + x, coverage, num);
     if (x == mLastX+1)
       (*mCurCount) += (uint16_t)num;
     else {
@@ -169,13 +169,13 @@ public:
     cScanLine::iterator span (scanLine);
     do {
       auto x = baseX + span.next() ;
-      uint8_t* cover = (uint8_t*)span.getCover();
+      uint8_t* coverage = (uint8_t*)span.getCoverage();
       int16_t numPix = span.getNumPix();
       if (x < 0) {
         numPix += x;
         if (numPix <= 0)
           continue;
-        cover -= x;
+        coverage -= x;
         x = 0;
         }
       if (x + numPix >= mLcd->getWidth()) {
@@ -185,16 +185,16 @@ public:
         }
 
       if (rgba.a < 255) {
-        //{{{  apply alpha to cover
+        //{{{  apply alpha to coverage
         auto numPixa = numPix;
-        uint8_t* covera = cover;
+        uint8_t* coveragea = coverage;
         do {
-          uint16_t value = *covera * rgba.a;
-          *covera++ = value >> 8;
+          uint16_t value = *coveragea * rgba.a;
+          *coveragea++ = value >> 8;
           } while (--numPixa);
         }
         //}}}
-      mLcd->stamp (col, cover, cRect (x, y, x+numPix, scanLine.getY()+1));
+      mLcd->stamp (col, coverage, cRect (x, y, x+numPix, scanLine.getY()+1));
       } while (--numSpans);
     }
 
@@ -205,9 +205,13 @@ private:
 //{{{
 class cRasteriser {
 public:
-  enum eFilling { fill_non_zero, fill_even_odd };
-
-  cRasteriser() { gamma (1.2); }
+  //{{{
+  cRasteriser() {
+    // set gamma 1.2 lut
+    for (unsigned i = 0; i < 256; i++)
+      mGamma[i] = (uint8_t)(pow(double(i) / 255.0, 1.2) * 255.0);
+    }
+  //}}}
 
   void moveTo (int x, int y) { mOutline.moveTo (x, y); }
   void lineTo (int x, int y) { mOutline.lineTo (x, y); }
@@ -273,16 +277,16 @@ public:
   //}}}
 
   //{{{
-  void render (cRenderer& renderer, const sRgb888a& rgba, eFilling filling = fill_non_zero) {
+  void render (cRenderer& renderer, const sRgb888a& rgba, bool fillNonZero = true) {
 
-    mFilling = filling;
+    mFillNonZero = fillNonZero;
     const sPixelCell* const* cells = mOutline.cells();
     if (mOutline.numCells() == 0)
       return;
 
     mScanLine.reset (mOutline.getMinx(), mOutline.getMaxx());
 
-    int cover = 0;
+    int coverage = 0;
     const sPixelCell* cur_cell = *cells++;
     while (true) {
       const sPixelCell* start_cell = cur_cell;
@@ -292,18 +296,18 @@ public:
       int packedCoord = cur_cell->packedCoord;
 
       int area = start_cell->area;
-      cover += start_cell->cover;
+      coverage += start_cell->coverage;
 
       // accumulate all start cells
       while ((cur_cell = *cells++) != 0) {
         if (cur_cell->packedCoord != packedCoord)
           break;
         area += cur_cell->area;
-        cover += cur_cell->cover;
+        coverage += cur_cell->coverage;
         }
 
       if (area) {
-        int alpha = calcAlpha ((cover << (8 + 1)) - area);
+        int alpha = calcAlpha ((coverage << (8 + 1)) - area);
         if (alpha) {
           if (mScanLine.isReady (y)) {
             renderer.render (mScanLine, rgba);
@@ -318,7 +322,7 @@ public:
         break;
 
       if (cur_cell->x > x) {
-        int alpha = calcAlpha (cover << (8 + 1));
+        int alpha = calcAlpha (coverage << (8 + 1));
         if (alpha) {
           if (mScanLine.isReady (y)) {
              renderer.render (mScanLine, rgba);
@@ -341,20 +345,20 @@ private:
     int16_t x;
     int16_t y;
     int packedCoord;
-    int cover;
+    int coverage;
     int area;
 
     //{{{
-    void set_cover (int c, int a) {
+    void set_coverage (int c, int a) {
 
-      cover = c;
+      coverage = c;
       area = a;
       }
     //}}}
     //{{{
-    void add_cover (int c, int a) {
+    void add_coverage (int c, int a) {
 
-      cover += c;
+      coverage += c;
       area += a;
       }
     //}}}
@@ -371,7 +375,7 @@ private:
       x = cx;
       y = cy;
       packedCoord = (cy << 16) + cx;
-      cover = c;
+      coverage = c;
       area = a;
       }
     //}}}
@@ -520,7 +524,7 @@ private:
     //{{{
     void addCurCell() {
 
-      if (mCurcell.area | mCurcell.cover) {
+      if (mCurcell.area | mCurcell.coverage) {
         if ((mNumcells & 0xFFF) == 0) {
           if (mNumblocks >= kCellBlockLimit)
             return;
@@ -582,7 +586,7 @@ private:
       //everything is located in a single cell.  That is easy!
       if (ex1 == ex2) {
         int delta = y2 - y1;
-        mCurcell.add_cover (delta, (fx1 + fx2) * delta);
+        mCurcell.add_coverage (delta, (fx1 + fx2) * delta);
         return;
         }
 
@@ -606,7 +610,7 @@ private:
         mod += dx;
         }
 
-      mCurcell.add_cover (delta, (fx1 + first) * delta);
+      mCurcell.add_coverage (delta, (fx1 + first) * delta);
 
       ex1 += incr;
       setCurCell (ex1, ey);
@@ -629,14 +633,14 @@ private:
             delta++;
             }
 
-          mCurcell.add_cover (delta, (0x100) * delta);
+          mCurcell.add_coverage (delta, (0x100) * delta);
           y1  += delta;
           ex1 += incr;
           setCurCell (ex1, ey);
           }
         }
       delta = y2 - y1;
-      mCurcell.add_cover (delta, (fx2 + 0x100 - first) * delta);
+      mCurcell.add_coverage (delta, (fx2 + 0x100 - first) * delta);
       }
     //}}}
     //{{{
@@ -683,7 +687,7 @@ private:
 
         x_from = x1;
         delta = first - fy1;
-        mCurcell.add_cover (delta, two_fx * delta);
+        mCurcell.add_coverage (delta, two_fx * delta);
 
         ey1 += incr;
         setCurCell (ex, ey1);
@@ -691,13 +695,13 @@ private:
         delta = first + first - 0x100;
         int area = two_fx * delta;
         while (ey1 != ey2) {
-          mCurcell.set_cover (delta, area);
+          mCurcell.set_coverage (delta, area);
           ey1 += incr;
           setCurCell (ex, ey1);
           }
 
         delta = fy2 - 0x100 + first;
-        mCurcell.add_cover (delta, two_fx * delta);
+        mCurcell.add_coverage (delta, two_fx * delta);
         return;
         }
 
@@ -885,35 +889,28 @@ private:
   const cRasteriser& operator = (const cRasteriser&);
 
   //{{{
-  void gamma (double g) {
-
-    for (unsigned i = 0; i < 256; i++)
-      mGamma[i] = (uint8_t)(pow(double(i) / 255.0, g) * 255.0);
-    }
-  //}}}
-  //{{{
   unsigned calcAlpha (int area) const {
 
-    int cover = area >> (8*2 + 1 - 8);
-    if (cover < 0)
-      cover = -cover;
+    int coverage = area >> (8*2 + 1 - 8);
+    if (coverage < 0)
+      coverage = -coverage;
 
-    if (mFilling == fill_even_odd) {
-      cover &= 0x1FF;
-      if (cover > 0x100)
-        cover = 0x200 - cover;
+    if (!mFillNonZero) {
+      coverage &= 0x1FF;
+      if (coverage > 0x100)
+        coverage = 0x200 - coverage;
       }
 
-    if (cover > 0xFF)
-      cover = 0xFF;
+    if (coverage > 0xFF)
+      coverage = 0xFF;
 
-    return cover;
+    return coverage;
     }
   //}}}
 
   cOutline mOutline;
   cScanLine mScanLine;
-  eFilling mFilling = fill_even_odd;
+  bool mFillNonZero = true;
   uint8_t mGamma[256];
   };
 //}}}

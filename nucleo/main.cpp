@@ -184,7 +184,7 @@ void uiThread (void* arg) {
       float secondRadius = radius * 0.95f;
 
       rasteriser.outEllipse (centre.x, centre.y, radius, radius, 4.0f);
-      rasteriser.render (renderer, sRgb888a (160,160,160, 255), cRasteriser::fill_even_odd);
+      rasteriser.render (renderer, sRgb888a (160,160,160, 255), false);
 
       rasteriser.pointedLine (centre.x, centre.y,
                        centre.x + (hourRadius * sin (hourAngle)),
