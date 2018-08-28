@@ -212,7 +212,7 @@ private:
   void addCurCell() {
 
     if (mCurCell.area | mCurCell.coverage) {
-      if ((mNumCells % 4096) == 0)
+      if ((mNumCells % 1024) == 0)
         allocateBlock();
       *mCurCellPtr++ = mCurCell;
       mNumCells++;
@@ -243,7 +243,7 @@ private:
     sCell** blockPtr = mCells;
     sCell** sortedPtr = mSortedCells;
 
-    unsigned numBlocks = mNumCells / 4096;
+    unsigned numBlocks = mNumCells / 1024;
     while (numBlocks--) {
       sCell* cellPtr = *blockPtr++;
       unsigned i = kCellBlockSize * 4;
@@ -252,7 +252,7 @@ private:
       }
 
     sCell* cellPtr = *blockPtr++;
-    unsigned i = mNumCells % 4096;
+    unsigned i = mNumCells % 1024;
     while (i--)
       *sortedPtr++ = cellPtr++;
     mSortedCells[mNumCells] = 0;
