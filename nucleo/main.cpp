@@ -27,8 +27,8 @@ using namespace std;
 
 const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
 //const cPoint centre = cPoint (512, 300);
-const cPoint centre = cPoint (512, 300);
-float radius = 125.0f;
+const cPoint centre = cPoint (1024-70, 600-70-40);
+float radius = 65.f;
 
 // vars
 FATFS fatFs;
@@ -179,12 +179,12 @@ void uiThread (void* arg) {
       float subSecondAngle;
       mRtc->getClockAngles (hourAngle, minuteAngle, secondAngle, subSecondAngle);
 
-      float hourRadius = radius * 0.7f;
-      float minuteRadius = radius * 0.8f;
+      float hourRadius = radius * 0.75f;
+      float minuteRadius = radius * 0.85f;
       float secondRadius = radius * 0.95f;
 
-      rasteriser.ellipse (centre.x, centre.y, radius, radius);
-      rasteriser.render (renderer, sRgb888a (128,128,128, 128));
+      rasteriser.outEllipse (centre.x, centre.y, radius, radius, 4.0f);
+      rasteriser.render (renderer, sRgb888a (160,160,160, 255), cRasteriser::fill_even_odd);
 
       rasteriser.pointedLine (centre.x, centre.y,
                        centre.x + (hourRadius * sin (hourAngle)),

@@ -207,7 +207,7 @@ class cRasteriser {
 public:
   enum eFilling { fill_non_zero, fill_even_odd };
 
-  cRasteriser() : mFilling (fill_non_zero) { gamma (1.2); }
+  cRasteriser() { gamma (1.2); }
 
   int getMinx() const { return mOutline.getMinx(); }
   int getMiny() const { return mOutline.getMiny(); }
@@ -263,10 +263,27 @@ public:
       }
     }
   //}}}
+  //{{{
+  void outEllipse (float x, float y, float rx, float ry, float thick) {
+
+    moveTod (x + rx, y);
+    for (int i = 1; i < 360; i += 6) {
+      auto a = i * 3.1415926f / 180.0f;
+      lineTod (x + cos(a) * rx, y + sin(a) * ry);
+      }
+
+    moveTod (x + rx - thick, y);
+    for (int i = 1; i < 360; i += 6) {
+      auto a = (360 - i) * 3.1415926f / 180.0f;
+      lineTod (x + cos(a) * (rx-thick), y + sin(a) * (ry-thick));
+      }
+    }
+  //}}}
 
   //{{{
-  void render (cRenderer& renderer, const sRgb888a& rgba) {
+  void render (cRenderer& renderer, const sRgb888a& rgba, eFilling filling = fill_non_zero) {
 
+    mFilling = filling;
     const sPixelCell* const* cells = mOutline.cells();
     if (mOutline.numCells() == 0)
       return;
@@ -904,7 +921,7 @@ private:
 
   cOutline mOutline;
   cScanLine mScanLine;
-  eFilling mFilling;
+  eFilling mFilling = fill_even_odd;
   uint8_t mGamma[256];
   };
 //}}}
