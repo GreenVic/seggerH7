@@ -63,36 +63,32 @@ public:
   class iterator {
   public:
     iterator (const cScanLine& scanLine) :
-      mCover(scanLine.mCover), mCurcount(scanLine.mCounts), mCurstart_ptr(scanLine.mStartPtrs) {}
-    //{{{
-    int next() {
-      ++mCurcount;
-      ++mCurstart_ptr;
-      return int(*mCurstart_ptr - mCover);
-      }
-    //}}}
+      mCoverage(scanLine.mCoverage), mCurCount(scanLine.mCounts), mCurStartPtr(scanLine.mStartPtrs) {}
 
-    int num_pix() const { return int(*mCurcount); }
-    const uint8_t* covers() const { return *mCurstart_ptr; }
+    int next() {
+      ++mCurCount;
+      ++mCurStartPtr;
+      return int(*mCurStartPtr - mCoverage);
+      }
+
+    int getNumPix() const { return int(*mCurCount); }
+    const uint8_t* getCover() const { return *mCurStartPtr; }
 
   private:
-    const uint8_t* mCover;
-    const uint16_t* mCurcount;
-    const uint8_t* const* mCurstart_ptr;
+    const uint8_t* mCoverage;
+    const uint16_t* mCurCount;
+    const uint8_t* const* mCurStartPtr;
     };
   //}}}
   friend class iterator;
 
-  //{{{
-  cScanLine() : mMinx(0), mMaxlen(0), mLastX(0x7FFF), mLastY(0x7FFF),
-                mCover(0), mStartPtrs(0), mCounts(0), mNumSpans(0), mCurstart_ptr(0), mCurcount(0) {}
-  //}}}
+  cScanLine() {}
   //{{{
   ~cScanLine() {
 
     vPortFree (mCounts);
     vPortFree (mStartPtrs);
-    vPortFree (mCover);
+    vPortFree (mCoverage);
     }
   //}}}
 
@@ -106,8 +102,8 @@ public:
 
     mLastX = 0x7FFF;
     mLastY = 0x7FFF;
-    mCurcount = mCounts;
-    mCurstart_ptr = mStartPtrs;
+    mCurCount = mCounts;
+    mCurStartPtr = mStartPtrs;
     mNumSpans = 0;
     }
   //}}}
@@ -118,8 +114,8 @@ public:
     if (max_len > mMaxlen) {
       vPortFree (mCounts);
       vPortFree (mStartPtrs);
-      vPortFree (mCover);
-      mCover = (uint8_t*)pvPortMalloc (max_len);
+      vPortFree (mCoverage);
+      mCoverage = (uint8_t*)pvPortMalloc (max_len);
       mStartPtrs = (uint8_t**)pvPortMalloc (max_len*4);
       mCounts = (uint16_t*)pvPortMalloc (max_len*2);
       mMaxlen = max_len;
@@ -128,8 +124,8 @@ public:
     mLastX = 0x7FFF;
     mLastY = 0x7FFF;
     mMinx = min_x;
-    mCurcount = mCounts;
-    mCurstart_ptr = mStartPtrs;
+    mCurCount = mCounts;
+    mCurStartPtr = mStartPtrs;
     mNumSpans = 0;
     }
   //}}}
@@ -139,12 +135,12 @@ public:
 
     x -= mMinx;
 
-    memset (mCover + x, cover, num);
+    memset (mCoverage + x, cover, num);
     if (x == mLastX+1)
-      (*mCurcount) += (uint16_t)num;
+      (*mCurCount) += (uint16_t)num;
     else {
-      *++mCurcount = (uint16_t)num;
-      *++mCurstart_ptr = mCover + x;
+      *++mCurCount = (uint16_t)num;
+      *++mCurStartPtr = mCoverage + x;
       mNumSpans++;
       }
 
@@ -157,16 +153,20 @@ private:
   cScanLine (const cScanLine&);
   const cScanLine& operator = (const cScanLine&);
 
-  int16_t    mMinx = 0;
-  uint16_t   mMaxlen = 0;
-  int16_t    mLastX = 0x7FFF;
-  int16_t    mLastY = 0x7FFF;
-  uint8_t*   mCover = nullptr;
-  uint8_t**  mStartPtrs = nullptr;
-  uint16_t*  mCounts = nullptr;
-  uint16_t   mNumSpans = 0;
-  uint8_t**  mCurstart_ptr = nullptr;
-  uint16_t*  mCurcount = nullptr;
+  int16_t   mMinx = 0;
+  uint16_t  mMaxlen = 0;
+  int16_t   mLastX = 0x7FFF;
+  int16_t   mLastY = 0x7FFF;
+
+  uint8_t*  mCoverage = nullptr;
+
+  uint8_t** mStartPtrs = nullptr;
+  uint8_t** mCurStartPtr = nullptr;
+
+  uint16_t* mCounts = nullptr;
+  uint16_t* mCurCount = nullptr;
+
+  uint16_t  mNumSpans = 0;
   };
 //}}}
 
@@ -222,59 +222,55 @@ private:
 //{{{
 class cRenderer {
 public:
-  cRenderer (cTarget& target) : mTarget (&target) {}
-  //{{{
+  cRenderer (cTarget& target, cLcd* lcd) : mTarget(target), mLcd(lcd) {}
+
   void render (const cScanLine& scanLine, const sRgb888a& rgba) {
 
-    if ((scanLine.getY() < 0) || (scanLine.getY() >= int(mTarget->height())))
+    uint16_t col = ((rgba.r >> 3) << 11) | ((rgba.g >> 2) << 5) | (rgba.b >> 3);
+
+    auto y = scanLine.getY();
+    if (y < 0)
+      return;
+    if (y >= mTarget.height())
       return;
 
+    int baseX = scanLine.getBaseX();
     uint16_t numSpans = scanLine.getNumSpans();
-
-    int base_x = scanLine.getBaseX();
-    auto row = mTarget->row (scanLine.getY());
-
     cScanLine::iterator span (scanLine);
     do {
-      auto x = span.next() + base_x;
-      const uint8_t* covers = span.covers();
-      auto num_pix = span.num_pix();
+      auto x = baseX + span.next() ;
+      uint8_t* cover = (uint8_t*)span.getCover();
+      int16_t numPix = span.getNumPix();
       if (x < 0) {
-        num_pix += x;
-        if (num_pix <= 0)
+        numPix += x;
+        if (numPix <= 0)
           continue;
-        covers -= x;
+        cover -= x;
         x = 0;
         }
-      if (x + num_pix >= int(mTarget->width())) {
-        num_pix = mTarget->width() - x;
-        if (num_pix <= 0)
+      if (x + numPix >= mTarget.width()) {
+        numPix = mTarget.width() - x;
+        if (numPix <= 0)
           continue;
         }
 
-      uint16_t* p = ((uint16_t*)row) + x;
-      do {
-        uint16_t alpha = (*covers++) * (rgba.a);
-        if (alpha >= 0xFE00)
-          *p++ = ((rgba.r >> 3) << 11) | ((rgba.g >> 2) << 5) | (rgba.b >> 3);
-        else {
-          // blend
-          uint16_t rgb = *p;
-          uint8_t r = (rgb >> 8) & 0xF8;
-          uint8_t g = (rgb >> 3) & 0xFC;
-          uint8_t b = (rgb << 3) & 0xF8;
-
-          *p++ = (((((rgba.r - r) * alpha) + (r << 16)) >> 8) & 0xF800) |
-                 (((((rgba.g - g) * alpha) + (g << 16)) >> 13) & 0x7E0) |
-                  ((((rgba.b - b) * alpha) + (b << 16)) >> 19);
-          }
-        } while (--num_pix);
+      if (rgba.a < 255) {
+        //{{{  apply alpha to cover
+        auto numPixa = numPix;
+        uint8_t* covera = cover;
+        do {
+          uint16_t value = *covera * rgba.a;
+          *covera++ = value >> 8;
+          } while (--numPixa);
+        }
+        //}}}
+      mLcd->stamp (col, cover, cRect (x, y, x+numPix, scanLine.getY()+1));
       } while (--numSpans);
     }
-  //}}}
 
 private:
-  cTarget* mTarget;
+  cTarget& mTarget;
+  cLcd* mLcd = nullptr;
   };
 //}}}
 //{{{
