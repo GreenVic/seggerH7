@@ -186,9 +186,9 @@ public:
     return mSortedcells;
     }
   //}}}
-  unsigned getNumCells() const { return mNumCells; }
-  unsigned getNumBlocks() const { return mNumblocks; }
-  unsigned getMaxBlocks() const { return mMaxblocks; }
+  uint16_t getNumCells() const { return mNumCells; }
+  uint16_t getNumBlocks() const { return mNumblocks; }
+  uint16_t getMaxBlocks() const { return mMaxblocks; }
 
 private:
   //{{{
@@ -205,9 +205,9 @@ private:
   //}}}
 
   enum { not_closed = 1, sort_required = 2 };
-  static const int kCellBlockSize = 1024;
-  static const int kCellBlockPool = 256;
-  static const int kCellBlockLimit = 1024;
+  static const uint16_t kCellBlockSize = 1024;
+  static const uint16_t kCellBlockPool = 256;
+  static const uint16_t kCellBlockLimit = 1024;
 
   cOutline (const cOutline&);
   const cOutline& operator = (const cOutline&);
@@ -564,10 +564,10 @@ private:
     }
   //}}}
 
-  unsigned mNumblocks;
-  unsigned mMaxblocks;
-  unsigned mCurblock;
-  unsigned mNumCells;
+  uint16_t mNumblocks;
+  uint16_t mMaxblocks;
+  uint16_t mCurblock;
+  uint16_t mNumCells;
 
   sPixelCell** mCells;
   sPixelCell* mCurcellPtr;
