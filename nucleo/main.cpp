@@ -26,9 +26,9 @@ using namespace std;
 #define FMC_PERIOD  FMC_SDRAM_CLOCK_PERIOD_2
 
 const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
-//const cPoint centre = cPoint (512, 300);
-const cPoint centre = cPoint (1024-70, 600-70-40);
-float radius = 65.f;
+const cPoint centre = cPoint (512, 300);
+//const cPoint centre = cPoint (1024-70, 600-70-40);
+float radius = 180.f;
 
 // vars
 FATFS fatFs;

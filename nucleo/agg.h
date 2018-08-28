@@ -82,8 +82,8 @@ public:
 class cOutline {
 public:
   //{{{
-  cOutline() : mNumBlocks(0), mMaxBlocks(0), mCurblock(0), mNumCells(0), mCells(0),
-      mCurCellPtr(0), mSortedCells(0), mSortedSize(0), mCurx(0), mCury(0),
+  cOutline() : mNumBlockCells(0),  mNumCells(0), mCells(0),
+      mCurCellPtr(0), mSortedCells(0), mNumSortedCells(0), mCurx(0), mCury(0),
       m_close_x(0), m_close_y(0),
       mMinx(0x7FFFFFFF), mMiny(0x7FFFFFFF), mMaxx(-0x7FFFFFFF), mMaxy(-0x7FFFFFFF),
       mFlags(sort_required) {
@@ -96,9 +96,9 @@ public:
 
     vPortFree (mSortedCells);
 
-    if (mNumBlocks) {
-      sCell** ptr = mCells + mNumBlocks - 1;
-      while (mNumBlocks--) {
+    if (mNumBlockCells) {
+      sCell** ptr = mCells + mNumBlockCells - 1;
+      while (mNumBlockCells--) {
         vPortFree (*ptr);
         ptr--;
         }
@@ -111,7 +111,6 @@ public:
   void reset() {
 
     mNumCells = 0;
-    mCurblock = 0;
     mCurCell.set (0x7FFF, 0x7FFF, 0, 0);
     mFlags |= sort_required;
     mFlags &= ~not_closed;
@@ -187,9 +186,7 @@ public:
     }
   //}}}
   uint16_t getNumCells() const { return mNumCells; }
-  uint16_t getNumBlocks() const { return mNumBlocks; }
-  uint16_t getMaxBlocks() const { return mMaxBlocks; }
-
+  
 private:
   //{{{
   template <class T> static inline void swapCells (T* a, T* b) {
@@ -205,28 +202,28 @@ private:
   //}}}
 
   enum { not_closed = 1, sort_required = 2 };
-  static const uint16_t kCellBlockSize = 1024;
-  static const uint16_t kCellBlockPool = 256;
+  static const uint16_t kBlockCells = 1024;
 
   //{{{
   void addCurCell() {
 
     if (mCurCell.area | mCurCell.coverage) {
-      if ((mNumCells % 1024) == 0) {
-        printf ("allocateBlock cur:%d num:%d max:%d\n", mCurblock, mNumBlocks, mMaxBlocks);
-        if (mCurblock >= mNumBlocks) {
-          if (mNumBlocks >= mMaxBlocks) {
-            auto newCells = (sCell**)pvPortMalloc ((mMaxBlocks + kCellBlockPool) * 4);
-            if (mCells) {
-              memcpy (newCells, mCells, mMaxBlocks * sizeof(sCell*));
-              vPortFree (mCells);
-              }
-            mCells = newCells;
-            mMaxBlocks += kCellBlockPool;
+      if ((mNumCells % kBlockCells) == 0) {
+        uint32_t block = mNumCells / kBlockCells;
+        printf ("use block %d of %d\n", block, mNumBlockCells);
+        if (block >= mNumBlockCells) {
+          // allocate new block
+          auto newCellPtrs = (sCell**)pvPortMalloc ((mNumBlockCells + 1) * sizeof(sCell*));
+          if (mCells && mNumBlockCells) {
+            memcpy (newCellPtrs, mCells, mNumBlockCells * sizeof(sCell*));
+            vPortFree (mCells);
             }
-          mCells[mNumBlocks++] = (sCell*)pvPortMalloc (kCellBlockSize*4*4);
+          mCells = newCellPtrs;
+          mCells[mNumBlockCells] = (sCell*)pvPortMalloc (kBlockCells * sizeof(sCell));
+          mNumBlockCells++;
+          printf ("allocated new blockOfCells %d of %d\n", block, mNumBlockCells);
           }
-        mCurCellPtr = mCells[mCurblock++];
+        mCurCellPtr = mCells[block];
         }
 
       *mCurCellPtr++ = mCurCell;
@@ -235,7 +232,7 @@ private:
     }
   //}}}
   //{{{
-  void setCurCell (int x, int y) {
+  void setCurCell (int16_t x, int16_t y) {
 
     if (mCurCell.packedCoord != (y << 16) + x) {
       addCurCell();
@@ -249,25 +246,25 @@ private:
     if (mNumCells == 0)
       return;
 
-    if (mNumCells > mSortedSize) {
+    if (mNumCells > mNumSortedCells) {
       vPortFree (mSortedCells);
-      mSortedSize = mNumCells;
       mSortedCells = (sCell**)pvPortMalloc ((mNumCells + 1) * 4);
+      mNumSortedCells = mNumCells;
       }
 
     sCell** blockPtr = mCells;
     sCell** sortedPtr = mSortedCells;
 
-    unsigned numBlocks = mNumCells / 1024;
+    unsigned numBlocks = mNumCells / kBlockCells;
     while (numBlocks--) {
       sCell* cellPtr = *blockPtr++;
-      unsigned i = kCellBlockSize * 4;
+      unsigned i = kBlockCells;
       while (i--)
         *sortedPtr++ = cellPtr++;
       }
 
     sCell* cellPtr = *blockPtr++;
-    unsigned i = mNumCells % 1024;
+    unsigned i = mNumCells % kBlockCells;
     while (i--)
       *sortedPtr++ = cellPtr++;
     mSortedCells[mNumCells] = 0;
@@ -277,7 +274,7 @@ private:
   //}}}
 
   //{{{
-  void renderScanLine (int ey, int x1, int y1, int x2, int y2) {
+  void renderScanLine (int32_t ey, int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
 
     int ex1 = x1 >> 8;
     int ex2 = x2 >> 8;
@@ -351,7 +348,7 @@ private:
     }
   //}}}
   //{{{
-  void renderLine (int x1, int y1, int x2, int y2) {
+  void renderLine (int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
 
     int ey1 = y1 >> 8;
     int ey2 = y2 >> 8;
@@ -465,14 +462,14 @@ private:
   //}}}
 
   //{{{
-  void qsortCells (sCell** start, unsigned num) {
+  void qsortCells (sCell** start, unsigned numCells) {
 
     sCell**  stack[80];
     sCell*** top;
     sCell**  limit;
     sCell**  base;
 
-    limit = start + num;
+    limit = start + numCells;
     base = start;
     top = stack;
 
@@ -549,16 +546,14 @@ private:
     }
   //}}}
 
-  uint16_t mNumBlocks;
-  uint16_t mMaxBlocks;
-  uint16_t mCurblock;
   uint16_t mNumCells;
+  uint16_t mNumBlockCells;
 
-  sCell** mCells;
-  sCell* mCurCellPtr;
-  sCell** mSortedCells;
-  unsigned mSortedSize;
   sCell mCurCell;
+  sCell* mCurCellPtr;
+  sCell** mCells;
+  sCell** mSortedCells;
+  unsigned mNumSortedCells;
 
   int mCurx;
   int mCury;
@@ -816,8 +811,7 @@ public:
     mFillNonZero = fillNonZero;
 
     const sCell* const* cells = mOutline.getCells();
-    printf ("render %d cells %d:blocks %d:maxBlocks\n",
-            mOutline.getNumCells(), mOutline.getNumBlocks(), mOutline.getMaxBlocks());
+    printf ("render %d cells\n", mOutline.getNumCells());
     if (mOutline.getNumCells() == 0)
       return;
 
