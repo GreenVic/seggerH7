@@ -39,41 +39,35 @@ struct sRgb888a {
 //{{{
 struct sCell {
 public:
-  int16_t x;
-  int16_t y;
-  int packedCoord;
-  int coverage;
-  int area;
+  int mPackedCoord;
+  int mCoverage;
+  int mArea;
 
   //{{{
   void set_coverage (int c, int a) {
 
-    coverage = c;
-    area = a;
+    mCoverage = c;
+    mArea = a;
     }
   //}}}
   //{{{
   void add_coverage (int c, int a) {
 
-    coverage += c;
-    area += a;
+    mCoverage += c;
+    mArea += a;
     }
   //}}}
   //{{{
-  void set_coord (int16_t cx, int16_t cy) {
-    x = cx;
-    y = cy;
-    packedCoord = (cy << 16) + cx;
+  void set_coord (int16_t x, int16_t y) {
+    mPackedCoord = (y << 16) + x;
     }
   //}}}
   //{{{
-  void set (int16_t cx, int16_t cy, int c, int a) {
+  void set (int16_t x, int16_t y, int c, int a) {
 
-    x = cx;
-    y = cy;
-    packedCoord = (cy << 16) + cx;
-    coverage = c;
-    area = a;
+    mPackedCoord = (y << 16) + x;
+    mCoverage = c;
+    mArea = a;
     }
   //}}}
   };
@@ -194,7 +188,7 @@ private:
   //}}}
   //{{{
   template <class T> static inline bool lessThan (T* a, T* b) {
-    return (*a)->packedCoord < (*b)->packedCoord;
+    return (*a)->mPackedCoord < (*b)->mPackedCoord;
     }
   //}}}
 
@@ -204,7 +198,7 @@ private:
   //{{{
   void addCurCell() {
 
-    if (mCurCell.area | mCurCell.coverage) {
+    if (mCurCell.mArea | mCurCell.mCoverage) {
       if ((mNumCells % kBlockCells) == 0) {
         // use next block of sCells
         uint32_t block = mNumCells / kBlockCells;
@@ -231,7 +225,7 @@ private:
   //{{{
   void setCurCell (int16_t x, int16_t y) {
 
-    if (mCurCell.packedCoord != (y << 16) + x) {
+    if (mCurCell.mPackedCoord != (y << 16) + x) {
       addCurCell();
       mCurCell.set (x, y, 0, 0);
       }
@@ -821,20 +815,20 @@ public:
     int coverage = 0;
     const sCell* curCell = *cells++;
     while (true) {
-      int x = curCell->x;
-      int y = curCell->y;
-      int packedCoord = curCell->packedCoord;
+      int x = curCell->mPackedCoord & 0xFFFF;
+      int y = curCell->mPackedCoord >> 16;
+      int packedCoord = curCell->mPackedCoord;
 
       const sCell* startCell = curCell;
-      int area = startCell->area;
-      coverage += startCell->coverage;
+      int area = startCell->mArea;
+      coverage += startCell->mCoverage;
 
       // accumulate all start cells
       while ((curCell = *cells++) != 0) {
-        if (curCell->packedCoord != packedCoord)
+        if (curCell->mPackedCoord != packedCoord)
           break;
-        area += curCell->area;
-        coverage += curCell->coverage;
+        area += curCell->mArea;
+        coverage += curCell->mCoverage;
         }
 
       if (area) {
@@ -852,14 +846,14 @@ public:
       if (!curCell)
         break;
 
-      if (curCell->x > x) {
+      if (int16_t(curCell->mPackedCoord & 0xFFFF) > x) {
         int alpha = calcAlpha (coverage << (8 + 1));
         if (alpha) {
           if (mScanLine.isReady (y)) {
              renderer.render (mScanLine, rgba);
              mScanLine.resetSpans();
              }
-           mScanLine.addSpan (x, y, curCell->x - x, mGamma[alpha]);
+           mScanLine.addSpan (x, y, int16_t(curCell->mPackedCoord & 0xFFFF) - x, mGamma[alpha]);
            }
         }
       }
