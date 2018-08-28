@@ -216,8 +216,10 @@ private:
 
     if (mCurcell.area | mCurcell.coverage) {
       if ((mNumcells & 0xFFF) == 0) {
-        if (mNumblocks >= kCellBlockLimit)
+        if (mNumblocks >= kCellBlockLimit) {
+          printf ("too many blocks\n");
           return;
+          }
         allocateBlock();
         }
       *mCurcell_ptr++ = mCurcell;
@@ -457,6 +459,8 @@ private:
   //}}}
   //{{{
   void allocateBlock() {
+
+    printf ("allocateBlock\n");
 
     if (mCurblock >= mNumblocks) {
       if (mNumblocks >= mMaxblocks) {
@@ -830,7 +834,7 @@ public:
     mFillNonZero = fillNonZero;
 
     const sPixelCell* const* cells = mOutline.getCells();
-    printf ("render %d cells %d:blocks %d:maxBlocks\n", 
+    printf ("render %d cells %d:blocks %d:maxBlocks\n",
             mOutline.getNumCells(), mOutline.getNumBlocks(), mOutline.getMaxBlocks());
     if (mOutline.getNumCells() == 0)
       return;
