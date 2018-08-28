@@ -82,8 +82,8 @@ public:
 class cOutline {
 public:
   //{{{
-  cOutline() : mNumblocks(0), mMaxblocks(0), mCurblock(0), mNumcells(0), mCells(0),
-      mCurcell_ptr(0), mSortedcells(0), mSortedsize(0), mCurx(0), mCury(0),
+  cOutline() : mNumblocks(0), mMaxblocks(0), mCurblock(0), mNumCells(0), mCells(0),
+      mCurcellPtr(0), mSortedcells(0), mSortedsize(0), mCurx(0), mCury(0),
       m_close_x(0), m_close_y(0),
       mMinx(0x7FFFFFFF), mMiny(0x7FFFFFFF), mMaxx(-0x7FFFFFFF), mMaxy(-0x7FFFFFFF),
       mFlags(sort_required) {
@@ -110,7 +110,7 @@ public:
   //{{{
   void reset() {
 
-    mNumcells = 0;
+    mNumCells = 0;
     mCurblock = 0;
     mCurcell.set (0x7FFF, 0x7FFF, 0, 0);
     mFlags |= sort_required;
@@ -177,7 +177,7 @@ public:
     // Perform sort only the first time.
     if (mFlags & sort_required) {
       addCurCell();
-      if (mNumcells == 0)
+      if (mNumCells == 0)
         return 0;
       sortCells();
       mFlags &= ~sort_required;
@@ -186,7 +186,7 @@ public:
     return mSortedcells;
     }
   //}}}
-  unsigned getNumCells() const { return mNumcells; }
+  unsigned getNumCells() const { return mNumCells; }
   unsigned getNumBlocks() const { return mNumblocks; }
   unsigned getMaxBlocks() const { return mMaxblocks; }
 
@@ -205,6 +205,7 @@ private:
   //}}}
 
   enum { not_closed = 1, sort_required = 2 };
+  static const int kCellBlockSize = 1024;
   static const int kCellBlockPool = 256;
   static const int kCellBlockLimit = 1024;
 
@@ -215,15 +216,15 @@ private:
   void addCurCell() {
 
     if (mCurcell.area | mCurcell.coverage) {
-      if ((mNumcells & 0xFFF) == 0) {
+      if ((mNumCells % 4096) == 0) {
         if (mNumblocks >= kCellBlockLimit) {
           printf ("too many blocks\n");
           return;
           }
         allocateBlock();
         }
-      *mCurcell_ptr++ = mCurcell;
-      mNumcells++;
+      *mCurcellPtr++ = mCurcell;
+      mNumCells++;
       }
     }
   //}}}
@@ -239,34 +240,33 @@ private:
   //{{{
   void sortCells() {
 
-    if (mNumcells == 0)
+    if (mNumCells == 0)
       return;
 
-    if (mNumcells > mSortedsize) {
+    if (mNumCells > mSortedsize) {
       vPortFree (mSortedcells);
-      mSortedsize = mNumcells;
-      mSortedcells = (sPixelCell**)pvPortMalloc ((mNumcells + 1) * 4);
+      mSortedsize = mNumCells;
+      mSortedcells = (sPixelCell**)pvPortMalloc ((mNumCells + 1) * 4);
       }
 
-    sPixelCell** sorted_ptr = mSortedcells;
-    sPixelCell** block_ptr = mCells;
-    sPixelCell* cell_ptr;
-    unsigned i;
-    unsigned nb = mNumcells >> 12;
-    while (nb--) {
-      cell_ptr = *block_ptr++;
-      i = 0x1000;
+    sPixelCell** blockPtr = mCells;
+    sPixelCell** sortedPtr = mSortedcells;
+
+    unsigned numBlocks = mNumCells / 4096;
+    while (numBlocks--) {
+      sPixelCell* cellPtr = *blockPtr++;
+      unsigned i = kCellBlockSize * 4;
       while (i--)
-        *sorted_ptr++ = cell_ptr++;
+        *sortedPtr++ = cellPtr++;
       }
 
-    cell_ptr = *block_ptr++;
-    i = mNumcells & 0xFFF;
+    sPixelCell* cellPtr = *blockPtr++;
+    unsigned i = mNumCells % 4096;
     while (i--)
-      *sorted_ptr++ = cell_ptr++;
-    mSortedcells[mNumcells] = 0;
+      *sortedPtr++ = cellPtr++;
+    mSortedcells[mNumCells] = 0;
 
-    qsortCells (mSortedcells, mNumcells);
+    qsortCells (mSortedcells, mNumCells);
     }
   //}}}
 
@@ -472,10 +472,10 @@ private:
         mCells = newCells;
         mMaxblocks += kCellBlockPool;
         }
-      mCells[mNumblocks++] = (sPixelCell*)pvPortMalloc (0x1000*4);
+      mCells[mNumblocks++] = (sPixelCell*)pvPortMalloc (kCellBlockSize*4*4);
       }
 
-    mCurcell_ptr = mCells[mCurblock++];
+    mCurcellPtr = mCells[mCurblock++];
     }
   //}}}
 
@@ -567,10 +567,10 @@ private:
   unsigned mNumblocks;
   unsigned mMaxblocks;
   unsigned mCurblock;
-  unsigned mNumcells;
+  unsigned mNumCells;
 
   sPixelCell** mCells;
-  sPixelCell* mCurcell_ptr;
+  sPixelCell* mCurcellPtr;
   sPixelCell** mSortedcells;
   unsigned mSortedsize;
   sPixelCell mCurcell;
