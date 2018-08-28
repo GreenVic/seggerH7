@@ -82,13 +82,10 @@ public:
 class cOutline {
 public:
   //{{{
-  cOutline() : mNumBlockCells(0),  mNumCells(0), mCells(0),
-      mCurCellPtr(0), mSortedCells(0), mNumSortedCells(0), mCurx(0), mCury(0),
-      m_close_x(0), m_close_y(0),
-      mMinx(0x7FFFFFFF), mMiny(0x7FFFFFFF), mMaxx(-0x7FFFFFFF), mMaxy(-0x7FFFFFFF),
-      mFlags(sort_required) {
+  cOutline() : mMinx(0x7FFFFFFF), mMiny(0x7FFFFFFF),
+               mMaxx(-0x7FFFFFFF), mMaxy(-0x7FFFFFFF), mFlags(sort_required) {
 
-    mCurCell.set(0x7FFF, 0x7FFF, 0, 0);
+    mCurCell.set (0x7FFF, 0x7FFF, 0, 0);
     }
   //}}}
   //{{{
@@ -550,25 +547,25 @@ private:
     }
   //}}}
 
-  uint16_t mNumCells;
-  uint16_t mNumBlockCells;
+  uint16_t mNumCells = 0;
+  uint16_t mNumBlockCells = 0;
+  uint16_t mNumSortedCells = 0;
 
   sCell mCurCell;
-  sCell* mCurCellPtr;
-  sCell** mCells;
-  sCell** mSortedCells;
-  unsigned mNumSortedCells;
+  sCell* mCurCellPtr = nullptr;
+  sCell** mCells = nullptr;
+  sCell** mSortedCells = nullptr;
 
-  int mCurx;
-  int mCury;
-  int m_close_x;
-  int m_close_y;
+  int mCurx = 0;
+  int mCury = 0;
+  int m_close_x = 0;
+  int m_close_y = 0;
 
   int mMinx;
   int mMiny;
   int mMaxx;
   int mMaxy;
-  unsigned mFlags;
+  unsigned mFlags = 0;
   };
 //}}}
 //{{{
