@@ -186,7 +186,7 @@ public:
     }
   //}}}
   uint16_t getNumCells() const { return mNumCells; }
-  
+
 private:
   //{{{
   template <class T> static inline void swapCells (T* a, T* b) {
@@ -209,8 +209,8 @@ private:
 
     if (mCurCell.area | mCurCell.coverage) {
       if ((mNumCells % kBlockCells) == 0) {
+        // use next block of sCells
         uint32_t block = mNumCells / kBlockCells;
-        printf ("use block %d of %d\n", block, mNumBlockCells);
         if (block >= mNumBlockCells) {
           // allocate new block
           auto newCellPtrs = (sCell**)pvPortMalloc ((mNumBlockCells + 1) * sizeof(sCell*));
@@ -246,29 +246,33 @@ private:
     if (mNumCells == 0)
       return;
 
+    // allocate mSortedCells, contiguous vector of sCell pointers
     if (mNumCells > mNumSortedCells) {
       vPortFree (mSortedCells);
       mSortedCells = (sCell**)pvPortMalloc ((mNumCells + 1) * 4);
       mNumSortedCells = mNumCells;
       }
 
+    // point mSortedCells at sCells
     sCell** blockPtr = mCells;
     sCell** sortedPtr = mSortedCells;
-
-    unsigned numBlocks = mNumCells / kBlockCells;
+    uint16_t numBlocks = mNumCells / kBlockCells;
     while (numBlocks--) {
       sCell* cellPtr = *blockPtr++;
-      unsigned i = kBlockCells;
-      while (i--)
+      unsigned cellInBlock = kBlockCells;
+      while (cellInBlock--)
         *sortedPtr++ = cellPtr++;
       }
 
     sCell* cellPtr = *blockPtr++;
-    unsigned i = mNumCells % kBlockCells;
-    while (i--)
+    unsigned cellInBlock = mNumCells % kBlockCells;
+    while (cellInBlock--)
       *sortedPtr++ = cellPtr++;
-    mSortedCells[mNumCells] = 0;
 
+    // terminate mSortedCells with nullptr
+    mSortedCells[mNumCells] = nullptr;
+
+    // sort it
     qsortCells (mSortedCells, mNumCells);
     }
   //}}}
