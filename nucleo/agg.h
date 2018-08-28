@@ -171,57 +171,9 @@ private:
 //}}}
 
 //{{{
-class cTarget {
-public:
-  //{{{
-  cTarget (uint8_t* buf, uint16_t width, uint16_t height) : mBuf(buf), mWidth(width), mHeight(height) {
-
-    if (height > mMaxHeight) {
-      vPortFree (mRows);
-      mMaxHeight = height;
-      mRows = (uint8_t**)pvPortMalloc (mMaxHeight * 4);
-      }
-
-    setBuffer (buf);
-    }
-  //}}}
-  ~cTarget() { vPortFree (mRows); }
-
-  uint16_t width() const { return mWidth;  }
-  uint16_t height() const { return mHeight; }
-  uint8_t* row (uint16_t y) { return mRows[y]; }
-
-  //{{{
-  void setBuffer (uint8_t* buf) {
-
-    mBuf = buf;
-
-    uint8_t* row_ptr = mBuf;
-    uint8_t** rows = mRows;
-    int height = mHeight;
-    while (height--) {
-      *rows++ = row_ptr;
-      row_ptr += mWidth*2;
-      }
-    }
-  //}}}
-  bool inbox (int x, int y) const { return x >= 0 && y >= 0 && x < int(mWidth) && y < int(mHeight); }
-
-private:
-  cTarget (const cTarget&);
-  const cTarget& operator = (const cTarget&);
-
-  uint8_t*  mBuf;            // Pointer to renrdering buffer
-  uint8_t** mRows = nullptr; // Pointers to each row of the buffer
-  uint16_t  mWidth;          // Width in pixels
-  uint16_t  mHeight;         // Height in pixels
-  uint16_t  mMaxHeight = 0;  // Maximal current height
-  };
-//}}}
-//{{{
 class cRenderer {
 public:
-  cRenderer (cTarget& target, cLcd* lcd) : mTarget(target), mLcd(lcd) {}
+  cRenderer (cLcd* lcd) :  mLcd(lcd) {}
 
   void render (const cScanLine& scanLine, const sRgb888a& rgba) {
 
@@ -230,7 +182,7 @@ public:
     auto y = scanLine.getY();
     if (y < 0)
       return;
-    if (y >= mTarget.height())
+    if (y >= mLcd->getHeight())
       return;
 
     int baseX = scanLine.getBaseX();
@@ -247,8 +199,8 @@ public:
         cover -= x;
         x = 0;
         }
-      if (x + numPix >= mTarget.width()) {
-        numPix = mTarget.width() - x;
+      if (x + numPix >= mLcd->getWidth()) {
+        numPix = mLcd->getWidth() - x;
         if (numPix <= 0)
           continue;
         }
@@ -268,7 +220,6 @@ public:
     }
 
 private:
-  cTarget& mTarget;
   cLcd* mLcd = nullptr;
   };
 //}}}

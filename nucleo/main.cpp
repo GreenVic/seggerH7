@@ -20,20 +20,15 @@
 
 using namespace std;
 //}}}
-//{{{
-enum {
-  width  = 500,
-  height = 400
-  };
-//}}}
 
 #define SW_JPEG
 #define SW_SCALE 4
 #define FMC_PERIOD  FMC_SDRAM_CLOCK_PERIOD_2
 
 const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
+//const cPoint centre = cPoint (512, 300);
 const cPoint centre = cPoint (512, 300);
-float radius = 120.0f;
+float radius = 125.0f;
 
 // vars
 FATFS fatFs;
@@ -140,8 +135,7 @@ void findFiles (const string& dirPath, const string& ext) {
 //{{{
 void uiThread (void* arg) {
 
-  cTarget target (lcd->getDrawBuf(), lcd->getWidth(), lcd->getHeight());
-  cRenderer renderer (target, lcd);
+  cRenderer renderer (lcd);
   cRasteriser rasteriser;
 
   lcd->display (70);
@@ -189,7 +183,6 @@ void uiThread (void* arg) {
       float minuteRadius = radius * 0.8f;
       float secondRadius = radius * 0.95f;
 
-      target.setBuffer (lcd->getDrawBuf());
       rasteriser.ellipse (centre.x, centre.y, radius, radius);
       rasteriser.render (renderer, sRgb888a (128,128,128, 128));
 
