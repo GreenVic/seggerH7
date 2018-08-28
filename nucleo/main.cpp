@@ -202,7 +202,6 @@ void uiThread (void* arg) {
       lcd->cLcd::text (COL_BLACK, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
       lcd->cLcd::text (COL_WHITE, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600) + cPoint(-2,-2));
       //}}}
-      //radius += 2.0f;
       lcd->present();
       }
     else {

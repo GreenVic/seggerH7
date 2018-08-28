@@ -1,24 +1,4 @@
 // agg.h
-//{{{  description
-//----------------------------------------------------------------------------
-// Anti-Grain Geometry - Version 2.1 Lite
-// Copyright (C) 2002-2003 Maxim Shemanarev (McSeem)
-//
-// Permission to copy, use, modify, sell and distribute this software
-// is granted provided this copyright notice appears in all copies.
-// This software is provided "as is" without express or implied
-// warranty, and with no claim as to its suitability for any purpose.
-//
-// The author gratefully acknowleges the support of David Turner,
-// Robert Wilhelm, and Werner Lemberg - the authors of the FreeType
-// libray - in producing this work. See http://www.freetype.org for details.
-//
-//----------------------------------------------------------------------------
-// Contact: mcseem@antigrain.com
-//          mcseemagg@yahoo.com
-//          http://www.antigrain.com
-//----------------------------------------------------------------------------
-//}}}
 #pragma once
 //{{{  includes
 #include <stdint.h>
@@ -169,11 +149,10 @@ private:
   uint16_t  mNumSpans = 0;
   };
 //}}}
-
 //{{{
 class cRenderer {
 public:
-  cRenderer (cLcd* lcd) :  mLcd(lcd) {}
+  cRenderer (cLcd* lcd) : mLcd(lcd) {}
 
   void render (const cScanLine& scanLine, const sRgb888a& rgba) {
 
