@@ -281,7 +281,7 @@ public:
 
     mFillNonZero = fillNonZero;
     const sPixelCell* const* cells = mOutline.cells();
-    if (mOutline.numCells() == 0)
+    if (mOutline.getNumCells() == 0)
       return;
 
     mScanLine.reset (mOutline.getMinx(), mOutline.getMaxx());
@@ -469,7 +469,7 @@ private:
     int getMaxx() const { return mMaxx; }
     int getMaxy() const { return mMaxy; }
 
-    unsigned numCells() const {return mNumcells; }
+    unsigned getNumCells() const { return mNumcells; }
     //{{{
     const sPixelCell* const* cells() {
 
