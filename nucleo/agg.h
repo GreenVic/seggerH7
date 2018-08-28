@@ -187,6 +187,8 @@ public:
     }
   //}}}
   unsigned getNumCells() const { return mNumcells; }
+  unsigned getNumBlocks() const { return mNumblocks; }
+  unsigned getMaxBlocks() const { return mMaxblocks; }
 
 private:
   //{{{
@@ -828,7 +830,8 @@ public:
     mFillNonZero = fillNonZero;
 
     const sPixelCell* const* cells = mOutline.getCells();
-    printf ("render %d cells\n", mOutline.getNumCells());
+    printf ("render %d cells %d:blocks %d:maxBlocks\n", 
+            mOutline.getNumCells(), mOutline.getNumBlocks(), mOutline.getMaxBlocks());
     if (mOutline.getNumCells() == 0)
       return;
 
