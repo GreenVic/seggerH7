@@ -44,17 +44,11 @@ public:
   int mArea;
 
   //{{{
-  void set_coverage (int c, int a) {
+  void set (int16_t x, int16_t y, int c, int a) {
 
+    mPackedCoord = (y << 16) + x;
     mCoverage = c;
     mArea = a;
-    }
-  //}}}
-  //{{{
-  void add_coverage (int c, int a) {
-
-    mCoverage += c;
-    mArea += a;
     }
   //}}}
   //{{{
@@ -63,11 +57,17 @@ public:
     }
   //}}}
   //{{{
-  void set (int16_t x, int16_t y, int c, int a) {
+  void setCoverage (int c, int a) {
 
-    mPackedCoord = (y << 16) + x;
     mCoverage = c;
     mArea = a;
+    }
+  //}}}
+  //{{{
+  void addCoverage (int c, int a) {
+
+    mCoverage += c;
+    mArea += a;
     }
   //}}}
   };
@@ -285,7 +285,7 @@ private:
     //everything is located in a single cell.  That is easy!
     if (ex1 == ex2) {
       int delta = y2 - y1;
-      mCurCell.add_coverage (delta, (fx1 + fx2) * delta);
+      mCurCell.addCoverage (delta, (fx1 + fx2) * delta);
       return;
       }
 
@@ -309,7 +309,7 @@ private:
       mod += dx;
       }
 
-    mCurCell.add_coverage (delta, (fx1 + first) * delta);
+    mCurCell.addCoverage (delta, (fx1 + first) * delta);
 
     ex1 += incr;
     setCurCell (ex1, ey);
@@ -332,14 +332,14 @@ private:
           delta++;
           }
 
-        mCurCell.add_coverage (delta, (0x100) * delta);
+        mCurCell.addCoverage (delta, (0x100) * delta);
         y1  += delta;
         ex1 += incr;
         setCurCell (ex1, ey);
         }
       }
     delta = y2 - y1;
-    mCurCell.add_coverage (delta, (fx2 + 0x100 - first) * delta);
+    mCurCell.addCoverage (delta, (fx2 + 0x100 - first) * delta);
     }
   //}}}
   //{{{
@@ -386,7 +386,7 @@ private:
 
       x_from = x1;
       delta = first - fy1;
-      mCurCell.add_coverage (delta, two_fx * delta);
+      mCurCell.addCoverage (delta, two_fx * delta);
 
       ey1 += incr;
       setCurCell (ex, ey1);
@@ -394,13 +394,13 @@ private:
       delta = first + first - 0x100;
       int area = two_fx * delta;
       while (ey1 != ey2) {
-        mCurCell.set_coverage (delta, area);
+        mCurCell.setCoverage (delta, area);
         ey1 += incr;
         setCurCell (ex, ey1);
         }
 
       delta = fy2 - 0x100 + first;
-      mCurCell.add_coverage (delta, two_fx * delta);
+      mCurCell.addCoverage (delta, two_fx * delta);
       return;
       }
 
