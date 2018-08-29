@@ -53,7 +53,7 @@
 //{{{
 class cTile {
 public:
-  enum eFormat { eRgb565, eYuv422mcu };
+  enum eFormat { eRgb565, eRgb888, eYuv422mcu };
   cTile() {};
   cTile (uint8_t* piccy, eFormat format, uint16_t pitch, uint16_t x, uint16_t y, uint16_t width, uint16_t height)
      : mPiccy(piccy), mFormat(format), mPitch(pitch), mX(x), mY(y), mWidth(width), mHeight(height) {}

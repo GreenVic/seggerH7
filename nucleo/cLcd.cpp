@@ -640,7 +640,7 @@ void cLcd::copy (cTile* tile, cPoint p) {
   uint16_t width = p.x + tile->mWidth > getWidth() ? getWidth() - p.x : tile->mWidth;
   uint16_t height = p.y + tile->mHeight > getHeight() ? getHeight() - p.y : tile->mHeight;
 
-  DMA2D->FGPFCCR = DMA2D_INPUT_RGB565;
+  DMA2D->FGPFCCR = tile->mFormat == cTile::eRgb565 ? DMA2D_INPUT_RGB565 : DMA2D_INPUT_RGB888;
   DMA2D->FGMAR = (uint32_t)tile->mPiccy;
   DMA2D->FGOR = tile->mPitch - width;
 
@@ -707,7 +707,9 @@ void cLcd::size (cTile* tile, const cRect& r) {
       }
     }
     //}}}
-
+  else if (tile->mFormat == cTile::eRgb888) {
+    printf ("no rgb888 size yet\n");
+    }
   else {
     // yuv422 size
     for (uint32_t y16 = (tile->mY << 16); y16 < ((tile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
