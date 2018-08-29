@@ -164,13 +164,14 @@ void uiThread (void* arg) {
           }
         else
           lcd->copy ((cTile*)showTile[gShow], cPoint ((lcd->getWidth() - showTile[gShow]->mWidth) / 2,
-                                                     (lcd->getHeight() - showTile[gShow]->mHeight) / 2));
+                                                      (lcd->getHeight() - showTile[gShow]->mHeight) / 2));
         }
 
       lcd->setShowInfo (BSP_PB_GetState (BUTTON_KEY) == 0);
       lcd->drawInfo();
 
       mTraceVec.draw (lcd, 20, 450);
+      auto startTime = HAL_GetTick();
       //{{{  draw clock
       float hourAngle;
       float minuteAngle;
@@ -197,6 +198,7 @@ void uiThread (void* arg) {
       lcd->cLcd::text (COL_BLACK, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
       lcd->cLcd::text (COL_WHITE, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600) + cPoint(-2,-2));
       //}}}
+      lcd->info ("render took" + dec(HAL_GetTick() - startTime));
       lcd->present();
       }
     else {

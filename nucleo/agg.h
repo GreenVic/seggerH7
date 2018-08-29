@@ -68,7 +68,7 @@ public:
       sCell** ptr = mBlockOfCells + mNumBlockOfCells - 1;
       while (mNumBlockOfCells--) {
         // free a block of cells
-        vPortFree (*ptr);
+        dtcmFree (*ptr);
         ptr--;
         }
 
@@ -101,8 +101,11 @@ public:
       lineTo (mClosex, mClosey);
 
     setCurCell (x >> 8, y >> 8);
-    mClosex = mCurx = x;
-    mClosey = mCury = y;
+
+    mCurx = x;
+    mClosex = x;
+    mCury = y;
+    mClosey = y;
     }
   //}}}
   //{{{
@@ -174,7 +177,7 @@ private:
             vPortFree (mBlockOfCells);
             }
           mBlockOfCells = newCellPtrs;
-          mBlockOfCells[mNumBlockOfCells] = (sCell*)pvPortMalloc (mNumCellsInBlock * sizeof(sCell));
+          mBlockOfCells[mNumBlockOfCells] = (sCell*)dtcmAlloc (mNumCellsInBlock * sizeof(sCell));
           mNumBlockOfCells++;
           printf ("allocated new blockOfCells %d of %d\n", block, mNumBlockOfCells);
           }
@@ -208,7 +211,7 @@ private:
     if (mNumCells == 0)
       return;
 
-    // allocate mSortedCells, contiguous vector of sCell pointers
+    // allocate mSortedCells, a contiguous vector of sCell pointers
     if (mNumCells > mNumSortedCells) {
       vPortFree (mSortedCells);
       mSortedCells = (sCell**)pvPortMalloc ((mNumCells + 1) * 4);
@@ -423,6 +426,7 @@ private:
         setCurCell (x_from >> 8, ey1);
         }
       }
+
     renderScanLine (ey1, x_from, 0x100 - first, x2, fy2);
     }
   //}}}
