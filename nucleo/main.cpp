@@ -146,6 +146,7 @@ void uiThread (void* arg) {
       lcd->grad (COL_BLUE, COL_GREY, COL_GREY, COL_BLACK, titleRect);
 
       if (showTile[gShow]) {
+        //{{{  show piccy
         if (showTile[gShow]->mWidth > lcd->getWidth() || showTile[gShow]->mHeight > lcd->getHeight()) {
           uint16_t lcdWidth = lcd->getWidth() - 20;
           uint16_t lcdHeight = lcd->getHeight() - 44;
@@ -162,7 +163,7 @@ void uiThread (void* arg) {
           lcd->copy ((cTile*)showTile[gShow], cPoint ((lcd->getWidth() - showTile[gShow]->mWidth) / 2,
                                                       (lcd->getHeight() - showTile[gShow]->mHeight) / 2));
         }
-
+        //}}}
       lcd->setShowInfo (BSP_PB_GetState (BUTTON_KEY) == 0);
       lcd->drawInfo();
 
@@ -179,7 +180,7 @@ void uiThread (void* arg) {
       float minuteRadius = radius * 0.85f;
       float secondRadius = radius * 0.95f;
 
-      lcd->aEllipse (centre, cPointF(radius, radius), 4.f, 15);
+      lcd->aEllipse (centre, cPointF(radius, radius), 4.f, 6);
       lcd->aRender (sRgba (180,180,0, 255), false);
 
       lcd->aPointedLine (
@@ -195,6 +196,7 @@ void uiThread (void* arg) {
       lcd->cLcd::text (COL_WHITE, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600) + cPoint(-2,-2));
       //}}}
       //lcd->info ("render took" + dec(HAL_GetTick() - startTime));
+
       lcd->present();
       }
     else {

@@ -159,9 +159,6 @@ public:
   void line (uint16_t colour, cPoint p1, cPoint p2);
   void ellipseOutline (uint16_t colour, cPoint centre, cPoint radius);
 
-  static void rgb888toRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize);
-  static void yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
-
   // agg anti aliased
   void aMoveTo (const cPointF& p) { mOutline.moveTo (int(p.x * 256.f), int(p.y * 256.f)); }
   void aLineTo (const cPointF& p) { mOutline.lineTo (int(p.x * 256.f), int(p.y * 256.f)); }
@@ -169,6 +166,9 @@ public:
   void aPointedLine (const cPointF& p1, const cPointF& p2, float width);
   void aEllipse (const cPointF& centre, const cPointF& radius, float thick, int step);
   void aRender (const sRgba& rgba, bool fillNonZero = true);
+
+  static void rgb888toRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize);
+  static void yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
 
   void start();
   void drawInfo();
@@ -764,25 +764,23 @@ private:
       }
     //}}}
     //{{{
-    void reset (int16_t min_x, int16_t max_x) {
+    void reset (int16_t minx, int16_t maxx) {
 
-      unsigned max_len = max_x - min_x + 2;
-      if (max_len > mMaxlen) {
-        vPortFree (mCounts);
+      uint16_t maxLen = maxx - minx + 2;
+      if (maxLen > mMaxlen) {
         vPortFree (mStartPtrs);
+        vPortFree (mCounts);
         vPortFree (mCoverage);
-        mCoverage = (uint8_t*)pvPortMalloc (max_len);
-        mStartPtrs = (uint8_t**)pvPortMalloc (max_len*4);
-        mCounts = (uint16_t*)pvPortMalloc (max_len*2);
-        mMaxlen = max_len;
+
+        mCoverage = (uint8_t*)pvPortMalloc (maxLen);
+        mCounts = (uint16_t*)pvPortMalloc (maxLen * 2);
+        mStartPtrs = (uint8_t**)pvPortMalloc (maxLen * 4);
+
+        mMaxlen = maxLen;
         }
 
-      mLastX = 0x7FFF;
-      mLastY = 0x7FFF;
-      mMinx = min_x;
-      mCurCount = mCounts;
-      mCurStartPtr = mStartPtrs;
-      mNumSpans = 0;
+      mMinx = minx;
+      resetSpans();
       }
     //}}}
 
