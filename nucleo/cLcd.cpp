@@ -125,17 +125,6 @@ cLcd::cLcd()  {
   mBuffer[1] = (uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2, "lcdBuf1");
   mLcd = this;
 
-  // consts
-  rectRegs[0] = DMA2D_OUTPUT_RGB565;
-
-  stampRegs[1] = 0;
-  stampRegs[6] = DMA2D_INPUT_RGB565;
-  stampRegs[7] = 0;
-  stampRegs[8] = 0;
-  stampRegs[9] = 0;
-  stampRegs[10] = DMA2D_OUTPUT_RGB565;
-  stampRegs[11] = 0;
-
   mLockSem = xSemaphoreCreateMutex();
   }
 //}}}
@@ -225,6 +214,7 @@ void cLcd::rect (uint16_t colour, const cRect& r) {
   if (!xSemaphoreTake (mLockSem, 5000))
     printf ("cLcd take fail\n");
 
+  rectRegs[0] = DMA2D_OUTPUT_RGB565;
   rectRegs[1] = colour;
   rectRegs[2] = uint32_t (mBuffer[mDrawBuffer] + r.top * getWidth() + r.left);
   rectRegs[3] = getWidth() - r.getWidth();
@@ -317,7 +307,7 @@ void cLcd::ellipse (uint16_t colour, cPoint centre, cPoint radius) {
 //}}}
 
 //{{{
-void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r) {
+void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r, uint8_t alpha) {
 //__IO uint32_t FGMAR;    Foreground Memory Address Register,       Address offset: 0x0C
 //__IO uint32_t FGOR;     Foreground Offset Register,               Address offset: 0x10
 //__IO uint32_t BGMAR;    Background Memory Address Register,       Address offset: 0x14
@@ -357,12 +347,19 @@ void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r) {
     printf ("cLcd take fail\n");
 
   stampRegs[0] = (uint32_t)src;
+  stampRegs[1] = 0;
   stampRegs[2] = uint32_t(mBuffer[mDrawBuffer] + r.top * getWidth() + r.left);
-  stampRegs[3] = getWidth() - r.getWidth();
-  stampRegs[4] = DMA2D_INPUT_A8;
-  stampRegs[5] = ((colour & 0xF800) << 8) | ((colour & 0x07E0) << 5) | ((colour & 0x001F) << 3);
   stampRegs[12] = stampRegs[2];
+  stampRegs[3] = getWidth() - r.getWidth();
   stampRegs[13] = stampRegs[3];
+  stampRegs[4] = (alpha < 255) ? ((alpha << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
+  stampRegs[5] = ((colour >> 11) << 19) | ((colour & 0x07E0) << 5) | ((colour & 0x001F) << 3);
+  stampRegs[6] = DMA2D_INPUT_RGB565;
+  stampRegs[7] = 0;
+  stampRegs[8] = 0;
+  stampRegs[9] = 0;
+  stampRegs[10] = DMA2D_OUTPUT_RGB565;
+  stampRegs[11] = 0;
   stampRegs[14] = (r.getWidth() << 16) | r.getHeight();
 
   memcpy ((void*)(&DMA2D->FGMAR), stampRegs, 15*4);
@@ -375,7 +372,7 @@ void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r) {
   }
 //}}}
 //{{{
-void cLcd::stampClipped (uint16_t colour, uint8_t* src, cRect r) {
+void cLcd::stampClipped (uint16_t colour, uint8_t* src, cRect r, uint8_t alpha) {
 
   if (!r.getWidth())
     return;
@@ -400,14 +397,27 @@ void cLcd::stampClipped (uint16_t colour, uint8_t* src, cRect r) {
     r.bottom = getHeight();
     }
 
-  stamp (colour, src, r);
+  stamp (colour, src, r, alpha);
   }
 //}}}
 //{{{
-int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string& str, cRect r) {
+int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string& str, cRect r, uint8_t alpha) {
+
+  alpha = 128;
 
   if (!xSemaphoreTake (mLockSem, 5000))
     printf ("cLcd take fail\n");
+
+  stampRegs[1] = 0;
+  stampRegs[3] = getWidth() - r.getWidth();
+  stampRegs[4] = (alpha < 255) ? ((alpha << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
+  stampRegs[5] = ((colour >> 11) << 19) | ((colour & 0x07E0) << 5) | ((colour & 0x001F) << 3);
+  stampRegs[6] = DMA2D_INPUT_RGB565;
+  stampRegs[7] = 0;
+  stampRegs[8] = 0;
+  stampRegs[9] = 0;
+  stampRegs[10] = DMA2D_OUTPUT_RGB565;
+  stampRegs[11] = 0;
 
   for (auto ch : str) {
     if ((ch >= 0x20) && (ch <= 0x7F)) {
@@ -436,10 +446,8 @@ int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string& str, cR
             ready();
             stampRegs[0] = (uint32_t)src;
             stampRegs[2] = uint32_t(mBuffer[mDrawBuffer] + charRect.top * getWidth() + charRect.left);
-            stampRegs[3] = getWidth() - charRect.getWidth();
-            stampRegs[4] = DMA2D_INPUT_A8;
-            stampRegs[5] = ((colour & 0xF800) << 8) | ((colour & 0x07E0) << 5) | ((colour & 0x001F) << 3);
             stampRegs[12] = stampRegs[2];
+            stampRegs[3] = getWidth() - charRect.getWidth();
             stampRegs[13] = stampRegs[3];
             stampRegs[14] = (charRect.getWidth() << 16) | charRect.getHeight();
 
