@@ -57,7 +57,7 @@ class cOutline {
 public:
   //{{{
   cOutline() : mMinx(0x7FFFFFFF), mMiny(0x7FFFFFFF),
-               mMaxx(-0x7FFFFFFF), mMaxy(-0x7FFFFFFF), mFlags(sort_required) {
+               mMaxx(-0x7FFFFFFF), mMaxy(-0x7FFFFFFF), mFlags(0) {
 
     mCurCell.set (0x7FFF, 0x7FFF, 0, 0);
     }
@@ -83,7 +83,7 @@ public:
 
     mNumCells = 0;
     mCurCell.set (0x7FFF, 0x7FFF, 0, 0);
-    mFlags |= sort_required;
+    mSortRequired = true;
     mFlags &= ~not_closed;
     mMinx =  0x7FFFFFFF;
     mMiny =  0x7FFFFFFF;
@@ -94,7 +94,7 @@ public:
   //{{{
   void moveTo (int x, int y) {
 
-    if ((mFlags & sort_required) == 0)
+    if (!mSortRequired)
       reset();
 
     if (mFlags & not_closed)
@@ -108,7 +108,7 @@ public:
   //{{{
   void lineTo (int x, int y) {
 
-    if ((mFlags & sort_required) && ((mCurx ^ x) | (mCury ^ y))) {
+    if (mSortRequired && ((mCurx ^ x) | (mCury ^ y))) {
       int c = mCurx >> 8;
       if (c < mMinx)
         mMinx = c;
@@ -145,12 +145,12 @@ public:
       }
 
     // Perform sort only the first time.
-    if (mFlags & sort_required) {
+    if (mSortRequired) {
       addCurCell();
       if (mNumCells == 0)
         return 0;
       sortCells();
-      mFlags &= ~sort_required;
+      mSortRequired = false;
       }
 
     return mSortedCells;
@@ -540,6 +540,7 @@ private:
   int mMaxx;
   int mMaxy;
   unsigned mFlags = 0;
+  bool mSortRequired = true;
   };
 //}}}
 //{{{
@@ -660,7 +661,7 @@ public:
 
   void render (const cScanLine& scanLine, const sRgba& rgba) {
 
-    uint16_t col = ((rgba.r >> 3) << 11) | ((rgba.g >> 2) << 5) | (rgba.b >> 3);
+    uint16_t colour = ((rgba.r >> 3) << 11) | ((rgba.g >> 2) << 5) | (rgba.b >> 3);
 
     auto y = scanLine.getY();
     if (y < 0)
@@ -687,7 +688,7 @@ public:
         if (numPix <= 0)
           continue;
         }
-      mLcd->stamp (col, coverage, cRect (x, y, x+numPix, scanLine.getY()+1), rgba.a);
+      mLcd->stamp (colour, coverage, cRect (x, y, x+numPix, scanLine.getY()+1), rgba.a);
       } while (--numSpans);
     }
 
