@@ -1138,9 +1138,12 @@ void cLcd::renderScanLine (const cScanLine& scanLine, const sRgba& rgba) {
 
   uint16_t colour = ((rgba.r >> 3) << 11) | ((rgba.g >> 2) << 5) | (rgba.b >> 3);
 
+  // yclip top
   auto y = scanLine.getY();
   if (y < 0)
     return;
+
+  // yclip bottom
   if (y >= getHeight())
     return;
 
@@ -1150,6 +1153,8 @@ void cLcd::renderScanLine (const cScanLine& scanLine, const sRgba& rgba) {
   do {
     auto x = baseX + span.next() ;
     uint8_t* coverage = (uint8_t*)span.getCoverage();
+
+    // xclip left
     int16_t numPix = span.getNumPix();
     if (x < 0) {
       numPix += x;
@@ -1158,6 +1163,8 @@ void cLcd::renderScanLine (const cScanLine& scanLine, const sRgba& rgba) {
       coverage -= x;
       x = 0;
       }
+
+    // xclip right
     if (x + numPix >= getWidth()) {
       numPix = getWidth() - x;
       if (numPix <= 0)
