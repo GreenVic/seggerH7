@@ -156,14 +156,6 @@ public:
   uint16_t getNumCells() const { return mNumCells; }
 
 private:
-  //{{{
-  void swapCells (sCell** a, sCell** b) {
-    sCell* temp = *a;
-    *a = *b;
-    *b = temp;
-    }
-  //}}}
-
   static const uint16_t kBlockCells = 1024;
 
   //{{{
@@ -201,6 +193,13 @@ private:
       mCurCell.set (x, y, 0, 0);
       }
    }
+  //}}}
+  //{{{
+  void swapCells (sCell** a, sCell** b) {
+    sCell* temp = *a;
+    *a = *b;
+    *b = temp;
+    }
   //}}}
   //{{{
   void sortCells() {

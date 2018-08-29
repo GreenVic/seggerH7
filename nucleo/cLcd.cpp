@@ -4,10 +4,8 @@
 #include "../freetype/FreeSansBold.h"
 #include "cpuUsage.h"
 #include "math.h"
-
-#include "agg.h"
-
 #include "heap.h"
+#include "agg.h"
 //}}}
 //{{{  screen resolution defines
 #ifdef NEXXY_SCREEN
