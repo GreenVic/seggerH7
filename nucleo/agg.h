@@ -19,10 +19,6 @@ struct sRgba {
 //{{{
 struct sCell {
 public:
-  int mPackedCoord;
-  int mCoverage;
-  int mArea;
-
   //{{{
   void set (int16_t x, int16_t y, int c, int a) {
 
@@ -50,6 +46,10 @@ public:
     mArea += a;
     }
   //}}}
+
+  int mPackedCoord;
+  int mCoverage;
+  int mArea;
   };
 //}}}
 //{{{
@@ -61,13 +61,16 @@ public:
 
     vPortFree (mSortedCells);
 
-    if (mNumBlockCells) {
-      sCell** ptr = mCells + mNumBlockCells - 1;
-      while (mNumBlockCells--) {
+    if (mNumBlockOfCells) {
+      sCell** ptr = mBlockOfCells + mNumBlockOfCells - 1;
+      while (mNumBlockOfCells--) {
+        // free a block of cells
         vPortFree (*ptr);
         ptr--;
         }
-      vPortFree (mCells);
+
+      // free pointers to blockOfCells
+      vPortFree (mBlockOfCells);
       }
     }
   //}}}
@@ -92,11 +95,11 @@ public:
       reset();
 
     if (!mClosed)
-      lineTo (m_close_x, m_close_y);
+      lineTo (mClosex, mClosey);
 
     setCurCell (x >> 8, y >> 8);
-    m_close_x = mCurx = x;
-    m_close_y = mCury = y;
+    mClosex = mCurx = x;
+    mClosey = mCury = y;
     }
   //}}}
   //{{{
@@ -134,7 +137,7 @@ public:
   const sCell* const* getCells() {
 
     if (!mClosed) {
-      lineTo (m_close_x, m_close_y);
+      lineTo (mClosex, mClosey);
       mClosed = true;
       }
 
@@ -160,11 +163,6 @@ private:
     *b = temp;
     }
   //}}}
-  //{{{
-  template <class T> static inline bool lessThan (T* a, T* b) {
-    return (*a)->mPackedCoord < (*b)->mPackedCoord;
-    }
-  //}}}
 
   static const uint16_t kBlockCells = 1024;
 
@@ -175,19 +173,19 @@ private:
       if ((mNumCells % kBlockCells) == 0) {
         // use next block of sCells
         uint32_t block = mNumCells / kBlockCells;
-        if (block >= mNumBlockCells) {
+        if (block >= mNumBlockOfCells) {
           // allocate new block
-          auto newCellPtrs = (sCell**)pvPortMalloc ((mNumBlockCells + 1) * sizeof(sCell*));
-          if (mCells && mNumBlockCells) {
-            memcpy (newCellPtrs, mCells, mNumBlockCells * sizeof(sCell*));
-            vPortFree (mCells);
+          auto newCellPtrs = (sCell**)pvPortMalloc ((mNumBlockOfCells + 1) * sizeof(sCell*));
+          if (mBlockOfCells && mNumBlockOfCells) {
+            memcpy (newCellPtrs, mBlockOfCells, mNumBlockOfCells * sizeof(sCell*));
+            vPortFree (mBlockOfCells);
             }
-          mCells = newCellPtrs;
-          mCells[mNumBlockCells] = (sCell*)pvPortMalloc (kBlockCells * sizeof(sCell));
-          mNumBlockCells++;
-          printf ("allocated new blockOfCells %d of %d\n", block, mNumBlockCells);
+          mBlockOfCells = newCellPtrs;
+          mBlockOfCells[mNumBlockOfCells] = (sCell*)pvPortMalloc (kBlockCells * sizeof(sCell));
+          mNumBlockOfCells++;
+          printf ("allocated new blockOfCells %d of %d\n", block, mNumBlockOfCells);
           }
-        mCurCellPtr = mCells[block];
+        mCurCellPtr = mBlockOfCells[block];
         }
 
       *mCurCellPtr++ = mCurCell;
@@ -218,7 +216,7 @@ private:
       }
 
     // point mSortedCells at sCells
-    sCell** blockPtr = mCells;
+    sCell** blockPtr = mBlockOfCells;
     sCell** sortedPtr = mSortedCells;
     uint16_t numBlocks = mNumCells / kBlockCells;
     while (numBlocks--) {
@@ -456,20 +454,20 @@ private:
         i = base + 1;
         j = limit - 1;
         // now ensure that *i <= *base <= *j
-        if (lessThan (j, i))
+        if ((*j)->mPackedCoord < (*i)->mPackedCoord)
           swapCells (i, j);
-        if (lessThan (base, i))
+        if ((*base)->mPackedCoord < (*i)->mPackedCoord)
           swapCells (base, i);
-        if (lessThan (j, base))
+        if ((*j)->mPackedCoord < (*base)->mPackedCoord)
           swapCells (base, j);
 
         while (true) {
           do {
             i++;
-            } while (lessThan (i, base) );
+            } while ((*i)->mPackedCoord < (*base)->mPackedCoord);
           do {
             j--;
-            } while (lessThan (base, j) );
+            } while ((*base)->mPackedCoord < (*j)->mPackedCoord);
           if ( i > j )
             break;
           swapCells (i, j);
@@ -495,7 +493,7 @@ private:
         i = j + 1;
 
         for (; i < limit; j = i, i++) {
-          for (; lessThan(j + 1, j); j--) {
+          for (; (*(j+1))->mPackedCoord < (*j)->mPackedCoord; j--) {
             swapCells (j + 1, j);
             if (j == base)
               break;
@@ -514,26 +512,26 @@ private:
     }
   //}}}
 
-  uint16_t mNumCells = 0;
-  uint16_t mNumBlockCells = 0;
+  uint16_t mNumBlockOfCells = 0;
   uint16_t mNumSortedCells = 0;
+  sCell** mBlockOfCells = nullptr;
+  sCell** mSortedCells = nullptr;
 
+  uint16_t mNumCells;
   sCell mCurCell;
   sCell* mCurCellPtr = nullptr;
-  sCell** mCells = nullptr;
-  sCell** mSortedCells = nullptr;
 
   int mCurx = 0;
   int mCury = 0;
-  int m_close_x = 0;
-  int m_close_y = 0;
+  int mClosex = 0;
+  int mClosey = 0;
 
   int mMinx;
   int mMiny;
   int mMaxx;
   int mMaxy;
-  bool mClosed = true;
-  bool mSortRequired = true;
+  bool mClosed;
+  bool mSortRequired;
   };
 //}}}
 //{{{
@@ -741,8 +739,10 @@ public:
   //{{{
   void outEllipse (cPointF centre, cPointF radius, float thick) {
 
+    // clockwise ellipse
     ellipse (centre, radius);
 
+    // anticlockwise ellipse
     moveToF (centre + cPointF(radius.x - thick, 0.f));
     for (int i = 1; i < 360; i += 6) {
       auto a = (360 - i) * 3.1415926f / 180.0f;
