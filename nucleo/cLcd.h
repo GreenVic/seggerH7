@@ -51,6 +51,16 @@
 //}}}
 
 //{{{
+struct sRgba {
+  sRgba (uint8_t r_, uint8_t g_, uint8_t b_, uint8_t a_= 255) : r(r_), g(g_), b(b_), a(a_) {}
+
+  uint8_t r;
+  uint8_t g;
+  uint8_t b;
+  uint8_t a;
+  };
+//}}}
+//{{{
 class cTile {
 public:
   enum eFormat { eRgb565, eRgb888, eYuv422mcu };
@@ -91,6 +101,7 @@ public:
   };
 //}}}
 
+class cScanLine;
 class cLcd {
 public:
   enum eDma2dWait { eWaitNone, eWaitDone, eWaitIrq };
@@ -151,6 +162,14 @@ public:
 
   static void rgb888toRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize);
   static void yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
+
+  void moveTo (const cPointF& p);
+  void lineTo (const cPointF& p);
+  void thickLine (const cPointF& p1, const cPointF& p2, float width);
+  void pointedLine (const cPointF& p1, const cPointF& p2, float width);
+  void thickEllipse (cPointF centre, cPointF radius, float thick);
+  void render (const sRgba& rgba, bool fillNonZero = true);
+  void render (const cScanLine& scanLine, const sRgba& rgba);
 
   void start();
   void drawInfo();

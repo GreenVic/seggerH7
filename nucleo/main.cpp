@@ -16,7 +16,6 @@
 
 #include "../fatFs/ff.h"
 #include "../common/cTraceVec.h"
-#include "agg.h"
 
 using namespace std;
 //}}}
@@ -134,9 +133,6 @@ void findFiles (const string& dirPath, const string& ext) {
 //{{{
 void uiThread (void* arg) {
 
-  cRenderer renderer (lcd);
-  cRasteriser rasteriser;
-
   lcd->display (70);
 
   int count = 0;
@@ -183,22 +179,22 @@ void uiThread (void* arg) {
       float minuteRadius = radius * 0.85f;
       float secondRadius = radius * 0.95f;
 
-      rasteriser.thickEllipse (centre, cPointF(radius, radius), 4.f);
-      rasteriser.render (renderer, sRgba (180,180,0, 255), false);
+      lcd->thickEllipse (centre, cPointF(radius, radius), 4.f);
+      lcd->render (sRgba (180,180,0, 255), false);
 
-      rasteriser.pointedLine (
+      lcd->pointedLine (
         centre, centre + cPointF (hourRadius * sin (hourAngle), hourRadius * cos (hourAngle)), 3.0f);
-      rasteriser.pointedLine (
+      lcd->pointedLine (
         centre, centre + cPointF (minuteRadius * sin (minuteAngle), minuteRadius * cos (minuteAngle)), 2.0f);
-      rasteriser.render (renderer, sRgba (255,255,255, 255));
-      rasteriser.thickLine (
+      lcd->render (sRgba (255,255,255, 255));
+      lcd->thickLine (
         centre, centre + cPointF (secondRadius * sin (secondAngle), secondRadius * cos (secondAngle)), 3.0f);
-      rasteriser.render (renderer, sRgba (255,0,0, 180));
+      lcd->render (sRgba (255,0,0, 180));
 
       lcd->cLcd::text (COL_BLACK, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
       lcd->cLcd::text (COL_WHITE, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600) + cPoint(-2,-2));
       //}}}
-      lcd->info ("render took" + dec(HAL_GetTick() - startTime));
+      //lcd->info ("render took" + dec(HAL_GetTick() - startTime));
       lcd->present();
       }
     else {

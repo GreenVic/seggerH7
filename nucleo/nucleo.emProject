@@ -80,7 +80,6 @@
       <file file_name="../system/stm32h7xx.h" />
       <file file_name="../CMSIS/core_cm7.h" />
       <file file_name="lsm303c.h" />
-      <file file_name="agg.h" />
     </folder>
     <folder Name="drivers">
       <folder Name="inc">
