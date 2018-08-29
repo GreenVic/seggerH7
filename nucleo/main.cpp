@@ -179,7 +179,7 @@ void uiThread (void* arg) {
       float minuteRadius = radius * 0.85f;
       float secondRadius = radius * 0.95f;
 
-      lcd->aEllipse (centre, cPointF(radius, radius), 4.f);
+      lcd->aEllipse (centre, cPointF(radius, radius), 4.f, 15);
       lcd->aRender (sRgba (180,180,0, 255), false);
 
       lcd->aPointedLine (

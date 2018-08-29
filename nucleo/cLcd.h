@@ -167,7 +167,7 @@ public:
   void aLineTo (const cPointF& p) { mOutline.lineTo (int(p.x * 256.f), int(p.y * 256.f)); }
   void aLine (const cPointF& p1, const cPointF& p2, float width);
   void aPointedLine (const cPointF& p1, const cPointF& p2, float width);
-  void aEllipse (const cPointF& centre, const cPointF& radius, float thick);
+  void aEllipse (const cPointF& centre, const cPointF& radius, float thick, int step);
   void aRender (const sRgba& rgba, bool fillNonZero = true);
 
   void start();
@@ -824,13 +824,13 @@ private:
   //}}}
 
   //{{{
-  unsigned calcAlpha (int area) const {
+  unsigned calcAlpha (int area, bool fillNonZero) const {
 
     int coverage = area >> (8*2 + 1 - 8);
     if (coverage < 0)
       coverage = -coverage;
 
-    if (!mFillNonZero) {
+    if (!fillNonZero) {
       coverage &= 0x1FF;
       if (coverage > 0x100)
         coverage = 0x200 - coverage;
@@ -842,7 +842,7 @@ private:
     return coverage;
     }
   //}}}
-  void aEllipse (const cPointF& centre, const cPointF& radius);
+  void aEllipse (const cPointF& centre, const cPointF& radius, int step);
   void renderScanLine (const cScanLine& scanLine, const sRgba& rgba);
 
   void ltdcInit (uint16_t* frameBufferAddress);
@@ -900,6 +900,5 @@ private:
   //}}}
   cOutline mOutline;
   cScanLine mScanLine;
-  bool mFillNonZero = true;
   uint8_t mGamma[256];
   };

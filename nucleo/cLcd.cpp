@@ -658,14 +658,14 @@ void cLcd::aPointedLine (const cPointF& p1, const cPointF& p2, float width) {
   }
 //}}}
 //{{{
-void cLcd::aEllipse (const cPointF& centre, const cPointF& radius, float thick) {
+void cLcd::aEllipse (const cPointF& centre, const cPointF& radius, float thick, int step) {
 
   // clockwise ellipse
-  aEllipse (centre, radius);
+  aEllipse (centre, radius, step);
 
   // anticlockwise ellipse
   aMoveTo (centre + cPointF(radius.x - thick, 0.f));
-  for (int i = 1; i < 360; i += 6) {
+  for (int i = 1; i < 360; i += step) {
     auto a = (360 - i) * 3.1415926f / 180.0f;
     aLineTo (centre + cPointF (cos(a) * (radius.x - thick), sin(a) * (radius.y - thick)));
     }
@@ -673,8 +673,6 @@ void cLcd::aEllipse (const cPointF& centre, const cPointF& radius, float thick) 
 //}}}
 //{{{
 void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
-
-  mFillNonZero = fillNonZero;
 
   const sCell* const* sortedCells = mOutline.getSortedCells();
   printf ("render %d cells\n", mOutline.getNumCells());
@@ -701,7 +699,7 @@ void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
       }
 
     if (area) {
-      int alpha = calcAlpha ((coverage << (8 + 1)) - area);
+      int alpha = calcAlpha ((coverage << 9) - area, fillNonZero);
       if (alpha) {
         if (mScanLine.isReady (y)) {
           renderScanLine (mScanLine, rgba);
@@ -716,7 +714,7 @@ void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
       break;
 
     if (int16_t(cell->mPackedCoord & 0xFFFF) > x) {
-      int alpha = calcAlpha (coverage << (8 + 1));
+      int alpha = calcAlpha (coverage << 9, fillNonZero);
       if (alpha) {
         if (mScanLine.isReady (y)) {
            renderScanLine (mScanLine, rgba);
@@ -1126,10 +1124,10 @@ void cLcd::reset() {
 //}}}
 
 //{{{
-void cLcd::aEllipse (const cPointF& centre, const cPointF& radius) {
+void cLcd::aEllipse (const cPointF& centre, const cPointF& radius, int step) {
 
   aMoveTo (centre + cPointF (radius.x, 0.f));
-  for (int i = 1; i < 360; i += 6) {
+  for (int i = 1; i < 360; i += step) {
     auto a = i * 3.1415926f / 180.0f;
     aLineTo (centre + cPointF (cos(a) * radius.x, sin(a) * radius.y));
     }
