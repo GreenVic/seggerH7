@@ -703,21 +703,18 @@ public:
     }
   //}}}
 
-  void moveTo (int x, int y) { mOutline.moveTo (x, y); }
-  void lineTo (int x, int y) { mOutline.lineTo (x, y); }
-  void moveToF (const cPointF& p) { mOutline.moveTo (int(p.x * 0x100), int(p.y * 0x100)); }
-  void lineToF (const cPointF& p) { mOutline.lineTo (int(p.x * 0x100), int(p.y * 0x100)); }
-
+  void moveTo (const cPointF& p) { mOutline.moveTo (int(p.x * 256.f), int(p.y * 256.f)); }
+  void lineTo (const cPointF& p) { mOutline.lineTo (int(p.x * 256.f), int(p.y * 256.f)); }
   //{{{
-  void line (const cPointF& p1, const cPointF& p2, float width) {
+  void thickLine (const cPointF& p1, const cPointF& p2, float width) {
 
     cPointF vec = p2 - p1;
     vec = vec * width / vec.magnitude();
 
-    moveToF (cPointF (p1.x - vec.y, p1.y + vec.x));
-    lineToF (cPointF (p2.x - vec.y, p2.y + vec.x));
-    lineToF (cPointF (p2.x + vec.y, p2.y - vec.x));
-    lineToF (cPointF (p1.x + vec.y, p1.y - vec.x));
+    moveTo (cPointF (p1.x - vec.y, p1.y + vec.x));
+    lineTo (cPointF (p2.x - vec.y, p2.y + vec.x));
+    lineTo (cPointF (p2.x + vec.y, p2.y - vec.x));
+    lineTo (cPointF (p1.x + vec.y, p1.y - vec.x));
     }
   //}}}
   //{{{
@@ -726,36 +723,25 @@ public:
     cPointF vec = p2 - p1;
     vec = vec * width / vec.magnitude();
 
-    moveToF (cPointF (p1.x - vec.y, p1.y + vec.x));
-    lineToF (p2);
-    lineToF (cPointF (p1.x + vec.y, p1.y - vec.x));
+    moveTo (cPointF (p1.x - vec.y, p1.y + vec.x));
+    lineTo (p2);
+    lineTo (cPointF (p1.x + vec.y, p1.y - vec.x));
     }
   //}}}
   //{{{
-  void ellipse (cPointF centre, cPointF radius) {
-
-    moveToF (centre + cPointF (radius.x, 0.f));
-    for (int i = 1; i < 360; i += 6) {
-      auto a = i * 3.1415926f / 180.0f;
-      lineToF (centre + cPointF (cos(a) * radius.x, sin(a) * radius.y));
-      }
-    }
-  //}}}
-  //{{{
-  void outEllipse (cPointF centre, cPointF radius, float thick) {
+  void thickEllipse (cPointF centre, cPointF radius, float thick) {
 
     // clockwise ellipse
     ellipse (centre, radius);
 
     // anticlockwise ellipse
-    moveToF (centre + cPointF(radius.x - thick, 0.f));
+    moveTo (centre + cPointF(radius.x - thick, 0.f));
     for (int i = 1; i < 360; i += 6) {
       auto a = (360 - i) * 3.1415926f / 180.0f;
-      lineToF (centre + cPointF (cos(a) * (radius.x - thick), sin(a) * (radius.y - thick)));
+      lineTo (centre + cPointF (cos(a) * (radius.x - thick), sin(a) * (radius.y - thick)));
       }
     }
   //}}}
-
   //{{{
   void render (cRenderer& renderer, const sRgba& rgba, bool fillNonZero = true) {
 
@@ -835,6 +821,16 @@ private:
       coverage = 0xFF;
 
     return coverage;
+    }
+  //}}}
+  //{{{
+  void ellipse (cPointF centre, cPointF radius) {
+
+    moveTo (centre + cPointF (radius.x, 0.f));
+    for (int i = 1; i < 360; i += 6) {
+      auto a = i * 3.1415926f / 180.0f;
+      lineTo (centre + cPointF (cos(a) * radius.x, sin(a) * radius.y));
+      }
     }
   //}}}
 

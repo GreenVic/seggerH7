@@ -183,7 +183,7 @@ void uiThread (void* arg) {
       float minuteRadius = radius * 0.85f;
       float secondRadius = radius * 0.95f;
 
-      rasteriser.outEllipse (centre, cPointF(radius, radius), 4.f);
+      rasteriser.thickEllipse (centre, cPointF(radius, radius), 4.f);
       rasteriser.render (renderer, sRgba (180,180,0, 255), false);
 
       rasteriser.pointedLine (
@@ -191,7 +191,7 @@ void uiThread (void* arg) {
       rasteriser.pointedLine (
         centre, centre + cPointF (minuteRadius * sin (minuteAngle), minuteRadius * cos (minuteAngle)), 2.0f);
       rasteriser.render (renderer, sRgba (255,255,255, 255));
-      rasteriser.line (
+      rasteriser.thickLine (
         centre, centre + cPointF (secondRadius * sin (secondAngle), secondRadius * cos (secondAngle)), 3.0f);
       rasteriser.render (renderer, sRgba (255,0,0, 180));
 
