@@ -205,28 +205,22 @@ void cLcd::info (uint16_t colour, const std::string str) {
 // dmma2d draw
 //{{{
 void cLcd::rect (uint16_t colour, const cRect& r) {
-//__IO uint32_t OPFCCR  Output PFC Control Register,    Address offset: 0x34
-//__IO uint32_t OCOLR   Output Color Register,          Address offset: 0x38
-//__IO uint32_t OMAR    Output Memory Address Register, Address offset: 0x3C
-//__IO uint32_t OOR     Output Offset Register,         Address offset: 0x40
-//__IO uint32_t NLR     Number of Line Register,        Address offset: 0x44
+
+  uint32_t rectRegs[5];
+  rectRegs[0] = DMA2D_OUTPUT_RGB565;                                           // OPFCCR
+  rectRegs[1] = colour;                                                        // OCOLR
+  rectRegs[2] = uint32_t (mBuffer[mDrawBuffer] + r.top * getWidth() + r.left); // OMAR
+  rectRegs[3] = getWidth() - r.getWidth();                                     // OOR
+  rectRegs[4] = (r.getWidth() << 16) | r.getHeight();                          // NLR
 
   if (!xSemaphoreTake (mLockSem, 5000))
     printf ("cLcd take fail\n");
 
-  uint32_t rectRegs[5];
-  rectRegs[0] = DMA2D_OUTPUT_RGB565;
-  rectRegs[1] = colour;
-  rectRegs[2] = uint32_t (mBuffer[mDrawBuffer] + r.top * getWidth() + r.left);
-  rectRegs[3] = getWidth() - r.getWidth();
-  rectRegs[4] = (r.getWidth() << 16) | r.getHeight();
-
-  ready();
   memcpy ((void*)(&DMA2D->OPFCCR), rectRegs, 5*4);
-
   DMA2D->CR = DMA2D_R2M | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
   ready();
+
   xSemaphoreGive (mLockSem);
   }
 //}}}
@@ -324,28 +318,6 @@ void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r, uint8_t alpha) 
 //__IO uint32_t OMAR;     Output Memory Address Register,           Address offset: 0x3C
 //__IO uint32_t OOR;      Output Offset Register,                   Address offset: 0x40
 //__IO uint32_t NLR;      Number of Line Register,                  Address offset: 0x44
-//{{{  alternative code
-//  uint32_t address = mBuffer[mDrawBuffer] + y * getWidth()) + x;
-//  uint32_t col = ((colour & 0xF800) << 8) | ((colour & 0x07E0) << 5) | ((colour & 0x001F) << 3);
-//  uint32_t stride = getWidth() - width;
-//  uint32_t nlr = (width << 16) | height;
-//  ready();
-//  DMA2D->FGMAR   = (uint32_t)src;  // fgnd start address
-//  DMA2D->FGOR    = 0;              // fgnd stride
-//  DMA2D->BGMAR   = address;        // - repeated to bgnd start addres
-//  DMA2D->BGOR    = stride;         // - repeated to bgnd stride
-//  DMA2D->FGPFCCR = DMA2D_INPUT_A8; // fgnd PFC
-//  DMA2D->FGCOLR  = col;
-//  DMA2D->BGPFCCR = DMA2D_RGB565;
-//  DMA2D->OPFCCR  = DMA2D_RGB565;
-//  DMA2D->OMAR    = address;        // output start address
-//  DMA2D->OOR     = stride;         // output stride
-//  DMA2D->NLR     = nlr;            //  width:height
-//  DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE | DMA2D_CR_START;
-//}}}
-
-  if (!xSemaphoreTake (mLockSem, 5000))
-    printf ("cLcd take fail\n");
 
   uint32_t stampRegs[15];
   stampRegs[0] = (uint32_t)src;
@@ -363,10 +335,13 @@ void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r, uint8_t alpha) 
   stampRegs[12] = stampRegs[2];
   stampRegs[13] = stampRegs[3];
   stampRegs[14] = (r.getWidth() << 16) | r.getHeight();
+
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
+
   memcpy ((void*)(&DMA2D->FGMAR), stampRegs, 15*4);
   DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
-
   ready();
 
   xSemaphoreGive (mLockSem);

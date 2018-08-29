@@ -55,13 +55,7 @@ public:
 //{{{
 class cOutline {
 public:
-  //{{{
-  cOutline() : mMinx(0x7FFFFFFF), mMiny(0x7FFFFFFF),
-               mMaxx(-0x7FFFFFFF), mMaxy(-0x7FFFFFFF), mFlags(0) {
-
-    mCurCell.set (0x7FFF, 0x7FFF, 0, 0);
-    }
-  //}}}
+  cOutline() { reset(); }
   //{{{
   ~cOutline() {
 
@@ -84,7 +78,7 @@ public:
     mNumCells = 0;
     mCurCell.set (0x7FFF, 0x7FFF, 0, 0);
     mSortRequired = true;
-    mFlags &= ~not_closed;
+    mClosed = true;
     mMinx =  0x7FFFFFFF;
     mMiny =  0x7FFFFFFF;
     mMaxx = -0x7FFFFFFF;
@@ -97,7 +91,7 @@ public:
     if (!mSortRequired)
       reset();
 
-    if (mFlags & not_closed)
+    if (!mClosed)
       lineTo (m_close_x, m_close_y);
 
     setCurCell (x >> 8, y >> 8);
@@ -126,7 +120,7 @@ public:
       renderLine (mCurx, mCury, x, y);
       mCurx = x;
       mCury = y;
-      mFlags |= not_closed;
+      mClosed = false;
       }
     }
   //}}}
@@ -139,9 +133,9 @@ public:
   //{{{
   const sCell* const* getCells() {
 
-    if (mFlags & not_closed) {
+    if (!mClosed) {
       lineTo (m_close_x, m_close_y);
-      mFlags &= ~not_closed;
+      mClosed = true;
       }
 
     // Perform sort only the first time.
@@ -172,7 +166,6 @@ private:
     }
   //}}}
 
-  enum { not_closed = 1, sort_required = 2 };
   static const uint16_t kBlockCells = 1024;
 
   //{{{
@@ -539,7 +532,7 @@ private:
   int mMiny;
   int mMaxx;
   int mMaxy;
-  unsigned mFlags = 0;
+  bool mClosed = true;
   bool mSortRequired = true;
   };
 //}}}
