@@ -28,23 +28,8 @@
 #define YCBCR_444_BLOCK_SIZE     192     /* YCbCr 4:4:4 MCU : 1 8x8 block of Y + 1 8x8 block of Cb + 1 8x8 block of Cr   */
 //}}}
 
-//{{{  includes
-#include <stdint.h>
-#include <string.h>
-#include <math.h>
-//}}}
-
-DMA2D_HandleTypeDef DMA2D_Handle;
 //{{{  static var inits
-cLcd* cLcd::mLcd = nullptr;
-
-uint32_t cLcd::mShowBuffer = 0;
-
-cLcd::eDma2dWait cLcd::mDma2dWait = eWaitNone;
-SemaphoreHandle_t cLcd::mDma2dSem;
-
-SemaphoreHandle_t cLcd::mFrameSem;
-
+static DMA2D_HandleTypeDef DMA2D_Handle;
 static SemaphoreHandle_t mLockSem;
 
 static int32_t* gRedLut = nullptr;
@@ -53,8 +38,15 @@ static int32_t* gUGreenLut = nullptr;
 static int32_t* gVGreenLut = nullptr;
 static uint8_t* gClampLut5 = nullptr;
 static uint8_t* gClampLut6 = nullptr;
+
+cLcd* cLcd::mLcd = nullptr;
+
+uint32_t cLcd::mShowBuffer = 0;
+
+cLcd::eDma2dWait cLcd::mDma2dWait = eWaitNone;
+SemaphoreHandle_t cLcd::mDma2dSem;
+SemaphoreHandle_t cLcd::mFrameSem;
 //}}}
-cRasteriser mRasteriser;
 
 //{{{
 extern "C" { void LTDC_IRQHandler() {
@@ -131,6 +123,10 @@ cLcd::cLcd()  {
   mLcd = this;
 
   mLockSem = xSemaphoreCreateMutex();
+
+  // set gamma 1.2 lut
+  for (unsigned i = 0; i < 256; i++)
+    mGamma[i] = (uint8_t)(pow(double(i) / 255.0, 1.2) * 255.0);
   }
 //}}}
 //{{{
@@ -638,44 +634,101 @@ void cLcd::yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t 
 //}}}
 
 // agg
-void cLcd::moveTo (const cPointF& p) { mRasteriser.moveTo (p); }
-void cLcd::lineTo (const cPointF& p) { mRasteriser.lineTo(p); }
-void cLcd::thickLine (const cPointF& p1, const cPointF& p2, float width) { mRasteriser.thickLine (p1, p2, width); }
-void cLcd::pointedLine (const cPointF& p1, const cPointF& p2, float width) { mRasteriser.pointedLine (p1, p2, width); }
-void cLcd::thickEllipse (cPointF centre, cPointF radius, float thick) { mRasteriser.thickEllipse (centre, radius, thick); }
-void cLcd::render (const sRgba& rgba, bool fillNonZero) { mRasteriser.render (rgba, fillNonZero); }
 //{{{
-void cLcd::render (const cScanLine& scanLine, const sRgba& rgba) {
+void cLcd::aLine (const cPointF& p1, const cPointF& p2, float width) {
 
-  uint16_t colour = ((rgba.r >> 3) << 11) | ((rgba.g >> 2) << 5) | (rgba.b >> 3);
+  cPointF vec = p2 - p1;
+  vec = vec * width / vec.magnitude();
 
-  auto y = scanLine.getY();
-  if (y < 0)
+  aMoveTo (cPointF (p1.x - vec.y, p1.y + vec.x));
+  aLineTo (cPointF (p2.x - vec.y, p2.y + vec.x));
+  aLineTo (cPointF (p2.x + vec.y, p2.y - vec.x));
+  aLineTo (cPointF (p1.x + vec.y, p1.y - vec.x));
+  }
+//}}}
+//{{{
+void cLcd::aPointedLine (const cPointF& p1, const cPointF& p2, float width) {
+
+  cPointF vec = p2 - p1;
+  vec = vec * width / vec.magnitude();
+
+  aMoveTo (cPointF (p1.x - vec.y, p1.y + vec.x));
+  aLineTo (p2);
+  aLineTo (cPointF (p1.x + vec.y, p1.y - vec.x));
+  }
+//}}}
+//{{{
+void cLcd::aEllipse (const cPointF& centre, const cPointF& radius, float thick) {
+
+  // clockwise ellipse
+  aEllipse (centre, radius);
+
+  // anticlockwise ellipse
+  aMoveTo (centre + cPointF(radius.x - thick, 0.f));
+  for (int i = 1; i < 360; i += 6) {
+    auto a = (360 - i) * 3.1415926f / 180.0f;
+    aLineTo (centre + cPointF (cos(a) * (radius.x - thick), sin(a) * (radius.y - thick)));
+    }
+  }
+//}}}
+//{{{
+void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
+
+  mFillNonZero = fillNonZero;
+
+  const sCell* const* sortedCells = mOutline.getSortedCells();
+  printf ("render %d cells\n", mOutline.getNumCells());
+  if (mOutline.getNumCells() == 0)
     return;
-  if (y >= getHeight())
-    return;
 
-  int baseX = scanLine.getBaseX();
-  uint16_t numSpans = scanLine.getNumSpans();
-  cScanLine::iterator span (scanLine);
-  do {
-    auto x = baseX + span.next() ;
-    uint8_t* coverage = (uint8_t*)span.getCoverage();
-    int16_t numPix = span.getNumPix();
-    if (x < 0) {
-      numPix += x;
-      if (numPix <= 0)
-        continue;
-      coverage -= x;
-      x = 0;
+  mScanLine.reset (mOutline.getMinx(), mOutline.getMaxx());
+
+  int coverage = 0;
+  const sCell* cell = *sortedCells++;
+  while (true) {
+    int x = cell->mPackedCoord & 0xFFFF;
+    int y = cell->mPackedCoord >> 16;
+    int packedCoord = cell->mPackedCoord;
+    int area = cell->mArea;
+    coverage += cell->mCoverage;
+
+    // accumulate all start cells
+    while ((cell = *sortedCells++) != 0) {
+      if (cell->mPackedCoord != packedCoord)
+        break;
+      area += cell->mArea;
+      coverage += cell->mCoverage;
       }
-    if (x + numPix >= getWidth()) {
-      numPix = getWidth() - x;
-      if (numPix <= 0)
-        continue;
+
+    if (area) {
+      int alpha = calcAlpha ((coverage << (8 + 1)) - area);
+      if (alpha) {
+        if (mScanLine.isReady (y)) {
+          renderScanLine (mScanLine, rgba);
+          mScanLine.resetSpans();
+          }
+        mScanLine.addSpan (x, y, 1, mGamma[alpha]);
+        }
+      x++;
       }
-    stamp (colour, coverage, cRect (x, y, x+numPix, scanLine.getY()+1), rgba.a);
-    } while (--numSpans);
+
+    if (!cell)
+      break;
+
+    if (int16_t(cell->mPackedCoord & 0xFFFF) > x) {
+      int alpha = calcAlpha (coverage << (8 + 1));
+      if (alpha) {
+        if (mScanLine.isReady (y)) {
+           renderScanLine (mScanLine, rgba);
+           mScanLine.resetSpans();
+           }
+         mScanLine.addSpan (x, y, int16_t(cell->mPackedCoord & 0xFFFF) - x, mGamma[alpha]);
+         }
+      }
+    }
+
+  if (mScanLine.getNumSpans())
+    renderScanLine (mScanLine, rgba);
   }
 //}}}
 
@@ -1037,7 +1090,6 @@ void cLcd::ready() {
   mDma2dWait = eWaitNone;
   }
 //}}}
-
 //{{{
 cFontChar* cLcd::loadChar (uint16_t fontHeight, char ch) {
 
@@ -1074,62 +1126,47 @@ void cLcd::reset() {
 //}}}
 
 //{{{
-void cRasteriser::render (const sRgba& rgba, bool fillNonZero) {
+void cLcd::aEllipse (const cPointF& centre, const cPointF& radius) {
 
-  mFillNonZero = fillNonZero;
+  aMoveTo (centre + cPointF (radius.x, 0.f));
+  for (int i = 1; i < 360; i += 6) {
+    auto a = i * 3.1415926f / 180.0f;
+    aLineTo (centre + cPointF (cos(a) * radius.x, sin(a) * radius.y));
+    }
+  }
+//}}}
+//{{{
+void cLcd::renderScanLine (const cScanLine& scanLine, const sRgba& rgba) {
 
-  const sCell* const* sortedCells = mOutline.getSortedCells();
-  printf ("cRasteriser::render %d cells\n", mOutline.getNumCells());
-  if (mOutline.getNumCells() == 0)
+  uint16_t colour = ((rgba.r >> 3) << 11) | ((rgba.g >> 2) << 5) | (rgba.b >> 3);
+
+  auto y = scanLine.getY();
+  if (y < 0)
+    return;
+  if (y >= getHeight())
     return;
 
-  mScanLine.reset (mOutline.getMinx(), mOutline.getMaxx());
-
-  int coverage = 0;
-  const sCell* cell = *sortedCells++;
-  while (true) {
-    int x = cell->mPackedCoord & 0xFFFF;
-    int y = cell->mPackedCoord >> 16;
-    int packedCoord = cell->mPackedCoord;
-    int area = cell->mArea;
-    coverage += cell->mCoverage;
-
-    // accumulate all start cells
-    while ((cell = *sortedCells++) != 0) {
-      if (cell->mPackedCoord != packedCoord)
-        break;
-      area += cell->mArea;
-      coverage += cell->mCoverage;
+  int baseX = scanLine.getBaseX();
+  uint16_t numSpans = scanLine.getNumSpans();
+  cScanLine::iterator span (scanLine);
+  do {
+    auto x = baseX + span.next() ;
+    uint8_t* coverage = (uint8_t*)span.getCoverage();
+    int16_t numPix = span.getNumPix();
+    if (x < 0) {
+      numPix += x;
+      if (numPix <= 0)
+        continue;
+      coverage -= x;
+      x = 0;
+      }
+    if (x + numPix >= getWidth()) {
+      numPix = getWidth() - x;
+      if (numPix <= 0)
+        continue;
       }
 
-    if (area) {
-      int alpha = calcAlpha ((coverage << (8 + 1)) - area);
-      if (alpha) {
-        if (mScanLine.isReady (y)) {
-          cLcd::mLcd->render (mScanLine, rgba);
-          mScanLine.resetSpans();
-          }
-        mScanLine.addSpan (x, y, 1, mGamma[alpha]);
-        }
-      x++;
-      }
-
-    if (!cell)
-      break;
-
-    if (int16_t(cell->mPackedCoord & 0xFFFF) > x) {
-      int alpha = calcAlpha (coverage << (8 + 1));
-      if (alpha) {
-        if (mScanLine.isReady (y)) {
-           cLcd::mLcd->render (mScanLine, rgba);
-           mScanLine.resetSpans();
-           }
-         mScanLine.addSpan (x, y, int16_t(cell->mPackedCoord & 0xFFFF) - x, mGamma[alpha]);
-         }
-      }
-    }
-
-  if (mScanLine.getNumSpans())
-    cLcd::mLcd->render (mScanLine, rgba);
+    stamp (colour, coverage, cRect (x, y, x+numPix, y+1), rgba.a);
+    } while (--numSpans);
   }
 //}}}

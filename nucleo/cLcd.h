@@ -101,167 +101,90 @@ public:
   };
 //}}}
 
-//{{{
-class cScanLine {
+class cLcd {
 public:
+  enum eDma2dWait { eWaitNone, eWaitDone, eWaitIrq };
+  cLcd();
+  ~cLcd();
+
+  void init (const std::string& title);
+  static uint16_t getWidth() { return LCD_WIDTH; }
+  static uint16_t getHeight() { return LCD_HEIGHT; }
+  static cPoint getSize() { return cPoint (getWidth(), getHeight()); }
+
+  static uint16_t getBoxHeight() { return BOX_HEIGHT; }
+  static uint16_t getSmallFontHeight() { return SMALL_FONT_HEIGHT; }
+  static uint16_t getFontHeight() { return FONT_HEIGHT; }
+  static uint16_t getBigFontHeight() { return BIG_FONT_HEIGHT; }
+
+  uint16_t getBrightness() { return mBrightness; }
+  uint8_t* getDrawBuf() { return (uint8_t*)mBuffer[mDrawBuffer]; }
+
+  void setShowInfo (bool show);
+  void setTitle (const std::string& str) { mTitle = str; mChanged = true; }
+  void change() { mChanged = true; }
   //{{{
-  class iterator {
-  public:
-    iterator (const cScanLine& scanLine) :
-      mCoverage(scanLine.mCoverage), mCurCount(scanLine.mCounts), mCurStartPtr(scanLine.mStartPtrs) {}
-
-    int next() {
-      ++mCurCount;
-      ++mCurStartPtr;
-      return int(*mCurStartPtr - mCoverage);
-      }
-
-    int getNumPix() const { return int(*mCurCount); }
-    const uint8_t* getCoverage() const { return *mCurStartPtr; }
-
-  private:
-    const uint8_t* mCoverage;
-    const uint16_t* mCurCount;
-    const uint8_t* const* mCurStartPtr;
-    };
-  //}}}
-  friend class iterator;
-
-  cScanLine() {}
-  //{{{
-  ~cScanLine() {
-
-    vPortFree (mCounts);
-    vPortFree (mStartPtrs);
-    vPortFree (mCoverage);
-    }
-  //}}}
-
-  int16_t getY() const { return mLastY; }
-  int16_t getBaseX() const { return mMinx;  }
-  uint16_t getNumSpans() const { return mNumSpans; }
-  int isReady (int16_t y) const { return mNumSpans && (y ^ mLastY); }
-
-  //{{{
-  void resetSpans() {
-
-    mLastX = 0x7FFF;
-    mLastY = 0x7FFF;
-    mCurCount = mCounts;
-    mCurStartPtr = mStartPtrs;
-    mNumSpans = 0;
+  bool isChanged() {
+    bool wasChanged = mChanged;
+    mChanged = false;
+    return wasChanged;
     }
   //}}}
   //{{{
-  void reset (int16_t min_x, int16_t max_x) {
-
-    unsigned max_len = max_x - min_x + 2;
-    if (max_len > mMaxlen) {
-      vPortFree (mCounts);
-      vPortFree (mStartPtrs);
-      vPortFree (mCoverage);
-      mCoverage = (uint8_t*)pvPortMalloc (max_len);
-      mStartPtrs = (uint8_t**)pvPortMalloc (max_len*4);
-      mCounts = (uint16_t*)pvPortMalloc (max_len*2);
-      mMaxlen = max_len;
-      }
-
-    mLastX = 0x7FFF;
-    mLastY = 0x7FFF;
-    mMinx = min_x;
-    mCurCount = mCounts;
-    mCurStartPtr = mStartPtrs;
-    mNumSpans = 0;
+  void toggle() {
+    mShowInfo = !mShowInfo;
+    change();
     }
   //}}}
 
-  //{{{
-  void addSpan (int16_t x, int16_t y, uint16_t num, uint16_t coverage) {
+  void info (uint16_t colour, const std::string str);
+  void info (const std::string str) { info (COL_WHITE, str); }
 
-    x -= mMinx;
+  void clear (uint16_t colour);
+  void rect (uint16_t colour, const cRect& r);
+  void rectClipped (uint16_t colour, cRect r);
+  void rectOutline (uint16_t colour, const cRect& r, uint8_t thickness);
+  void ellipse (uint16_t colour, cPoint centre, cPoint radius);
 
-    memset (mCoverage + x, coverage, num);
-    if (x == mLastX+1)
-      (*mCurCount) += (uint16_t)num;
-    else {
-      *++mCurCount = (uint16_t)num;
-      *++mCurStartPtr = mCoverage + x;
-      mNumSpans++;
-      }
+  void stamp (uint16_t colour, uint8_t* src, const cRect& r, uint8_t alpha = 255);
+  void stampClipped (uint16_t colour, uint8_t* src, cRect r, uint8_t alpha = 255);
+  int text (uint16_t colour, uint16_t fontHeight, const std::string& str, cRect r, uint8_t alpha = 255);
 
-    mLastX = x + num - 1;
-    mLastY = y;
-    }
-  //}}}
+  void copy (cTile* tile, cPoint p);
+  void copy90 (cTile* tile, cPoint p);
+  void size (cTile* tile, const cRect& r);
 
-private:
-  int16_t   mMinx = 0;
-  uint16_t  mMaxlen = 0;
-  int16_t   mLastX = 0x7FFF;
-  int16_t   mLastY = 0x7FFF;
+  inline void pixel (uint16_t colour, cPoint p) { *(mBuffer[mDrawBuffer] + p.y * getWidth() + p.x) = colour; }
+  void grad (uint16_t colTL, uint16_t colTR, uint16_t colBL, uint16_t colBR, const cRect& r);
+  void line (uint16_t colour, cPoint p1, cPoint p2);
+  void ellipseOutline (uint16_t colour, cPoint centre, cPoint radius);
 
-  uint8_t*  mCoverage = nullptr;
+  static void rgb888toRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize);
+  static void yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
 
-  uint8_t** mStartPtrs = nullptr;
-  uint8_t** mCurStartPtr = nullptr;
+  // agg anti aliased
+  void aMoveTo (const cPointF& p) { mOutline.moveTo (int(p.x * 256.f), int(p.y * 256.f)); }
+  void aLineTo (const cPointF& p) { mOutline.lineTo (int(p.x * 256.f), int(p.y * 256.f)); }
+  void aLine (const cPointF& p1, const cPointF& p2, float width);
+  void aPointedLine (const cPointF& p1, const cPointF& p2, float width);
+  void aEllipse (const cPointF& centre, const cPointF& radius, float thick);
+  void aRender (const sRgba& rgba, bool fillNonZero = true);
 
-  uint16_t* mCounts = nullptr;
-  uint16_t* mCurCount = nullptr;
+  void start();
+  void drawInfo();
+  void present();
 
-  uint16_t  mNumSpans = 0;
-  };
-//}}}
-//{{{
-class cRasteriser {
-public:
-  //{{{
-  cRasteriser() {
-    // set gamma 1.2 lut
-    for (unsigned i = 0; i < 256; i++)
-      mGamma[i] = (uint8_t)(pow(double(i) / 255.0, 1.2) * 255.0);
-    }
-  //}}}
+  void display (int brightness);
 
-  void moveTo (const cPointF& p) { mOutline.moveTo (int(p.x * 256.f), int(p.y * 256.f)); }
-  void lineTo (const cPointF& p) { mOutline.lineTo (int(p.x * 256.f), int(p.y * 256.f)); }
-  //{{{
-  void thickLine (const cPointF& p1, const cPointF& p2, float width) {
+  static cLcd* mLcd;
+  static uint32_t mShowBuffer;
 
-    cPointF vec = p2 - p1;
-    vec = vec * width / vec.magnitude();
+  static eDma2dWait mDma2dWait;
+  static SemaphoreHandle_t mDma2dSem;
+  static SemaphoreHandle_t mFrameSem;
 
-    moveTo (cPointF (p1.x - vec.y, p1.y + vec.x));
-    lineTo (cPointF (p2.x - vec.y, p2.y + vec.x));
-    lineTo (cPointF (p2.x + vec.y, p2.y - vec.x));
-    lineTo (cPointF (p1.x + vec.y, p1.y - vec.x));
-    }
-  //}}}
-  //{{{
-  void pointedLine (const cPointF& p1, const cPointF& p2, float width) {
-
-    cPointF vec = p2 - p1;
-    vec = vec * width / vec.magnitude();
-
-    moveTo (cPointF (p1.x - vec.y, p1.y + vec.x));
-    lineTo (p2);
-    lineTo (cPointF (p1.x + vec.y, p1.y - vec.x));
-    }
-  //}}}
-  //{{{
-  void thickEllipse (cPointF centre, cPointF radius, float thick) {
-
-    // clockwise ellipse
-    ellipse (centre, radius);
-
-    // anticlockwise ellipse
-    moveTo (centre + cPointF(radius.x - thick, 0.f));
-    for (int i = 1; i < 360; i += 6) {
-      auto a = (360 - i) * 3.1415926f / 180.0f;
-      lineTo (centre + cPointF (cos(a) * (radius.x - thick), sin(a) * (radius.y - thick)));
-      }
-    }
-  //}}}
-  void render (const sRgba& rgba, bool fillNonZero = true);
+  void* operator new (std::size_t size) { return pvPortMalloc (size); }
+  void operator delete (void* ptr) { vPortFree (ptr); }
 
 private:
   //{{{
@@ -303,10 +226,12 @@ private:
   //{{{
   class cOutline {
   public:
+    //{{{
     cOutline() {
       mNumCellsInBlock = 2048;
       reset();
       }
+    //}}}
     //{{{
     ~cOutline() {
 
@@ -788,6 +713,117 @@ private:
     };
   //}}}
   //{{{
+  class cScanLine {
+  public:
+    //{{{
+    class iterator {
+    public:
+      iterator (const cScanLine& scanLine) :
+        mCoverage(scanLine.mCoverage), mCurCount(scanLine.mCounts), mCurStartPtr(scanLine.mStartPtrs) {}
+
+      int next() {
+        ++mCurCount;
+        ++mCurStartPtr;
+        return int(*mCurStartPtr - mCoverage);
+        }
+
+      int getNumPix() const { return int(*mCurCount); }
+      const uint8_t* getCoverage() const { return *mCurStartPtr; }
+
+    private:
+      const uint8_t* mCoverage;
+      const uint16_t* mCurCount;
+      const uint8_t* const* mCurStartPtr;
+      };
+    //}}}
+    friend class iterator;
+
+    cScanLine() {}
+    //{{{
+    ~cScanLine() {
+
+      vPortFree (mCounts);
+      vPortFree (mStartPtrs);
+      vPortFree (mCoverage);
+      }
+    //}}}
+
+    int16_t getY() const { return mLastY; }
+    int16_t getBaseX() const { return mMinx;  }
+    uint16_t getNumSpans() const { return mNumSpans; }
+    int isReady (int16_t y) const { return mNumSpans && (y ^ mLastY); }
+
+    //{{{
+    void resetSpans() {
+
+      mLastX = 0x7FFF;
+      mLastY = 0x7FFF;
+      mCurCount = mCounts;
+      mCurStartPtr = mStartPtrs;
+      mNumSpans = 0;
+      }
+    //}}}
+    //{{{
+    void reset (int16_t min_x, int16_t max_x) {
+
+      unsigned max_len = max_x - min_x + 2;
+      if (max_len > mMaxlen) {
+        vPortFree (mCounts);
+        vPortFree (mStartPtrs);
+        vPortFree (mCoverage);
+        mCoverage = (uint8_t*)pvPortMalloc (max_len);
+        mStartPtrs = (uint8_t**)pvPortMalloc (max_len*4);
+        mCounts = (uint16_t*)pvPortMalloc (max_len*2);
+        mMaxlen = max_len;
+        }
+
+      mLastX = 0x7FFF;
+      mLastY = 0x7FFF;
+      mMinx = min_x;
+      mCurCount = mCounts;
+      mCurStartPtr = mStartPtrs;
+      mNumSpans = 0;
+      }
+    //}}}
+
+    //{{{
+    void addSpan (int16_t x, int16_t y, uint16_t num, uint16_t coverage) {
+
+      x -= mMinx;
+
+      memset (mCoverage + x, coverage, num);
+      if (x == mLastX+1)
+        (*mCurCount) += (uint16_t)num;
+      else {
+        *++mCurCount = (uint16_t)num;
+        *++mCurStartPtr = mCoverage + x;
+        mNumSpans++;
+        }
+
+      mLastX = x + num - 1;
+      mLastY = y;
+      }
+    //}}}
+
+  private:
+    int16_t   mMinx = 0;
+    uint16_t  mMaxlen = 0;
+    int16_t   mLastX = 0x7FFF;
+    int16_t   mLastY = 0x7FFF;
+
+    uint8_t*  mCoverage = nullptr;
+
+    uint8_t** mStartPtrs = nullptr;
+    uint8_t** mCurStartPtr = nullptr;
+
+    uint16_t* mCounts = nullptr;
+    uint16_t* mCurCount = nullptr;
+
+    uint16_t  mNumSpans = 0;
+    };
+  //}}}
+
+  //{{{
   unsigned calcAlpha (int area) const {
 
     int coverage = area >> (8*2 + 1 - 8);
@@ -806,110 +842,9 @@ private:
     return coverage;
     }
   //}}}
-  //{{{
-  void ellipse (cPointF centre, cPointF radius) {
+  void aEllipse (const cPointF& centre, const cPointF& radius);
+  void renderScanLine (const cScanLine& scanLine, const sRgba& rgba);
 
-    moveTo (centre + cPointF (radius.x, 0.f));
-    for (int i = 1; i < 360; i += 6) {
-      auto a = i * 3.1415926f / 180.0f;
-      lineTo (centre + cPointF (cos(a) * radius.x, sin(a) * radius.y));
-      }
-    }
-  //}}}
-
-  cOutline mOutline;
-  cScanLine mScanLine;
-  bool mFillNonZero = true;
-  uint8_t mGamma[256];
-  };
-//}}}
-
-class cLcd {
-public:
-  enum eDma2dWait { eWaitNone, eWaitDone, eWaitIrq };
-  cLcd();
-  ~cLcd();
-
-  void init (const std::string& title);
-  static uint16_t getWidth() { return LCD_WIDTH; }
-  static uint16_t getHeight() { return LCD_HEIGHT; }
-  static cPoint getSize() { return cPoint (getWidth(), getHeight()); }
-
-  static uint16_t getBoxHeight() { return BOX_HEIGHT; }
-  static uint16_t getSmallFontHeight() { return SMALL_FONT_HEIGHT; }
-  static uint16_t getFontHeight() { return FONT_HEIGHT; }
-  static uint16_t getBigFontHeight() { return BIG_FONT_HEIGHT; }
-
-  uint16_t getBrightness() { return mBrightness; }
-  uint8_t* getDrawBuf() { return (uint8_t*)mBuffer[mDrawBuffer]; }
-
-  void setShowInfo (bool show);
-  void setTitle (const std::string& str) { mTitle = str; mChanged = true; }
-  void change() { mChanged = true; }
-  //{{{
-  bool isChanged() {
-    bool wasChanged = mChanged;
-    mChanged = false;
-    return wasChanged;
-    }
-  //}}}
-  //{{{
-  void toggle() {
-    mShowInfo = !mShowInfo;
-    change();
-    }
-  //}}}
-
-  void info (uint16_t colour, const std::string str);
-  void info (const std::string str) { info (COL_WHITE, str); }
-
-  void clear (uint16_t colour);
-  void rect (uint16_t colour, const cRect& r);
-  void rectClipped (uint16_t colour, cRect r);
-  void rectOutline (uint16_t colour, const cRect& r, uint8_t thickness);
-  void ellipse (uint16_t colour, cPoint centre, cPoint radius);
-
-  void stamp (uint16_t colour, uint8_t* src, const cRect& r, uint8_t alpha = 255);
-  void stampClipped (uint16_t colour, uint8_t* src, cRect r, uint8_t alpha = 255);
-  int text (uint16_t colour, uint16_t fontHeight, const std::string& str, cRect r, uint8_t alpha = 255);
-
-  void copy (cTile* tile, cPoint p);
-  void copy90 (cTile* tile, cPoint p);
-  void size (cTile* tile, const cRect& r);
-
-  inline void pixel (uint16_t colour, cPoint p) { *(mBuffer[mDrawBuffer] + p.y * getWidth() + p.x) = colour; }
-  void grad (uint16_t colTL, uint16_t colTR, uint16_t colBL, uint16_t colBR, const cRect& r);
-  void line (uint16_t colour, cPoint p1, cPoint p2);
-  void ellipseOutline (uint16_t colour, cPoint centre, cPoint radius);
-
-  static void rgb888toRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize);
-  static void yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
-
-  void moveTo (const cPointF& p);
-  void lineTo (const cPointF& p);
-  void thickLine (const cPointF& p1, const cPointF& p2, float width);
-  void pointedLine (const cPointF& p1, const cPointF& p2, float width);
-  void thickEllipse (cPointF centre, cPointF radius, float thick);
-  void render (const sRgba& rgba, bool fillNonZero = true);
-  void render (const cScanLine& scanLine, const sRgba& rgba);
-
-  void start();
-  void drawInfo();
-  void present();
-
-  void display (int brightness);
-
-  static cLcd* mLcd;
-  static uint32_t mShowBuffer;
-
-  static eDma2dWait mDma2dWait;
-  static SemaphoreHandle_t mDma2dSem;
-  static SemaphoreHandle_t mFrameSem;
-
-  void* operator new (std::size_t size) { return pvPortMalloc (size); }
-  void operator delete (void* ptr) { vPortFree (ptr); }
-
-private:
   void ltdcInit (uint16_t* frameBufferAddress);
   cFontChar* loadChar (uint16_t fontHeight, char ch);
 
@@ -963,4 +898,8 @@ private:
   cLine mLines[kMaxLines];
   int mCurLine = 0;
   //}}}
+  cOutline mOutline;
+  cScanLine mScanLine;
+  bool mFillNonZero = true;
+  uint8_t mGamma[256];
   };

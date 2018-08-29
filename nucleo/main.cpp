@@ -179,17 +179,17 @@ void uiThread (void* arg) {
       float minuteRadius = radius * 0.85f;
       float secondRadius = radius * 0.95f;
 
-      lcd->thickEllipse (centre, cPointF(radius, radius), 4.f);
-      lcd->render (sRgba (180,180,0, 255), false);
+      lcd->aEllipse (centre, cPointF(radius, radius), 4.f);
+      lcd->aRender (sRgba (180,180,0, 255), false);
 
-      lcd->pointedLine (
+      lcd->aPointedLine (
         centre, centre + cPointF (hourRadius * sin (hourAngle), hourRadius * cos (hourAngle)), 3.0f);
-      lcd->pointedLine (
+      lcd->aPointedLine (
         centre, centre + cPointF (minuteRadius * sin (minuteAngle), minuteRadius * cos (minuteAngle)), 2.0f);
-      lcd->render (sRgba (255,255,255, 255));
-      lcd->thickLine (
+      lcd->aRender (sRgba (255,255,255, 255));
+      lcd->aLine (
         centre, centre + cPointF (secondRadius * sin (secondAngle), secondRadius * cos (secondAngle)), 3.0f);
-      lcd->render (sRgba (255,0,0, 180));
+      lcd->aRender (sRgba (255,0,0, 180));
 
       lcd->cLcd::text (COL_BLACK, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
       lcd->cLcd::text (COL_WHITE, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600) + cPoint(-2,-2));
