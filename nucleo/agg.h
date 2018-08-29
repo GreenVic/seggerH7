@@ -707,18 +707,7 @@ public:
         if (numPix <= 0)
           continue;
         }
-
-      if (rgba.a < 255) {
-        //{{{  apply alpha to coverage
-        auto numPixa = numPix;
-        uint8_t* coveragea = coverage;
-        do {
-          uint16_t value = *coveragea * rgba.a;
-          *coveragea++ = value >> 8;
-          } while (--numPixa);
-        }
-        //}}}
-      mLcd->stamp (col, coverage, cRect (x, y, x+numPix, scanLine.getY()+1));
+      mLcd->stamp (col, coverage, cRect (x, y, x+numPix, scanLine.getY()+1), rgba.a);
       } while (--numSpans);
     }
 
