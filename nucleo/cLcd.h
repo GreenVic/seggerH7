@@ -176,9 +176,6 @@ private:
   void reset();
 
   //{{{  vars
-  uint32_t rectRegs[5];
-  uint32_t stampRegs[15];
-
   LTDC_HandleTypeDef mLtdcHandle;
   TIM_HandleTypeDef mTimHandle;
   int mBrightness = 50;

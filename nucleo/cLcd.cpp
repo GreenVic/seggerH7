@@ -214,6 +214,7 @@ void cLcd::rect (uint16_t colour, const cRect& r) {
   if (!xSemaphoreTake (mLockSem, 5000))
     printf ("cLcd take fail\n");
 
+  uint32_t rectRegs[5];
   rectRegs[0] = DMA2D_OUTPUT_RGB565;
   rectRegs[1] = colour;
   rectRegs[2] = uint32_t (mBuffer[mDrawBuffer] + r.top * getWidth() + r.left);
@@ -346,12 +347,11 @@ void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r, uint8_t alpha) 
   if (!xSemaphoreTake (mLockSem, 5000))
     printf ("cLcd take fail\n");
 
+  uint32_t stampRegs[15];
   stampRegs[0] = (uint32_t)src;
   stampRegs[1] = 0;
   stampRegs[2] = uint32_t(mBuffer[mDrawBuffer] + r.top * getWidth() + r.left);
-  stampRegs[12] = stampRegs[2];
   stampRegs[3] = getWidth() - r.getWidth();
-  stampRegs[13] = stampRegs[3];
   stampRegs[4] = (alpha < 255) ? ((alpha << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
   stampRegs[5] = ((colour >> 11) << 19) | ((colour & 0x07E0) << 5) | ((colour & 0x001F) << 3);
   stampRegs[6] = DMA2D_INPUT_RGB565;
@@ -360,8 +360,9 @@ void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r, uint8_t alpha) 
   stampRegs[9] = 0;
   stampRegs[10] = DMA2D_OUTPUT_RGB565;
   stampRegs[11] = 0;
+  stampRegs[12] = stampRegs[2];
+  stampRegs[13] = stampRegs[3];
   stampRegs[14] = (r.getWidth() << 16) | r.getHeight();
-
   memcpy ((void*)(&DMA2D->FGMAR), stampRegs, 15*4);
   DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
@@ -403,11 +404,10 @@ void cLcd::stampClipped (uint16_t colour, uint8_t* src, cRect r, uint8_t alpha) 
 //{{{
 int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string& str, cRect r, uint8_t alpha) {
 
-  alpha = 128;
-
   if (!xSemaphoreTake (mLockSem, 5000))
     printf ("cLcd take fail\n");
 
+  uint32_t stampRegs[15];
   stampRegs[1] = 0;
   stampRegs[3] = getWidth() - r.getWidth();
   stampRegs[4] = (alpha < 255) ? ((alpha << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
@@ -446,11 +446,10 @@ int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string& str, cR
             ready();
             stampRegs[0] = (uint32_t)src;
             stampRegs[2] = uint32_t(mBuffer[mDrawBuffer] + charRect.top * getWidth() + charRect.left);
-            stampRegs[12] = stampRegs[2];
             stampRegs[3] = getWidth() - charRect.getWidth();
+            stampRegs[12] = stampRegs[2];
             stampRegs[13] = stampRegs[3];
             stampRegs[14] = (charRect.getWidth() << 16) | charRect.getHeight();
-
             memcpy ((void*)(&DMA2D->FGMAR), stampRegs, 15*4);
             DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
             mDma2dWait = eWaitIrq;
