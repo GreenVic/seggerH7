@@ -609,6 +609,9 @@ void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
   if (mOutline.getNumCells() == 0)
     return;
 
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
+
   mScanLine.reset (mOutline.getMinx(), mOutline.getMaxx());
 
   int coverage = 0;
@@ -657,6 +660,8 @@ void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
 
   if (mScanLine.getNumSpans())
     renderScanLine (mScanLine, rgba);
+
+  xSemaphoreGive (mLockSem);
   }
 //}}}
 
@@ -1138,6 +1143,19 @@ void cLcd::renderScanLine (const cScanLine& scanLine, const sRgba& rgba) {
 
   uint16_t colour = ((rgba.r >> 3) << 11) | ((rgba.g >> 2) << 5) | (rgba.b >> 3);
 
+  int8_t alpha = rgba.a;
+
+  uint32_t stampRegs[15];
+  stampRegs[1] = 0;
+  stampRegs[4] = (alpha < 255) ? ((alpha << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
+  stampRegs[5] = ((colour >> 11) << 19) | ((colour & 0x07E0) << 5) | ((colour & 0x001F) << 3);
+  stampRegs[6] = DMA2D_INPUT_RGB565;
+  stampRegs[7] = 0;
+  stampRegs[8] = 0;
+  stampRegs[9] = 0;
+  stampRegs[10] = DMA2D_OUTPUT_RGB565;
+  stampRegs[11] = 0;
+
   // yclip top
   auto y = scanLine.getY();
   if (y < 0)
@@ -1171,7 +1189,16 @@ void cLcd::renderScanLine (const cScanLine& scanLine, const sRgba& rgba) {
         continue;
       }
 
-    stamp (colour, coverage, cRect (x, y, x+numPix, y+1), rgba.a);
+    stampRegs[0] = (uint32_t)coverage;
+    stampRegs[2] = uint32_t(mBuffer[mDrawBuffer] + y * getWidth() + x);
+    stampRegs[3] = getWidth() - numPix;
+    stampRegs[12] = stampRegs[2];
+    stampRegs[13] = stampRegs[3];
+    stampRegs[14] = (numPix << 16) | 1;
+    memcpy ((void*)(&DMA2D->FGMAR), stampRegs, 15*4);
+    DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
+    mDma2dWait = eWaitIrq;
+    ready();
     } while (--numSpans);
   }
 //}}}
