@@ -183,7 +183,7 @@ void uiThread (void* arg) {
       float secondRadius = radius * 0.95f;
 
       rasteriser.outEllipse (centre.x, centre.y, radius, radius, 4.0f);
-      rasteriser.render (renderer, sRgb888a (180,180,0, 255), false);
+      rasteriser.render (renderer, sRgba (180,180,0, 255), false);
 
       rasteriser.pointedLine (centre.x, centre.y,
                        centre.x + (hourRadius * sin (hourAngle)),
@@ -191,12 +191,12 @@ void uiThread (void* arg) {
       rasteriser.pointedLine (centre.x, centre.y,
                        centre.x + (minuteRadius * sin (minuteAngle)),
                        centre.y + (minuteRadius * cos (minuteAngle)), 2.0f);
-      rasteriser.render (renderer, sRgb888a (255,255,255, 255));
+      rasteriser.render (renderer, sRgba (255,255,255, 255));
 
       rasteriser.pointedLine (centre.x, centre.y,
                        centre.x + (secondRadius * sin (secondAngle)),
                        centre.y + (secondRadius * cos (secondAngle)), 3.0f);
-      rasteriser.render (renderer, sRgb888a (255,0,0, 180));
+      rasteriser.render (renderer, sRgba (255,0,0, 180));
 
       lcd->cLcd::text (COL_BLACK, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
       lcd->cLcd::text (COL_WHITE, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600) + cPoint(-2,-2));

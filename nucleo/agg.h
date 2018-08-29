@@ -7,8 +7,8 @@
 //}}}
 
 //{{{
-struct sRgb888a {
-  sRgb888a (uint8_t r_, uint8_t g_, uint8_t b_, uint8_t a_= 255) : r(r_), g(g_), b(b_), a(a_) {}
+struct sRgba {
+  sRgba (uint8_t r_, uint8_t g_, uint8_t b_, uint8_t a_= 255) : r(r_), g(g_), b(b_), a(a_) {}
 
   uint8_t r;
   uint8_t g;
@@ -16,26 +16,6 @@ struct sRgb888a {
   uint8_t a;
   };
 //}}}
-//{{{
-//struct sRgb565a {
-  //sRgb565a (uint8_t r_, uint8_t g_, uint8_t b_, uint8_t a_= 255) : r(r_), g(g_), b(b_), a(a_) {}
-
-  //unsigned int r:5;
-  //unsigned int g:6;
-  //unsigned int b:5;
-  //unsigned int a:8;
-  //};
-//}}}
-//{{{
-//struct sRgb565 {
-  //sRgb565 (uint8_t r_, uint8_t g_, uint8_t b_) : r(r_), g(g_), b(b_) {}
-
-  //unsigned int r:5;
-  //unsigned int g:6;
-  //unsigned int b:5;
-  //};
-//}}}
-
 //{{{
 struct sCell {
 public:
@@ -678,7 +658,7 @@ class cRenderer {
 public:
   cRenderer (cLcd* lcd) : mLcd(lcd) {}
 
-  void render (const cScanLine& scanLine, const sRgb888a& rgba) {
+  void render (const cScanLine& scanLine, const sRgba& rgba) {
 
     uint16_t col = ((rgba.r >> 3) << 11) | ((rgba.g >> 2) << 5) | (rgba.b >> 3);
 
@@ -790,7 +770,7 @@ public:
   //}}}
 
   //{{{
-  void render (cRenderer& renderer, const sRgb888a& rgba, bool fillNonZero = true) {
+  void render (cRenderer& renderer, const sRgba& rgba, bool fillNonZero = true) {
 
     mFillNonZero = fillNonZero;
 
