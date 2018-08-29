@@ -702,63 +702,51 @@ public:
 
   void moveTo (int x, int y) { mOutline.moveTo (x, y); }
   void lineTo (int x, int y) { mOutline.lineTo (x, y); }
-  void moveTod (float x, float y) { mOutline.moveTo (int(x * 0x100), int(y * 0x100)); }
-  void lineTod (float x, float y) { mOutline.lineTo (int(x * 0x100), int(y * 0x100)); }
+  void moveToF (const cPointF& p) { mOutline.moveTo (int(p.x * 0x100), int(p.y * 0x100)); }
+  void lineToF (const cPointF& p) { mOutline.lineTo (int(p.x * 0x100), int(p.y * 0x100)); }
 
   //{{{
-  void line (float x1, float y1, float x2, float y2, float width) {
+  void line (const cPointF& p1, const cPointF& p2, float width) {
 
-    float dx = x2 - x1;
-    float dy = y2 - y1;
-    float d = sqrt(dx*dx + dy*dy);
+    cPointF vec = p2 - p1;
+    vec = vec * width / vec.magnitude();
 
-    dx = width * (y2 - y1) / d;
-    dy = width * (x2 - x1) / d;
-
-    moveTod (x1 - dx,  y1 + dy);
-    lineTod (x2 - dx,  y2 + dy);
-    lineTod (x2 + dx,  y2 - dy);
-    lineTod (x1 + dx,  y1 - dy);
+    moveToF (cPointF (p1.x - vec.y, p1.y + vec.x));
+    lineToF (cPointF (p2.x - vec.y, p2.y + vec.x));
+    lineToF (cPointF (p2.x + vec.y, p2.y - vec.x));
+    lineToF (cPointF (p1.x + vec.y, p1.y - vec.x));
     }
   //}}}
   //{{{
-  void pointedLine (float x1, float y1, float x2, float y2, float width) {
+  void pointedLine (const cPointF& p1, const cPointF& p2, float width) {
 
-    float dx = x2 - x1;
-    float dy = y2 - y1;
-    float d = sqrt(dx*dx + dy*dy);
+    cPointF vec = p2 - p1;
+    vec = vec * width / vec.magnitude();
 
-    dx = width * (y2 - y1) / d;
-    dy = width * (x2 - x1) / d;
-
-    moveTod (x1 - dx,  y1 + dy);
-    lineTod (x2,  y2);
-    lineTod (x1 + dx,  y1 - dy);
+    moveToF (cPointF (p1.x - vec.y, p1.y + vec.x));
+    lineToF (p2);
+    lineToF (cPointF (p1.x + vec.y, p1.y - vec.x));
     }
   //}}}
   //{{{
-  void ellipse (float x, float y, float rx, float ry) {
+  void ellipse (cPointF centre, cPointF radius) {
 
-    moveTod (x + rx, y);
+    moveToF (centre + cPointF (radius.x, 0.f));
     for (int i = 1; i < 360; i += 6) {
       auto a = i * 3.1415926f / 180.0f;
-      lineTod (x + cos(a) * rx, y + sin(a) * ry);
+      lineToF (centre + cPointF (cos(a) * radius.x, sin(a) * radius.y));
       }
     }
   //}}}
   //{{{
-  void outEllipse (float x, float y, float rx, float ry, float thick) {
+  void outEllipse (cPointF centre, cPointF radius, float thick) {
 
-    moveTod (x + rx, y);
-    for (int i = 1; i < 360; i += 6) {
-      auto a = i * 3.1415926f / 180.0f;
-      lineTod (x + cos(a) * rx, y + sin(a) * ry);
-      }
+    ellipse (centre, radius);
 
-    moveTod (x + rx - thick, y);
+    moveToF (centre + cPointF(radius.x - thick, 0.f));
     for (int i = 1; i < 360; i += 6) {
       auto a = (360 - i) * 3.1415926f / 180.0f;
-      lineTod (x + cos(a) * (rx-thick), y + sin(a) * (ry-thick));
+      lineToF (centre + cPointF (cos(a) * (radius.x - thick), sin(a) * (radius.y - thick)));
       }
     }
   //}}}

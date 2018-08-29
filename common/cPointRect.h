@@ -84,6 +84,80 @@ public:
   int16_t y;
   };
 
+class cPointF {
+public:
+  //{{{
+  cPointF()  {
+    x = 0;
+    y = 0;
+    }
+  //}}}
+  //{{{
+  cPointF (int x, int y) {
+    this->x = x;
+    this->y = y;
+    }
+  //}}}
+  //{{{
+  cPointF (float x, float y) {
+    this->x = x;
+    this->y = y;
+    }
+  //}}}
+
+  //{{{
+  cPointF operator - (const cPointF& point) const {
+    return cPointF (x - point.x, y - point.y);
+    }
+  //}}}
+  //{{{
+  cPointF operator + (const cPointF& point) const {
+    return cPointF (x + point.x, y + point.y);
+    }
+  //}}}
+  //{{{
+  cPointF operator * (const float s) const {
+    return cPointF (int16_t(x * s), int16_t(y * s));
+    }
+  //}}}
+  //{{{
+  cPointF operator / (const float s) const {
+    return cPointF (int16_t(x / s), int16_t(y / s));
+    }
+  //}}}
+
+  //{{{
+  const cPointF& operator += (const cPoint& point)  {
+    x += point.x;
+    y += point.y;
+    return *this;
+    }
+  //}}}
+  //{{{
+  const cPointF& operator -= (const cPoint& point)  {
+    x -= point.x;
+    y -= point.y;
+    return *this;
+    }
+  //}}}
+
+  //{{{
+  bool inside (const cPointF& pos) const {
+  // return pos inside rect formed by us as size
+    return pos.x >= 0 && pos.x < x && pos.y >= 0 && pos.y < y;
+    }
+  //}}}
+  //{{{
+  float magnitude() const {
+  // return magnitude of point as vector
+    return sqrt (x*x + y*y);
+    }
+  //}}}
+
+  float x;
+  float y;
+  };
+
 
 class cRect {
 public:
