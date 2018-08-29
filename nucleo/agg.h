@@ -157,8 +157,8 @@ public:
 
 private:
   //{{{
-  template <class T> static inline void swapCells (T* a, T* b) {
-    T temp = *a;
+  void swapCells (sCell** a, sCell** b) {
+    sCell* temp = *a;
     *a = *b;
     *b = temp;
     }
