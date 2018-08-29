@@ -55,7 +55,10 @@ public:
 //{{{
 class cOutline {
 public:
-  cOutline() { reset(); }
+  cOutline() {
+    mNumCellsInBlock = 2048;
+    reset();
+    }
   //{{{
   ~cOutline() {
 
@@ -134,7 +137,7 @@ public:
   int getMaxy() const { return mMaxy; }
 
   //{{{
-  const sCell* const* getCells() {
+  const sCell* const* getSortedCells() {
 
     if (!mClosed) {
       lineTo (mClosex, mClosey);
@@ -156,15 +159,13 @@ public:
   uint16_t getNumCells() const { return mNumCells; }
 
 private:
-  static const uint16_t kBlockCells = 1024;
-
   //{{{
   void addCurCell() {
 
     if (mCurCell.mArea | mCurCell.mCoverage) {
-      if ((mNumCells % kBlockCells) == 0) {
+      if ((mNumCells % mNumCellsInBlock) == 0) {
         // use next block of sCells
-        uint32_t block = mNumCells / kBlockCells;
+        uint32_t block = mNumCells / mNumCellsInBlock;
         if (block >= mNumBlockOfCells) {
           // allocate new block
           auto newCellPtrs = (sCell**)pvPortMalloc ((mNumBlockOfCells + 1) * sizeof(sCell*));
@@ -173,7 +174,7 @@ private:
             vPortFree (mBlockOfCells);
             }
           mBlockOfCells = newCellPtrs;
-          mBlockOfCells[mNumBlockOfCells] = (sCell*)pvPortMalloc (kBlockCells * sizeof(sCell));
+          mBlockOfCells[mNumBlockOfCells] = (sCell*)pvPortMalloc (mNumCellsInBlock * sizeof(sCell));
           mNumBlockOfCells++;
           printf ("allocated new blockOfCells %d of %d\n", block, mNumBlockOfCells);
           }
@@ -217,16 +218,16 @@ private:
     // point mSortedCells at sCells
     sCell** blockPtr = mBlockOfCells;
     sCell** sortedPtr = mSortedCells;
-    uint16_t numBlocks = mNumCells / kBlockCells;
+    uint16_t numBlocks = mNumCells / mNumCellsInBlock;
     while (numBlocks--) {
       sCell* cellPtr = *blockPtr++;
-      unsigned cellInBlock = kBlockCells;
+      unsigned cellInBlock = mNumCellsInBlock;
       while (cellInBlock--)
         *sortedPtr++ = cellPtr++;
       }
 
     sCell* cellPtr = *blockPtr++;
-    unsigned cellInBlock = mNumCells % kBlockCells;
+    unsigned cellInBlock = mNumCells % mNumCellsInBlock;
     while (cellInBlock--)
       *sortedPtr++ = cellPtr++;
 
@@ -511,6 +512,7 @@ private:
     }
   //}}}
 
+  uint16_t mNumCellsInBlock = 0;
   uint16_t mNumBlockOfCells = 0;
   uint16_t mNumSortedCells = 0;
   sCell** mBlockOfCells = nullptr;
@@ -755,28 +757,28 @@ public:
 
     mFillNonZero = fillNonZero;
 
-    const sCell* const* cells = mOutline.getCells();
-    printf ("render %d cells\n", mOutline.getNumCells());
+    const sCell* const* sortedCells = mOutline.getSortedCells();
+    printf ("cRasteriser::render %d cells\n", mOutline.getNumCells());
     if (mOutline.getNumCells() == 0)
       return;
 
     mScanLine.reset (mOutline.getMinx(), mOutline.getMaxx());
 
     int coverage = 0;
-    const sCell* curCell = *cells++;
+    const sCell* cell = *sortedCells++;
     while (true) {
-      int x = curCell->mPackedCoord & 0xFFFF;
-      int y = curCell->mPackedCoord >> 16;
-      int packedCoord = curCell->mPackedCoord;
-      int area = curCell->mArea;
-      coverage += curCell->mCoverage;
+      int x = cell->mPackedCoord & 0xFFFF;
+      int y = cell->mPackedCoord >> 16;
+      int packedCoord = cell->mPackedCoord;
+      int area = cell->mArea;
+      coverage += cell->mCoverage;
 
       // accumulate all start cells
-      while ((curCell = *cells++) != 0) {
-        if (curCell->mPackedCoord != packedCoord)
+      while ((cell = *sortedCells++) != 0) {
+        if (cell->mPackedCoord != packedCoord)
           break;
-        area += curCell->mArea;
-        coverage += curCell->mCoverage;
+        area += cell->mArea;
+        coverage += cell->mCoverage;
         }
 
       if (area) {
@@ -791,17 +793,17 @@ public:
         x++;
         }
 
-      if (!curCell)
+      if (!cell)
         break;
 
-      if (int16_t(curCell->mPackedCoord & 0xFFFF) > x) {
+      if (int16_t(cell->mPackedCoord & 0xFFFF) > x) {
         int alpha = calcAlpha (coverage << (8 + 1));
         if (alpha) {
           if (mScanLine.isReady (y)) {
              renderer.render (mScanLine, rgba);
              mScanLine.resetSpans();
              }
-           mScanLine.addSpan (x, y, int16_t(curCell->mPackedCoord & 0xFFFF) - x, mGamma[alpha]);
+           mScanLine.addSpan (x, y, int16_t(cell->mPackedCoord & 0xFFFF) - x, mGamma[alpha]);
            }
         }
       }
