@@ -123,10 +123,6 @@ cLcd::cLcd()  {
   mLcd = this;
 
   mLockSem = xSemaphoreCreateMutex();
-
-  // set gamma 1.2 lut
-  for (unsigned i = 0; i < 256; i++)
-    mGamma[i] = (uint8_t)(pow(double(i) / 255.0, 1.2) * 255.0);
   }
 //}}}
 //{{{
@@ -179,6 +175,10 @@ void cLcd::init (const std::string& title) {
     gClampLut5[i] = 0x1F;
     gClampLut6[i] = 0x3F;
     }
+
+  // set gamma 1.2 lut
+  for (unsigned i = 0; i < 256; i++)
+    mGamma[i] = (uint8_t)(pow(double(i) / 255.0, 1.2) * 255.0);
   }
 //}}}
 
