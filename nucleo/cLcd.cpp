@@ -1130,6 +1130,25 @@ void cLcd::reset() {
 //}}}
 
 //{{{
+unsigned cLcd::calcAlpha (int area, bool fillNonZero) const {
+
+  int coverage = area >> (8*2 + 1 - 8);
+  if (coverage < 0)
+    coverage = -coverage;
+
+  if (!fillNonZero) {
+    coverage &= 0x1FF;
+    if (coverage > 0x100)
+      coverage = 0x200 - coverage;
+    }
+
+  if (coverage > 0xFF)
+    coverage = 0xFF;
+
+  return coverage;
+  }
+//}}}
+//{{{
 void cLcd::aEllipse (const cPointF& centre, const cPointF& radius, int step) {
 
   aMoveTo (centre + cPointF (radius.x, 0.f));
