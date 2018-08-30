@@ -32,11 +32,6 @@ public:
     }
   //}}}
   //{{{
-  void set_coord (int16_t x, int16_t y) {
-    mPackedCoord = (y << 16) + x;
-    }
-  //}}}
-  //{{{
   void setCoverage (int32_t c, int32_t a) {
 
     mCoverage = c;
