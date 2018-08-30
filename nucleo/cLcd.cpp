@@ -1685,6 +1685,8 @@ void cLcd::renderScanLine (cScanLine* scanLine, sRgba565 colour) {
   ready();
   DMA2D->FGPFCCR = (colour.getA() < 255) ? ((colour.getA() << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
   DMA2D->FGCOLR = (colour.getR() << 16) | (colour.getG() << 8) | colour.getB();;
+  DMA2D->FGOR = 0;
+  DMA2D->BGPFCCR = DMA2D_INPUT_RGB565;
 
   int baseX = scanLine->getBaseX();
   uint16_t numSpans = scanLine->getNumSpans();
@@ -1712,15 +1714,16 @@ void cLcd::renderScanLine (cScanLine* scanLine, sRgba565 colour) {
 
     mNumStamps++;
 
+    uint32_t dstAddr = uint32_t(mBuffer[mDrawBuffer] + y * getWidth() + x);
+    uint32_t width = getWidth() - numPix;
+
     ready();
-    DMA2D->FGMAR = (uint32_t)coverage;
-    DMA2D->FGOR = 0;
-    DMA2D->BGPFCCR = DMA2D_INPUT_RGB565;
-    DMA2D->BGMAR = uint32_t(mBuffer[mDrawBuffer] + y * getWidth() + x);
-    DMA2D->BGOR = getWidth() - numPix;
-    DMA2D->OMAR = uint32_t(mBuffer[mDrawBuffer] + y * getWidth() + x);
-    DMA2D->OOR = getWidth() - numPix;
+    DMA2D->BGMAR = dstAddr;
+    DMA2D->OMAR = dstAddr;
+    DMA2D->BGOR = width;
+    DMA2D->OOR = width;
     DMA2D->NLR = (numPix << 16) | 1;
+    DMA2D->FGMAR = (uint32_t)coverage;
     DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_START;
     mDma2dWait = eWaitDone;
     } while (--numSpans);
