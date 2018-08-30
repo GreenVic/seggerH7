@@ -743,12 +743,7 @@ extern "C" { void DMA2D_IRQHandler() {
 }
 //}}}
 
-//{{{
-cLcd::cLcd()  {
-
-  mLcd = this;
-  }
-//}}}
+cLcd::cLcd()  { mLcd = this; }
 //{{{
 cLcd::~cLcd() {
   FT_Done_Face (FTface);
