@@ -303,7 +303,7 @@ void cLcd::ellipse (uint16_t colour, cPoint centre, cPoint radius) {
 //}}}
 
 //{{{
-void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r, uint8_t alpha) {
+void cLcd::stamp (uint16_t colour, uint8_t* src, cRect r, uint8_t alpha) {
 //__IO uint32_t FGMAR;    Foreground Memory Address Register,       Address offset: 0x0C
 //__IO uint32_t FGOR;     Foreground Offset Register,               Address offset: 0x10
 //__IO uint32_t BGMAR;    Background Memory Address Register,       Address offset: 0x14
@@ -319,6 +319,27 @@ void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r, uint8_t alpha) 
 //__IO uint32_t OMAR;     Output Memory Address Register,           Address offset: 0x3C
 //__IO uint32_t OOR;      Output Offset Register,                   Address offset: 0x40
 //__IO uint32_t NLR;      Number of Line Register,                  Address offset: 0x44
+
+  // clip
+  if (!r.getWidth())
+    return;
+  if (!r.getHeight())
+    return;
+  if (r.left < 0)
+    return;
+  if (r.top < 0) {
+    // top clip
+    if (r.bottom <= 0)
+      return;
+    src += -r.top * r.getWidth();
+    r.top = 0;
+    }
+  if (r.bottom > getHeight()) {
+    // bottom yclip
+    if (r.top >= getHeight())
+      return;
+    r.bottom = getHeight();
+    }
 
   uint32_t stampRegs[15];
   stampRegs[0] = (uint32_t)src;
@@ -346,35 +367,6 @@ void cLcd::stamp (uint16_t colour, uint8_t* src, const cRect& r, uint8_t alpha) 
   ready();
 
   xSemaphoreGive (mLockSem);
-  }
-//}}}
-//{{{
-void cLcd::stampClipped (uint16_t colour, uint8_t* src, cRect r, uint8_t alpha) {
-
-  if (!r.getWidth())
-    return;
-  if (!r.getHeight())
-    return;
-
-  if (r.left < 0)
-    return;
-
-  if (r.top < 0) {
-    // top clip
-    if (r.bottom <= 0)
-      return;
-    src += -r.top * r.getWidth();
-    r.top = 0;
-    }
-
-  if (r.bottom > getHeight()) {
-    // bottom yclip
-    if (r.top >= getHeight())
-      return;
-    r.bottom = getHeight();
-    }
-
-  stamp (colour, src, r, alpha);
   }
 //}}}
 //{{{
@@ -714,6 +706,17 @@ void cLcd::copy (cTile* tile, cPoint p) {
         inputLineOffset = 8 - inputLineOffset;
       DMA2D->FGOR = inputLineOffset;
       }
+    //if (chromaSampling == JPEG_420_SUBSAMPLING) {
+      //cssMode = DMA2D_CSS_420;
+      //inputLineOffset = xsize % 16;
+      //if (inputLineOffset != 0)
+        //inputLineOffset = 16 - inputLineOffset;
+    //else if (chromaSampling == JPEG_444_SUBSAMPLING) {
+      //cssMode = DMA2D_NO_CSS;
+      //inputLineOffset = xsize % 8;
+      //if (inputLineOffset != 0)
+        //inputLineOffset = 8 - inputLineOffset;
+      //}
     }
 
   DMA2D->FGMAR = (uint32_t)tile->mPiccy;
@@ -724,9 +727,9 @@ void cLcd::copy (cTile* tile, cPoint p) {
   DMA2D->OOR = getWidth() > tile->mWidth ? getWidth() - tile->mWidth : 0;
 
   DMA2D->NLR = (width << 16) | height;
+
   DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
-
   ready();
 
   xSemaphoreGive (mLockSem);
@@ -941,22 +944,6 @@ void cLcd::display (int brightness) {
 
 // private
 //{{{
-void cLcd::ready() {
-
-  if (mDma2dWait == eWaitDone) {
-    while (!(DMA2D->ISR & DMA2D_FLAG_TC))
-      taskYIELD();
-    DMA2D->IFCR = DMA2D_FLAG_TC;
-    }
-  else if (mDma2dWait == eWaitIrq)
-    if (!xSemaphoreTake (mDma2dSem, 5000))
-      printf ("cLcd ready take fail\n");
-
-  mDma2dWait = eWaitNone;
-  }
-//}}}
-
-//{{{
 void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
 
   //{{{  config gpio
@@ -1142,6 +1129,7 @@ cFontChar* cLcd::loadChar (uint16_t fontHeight, char ch) {
     std::map<uint16_t, cFontChar*>::value_type (fontHeight<<8 | ch, fontChar)).first->second;
   }
 //}}}
+
 //{{{
 void cLcd::reset() {
 
@@ -1150,6 +1138,21 @@ void cLcd::reset() {
 
   mBaseTime = HAL_GetTick();
   mCurLine = 0;
+  }
+//}}}
+//{{{
+void cLcd::ready() {
+
+  if (mDma2dWait == eWaitDone) {
+    while (!(DMA2D->ISR & DMA2D_FLAG_TC))
+      taskYIELD();
+    DMA2D->IFCR = DMA2D_FLAG_TC;
+    }
+  else if (mDma2dWait == eWaitIrq)
+    if (!xSemaphoreTake (mDma2dSem, 5000))
+      printf ("cLcd ready take fail\n");
+
+  mDma2dWait = eWaitNone;
   }
 //}}}
 
