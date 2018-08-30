@@ -15,17 +15,17 @@
 #include FT_FREETYPE_H
 //}}}
 //{{{  colour defines
-#define COL_BLACK         0x0000
-#define COL_GREY          0x7BEF
-#define COL_WHITE         0xFFFF
+#define COL_BLACK         sRgba565 (0,0,0)
+#define COL_GREY          sRgba565 (128,128,128)
+#define COL_WHITE         sRgba565 (255,255,255)
 
-#define COL_BLUE          0x001F
-#define COL_GREEN         0x07E0
-#define COL_RED           0xF800
+#define COL_BLUE          sRgba565 (0,0,255)
+#define COL_GREEN         sRgba565 (0,255,0)
+#define COL_RED           sRgba565 (255,0,0)
 
-#define COL_CYAN          0x07FF
-#define COL_MAGENTA       0xF81F
-#define COL_YELLOW        0xFFE0
+#define COL_CYAN          sRgba565 (0,255,255)
+#define COL_MAGENTA       sRgba565 (255,0,255)
+#define COL_YELLOW        sRgba565 (255,255,0)
 //}}}
 //{{{  screen resolution defines
 #ifdef NEXXY_SCREEN
@@ -51,13 +51,17 @@
 //}}}
 
 //{{{
-struct sRgba {
-  sRgba (uint8_t r_, uint8_t g_, uint8_t b_, uint8_t a_= 255) : r(r_), g(g_), b(b_), a(a_) {}
+struct sRgba565 {
+  sRgba565 (uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) :
+    rgb565 (((r >> 3) << 11) | ((g >> 2) << 5) | (b>> 3)), alpha(a) {}
 
-  uint8_t r;
-  uint8_t g;
-  uint8_t b;
-  uint8_t a;
+  uint8_t getR() { return (rgb565 >> 11) << 3; }
+  uint8_t getG() { return (rgb565 & 0x07E0) >> 3; }
+  uint8_t getB() { return (rgb565 & 0x001F) << 3; }
+  uint8_t getA() { return alpha; }
+
+  uint16_t rgb565;
+  uint8_t alpha;
   };
 //}}}
 //{{{
@@ -134,24 +138,24 @@ public:
     }
   //}}}
 
-  void info (uint16_t colour, const std::string& str);
+  void info (sRgba565 colour, const std::string& str);
   void info (const std::string& str) { info (COL_WHITE, str); }
 
-  void clear (uint16_t colour);
-  void rect (uint16_t colour, const cRect& r);
-  void rectClipped (uint16_t colour, cRect r);
-  void rectOutline (uint16_t colour, const cRect& r, uint8_t thickness);
-  void ellipse (uint16_t colour, cPoint centre, cPoint radius);
-  int text (uint16_t colour, uint16_t fontHeight, const std::string& str, cRect r, uint8_t alpha = 255);
+  void clear (sRgba565 colour);
+  void rect (sRgba565 colour, const cRect& r);
+  void rectClipped (sRgba565 colour, cRect r);
+  void rectOutline (sRgba565 colour, const cRect& r, uint8_t thickness);
+  void ellipse (sRgba565 colour, cPoint centre, cPoint radius);
+  int text (sRgba565 colour, uint16_t fontHeight, const std::string& str, cRect r);
 
   void copy (cTile* tile, cPoint p);
   void copy90 (cTile* tile, cPoint p);
   void size (cTile* tile, const cRect& r);
 
-  inline void pixel (uint16_t colour, cPoint p) { *(mBuffer[mDrawBuffer] + p.y * getWidth() + p.x) = colour; }
-  void grad (uint16_t colTL, uint16_t colTR, uint16_t colBL, uint16_t colBR, const cRect& r);
-  void line (uint16_t colour, cPoint p1, cPoint p2);
-  void ellipseOutline (uint16_t colour, cPoint centre, cPoint radius);
+  inline void pixel (sRgba565 colour, cPoint p) { *(mBuffer[mDrawBuffer] + p.y * getWidth() + p.x) = colour.rgb565; }
+  void grad (sRgba565 colTL, sRgba565 colTR, sRgba565 colBL, sRgba565 colBR, const cRect& r);
+  void line (sRgba565 colour, cPoint p1, cPoint p2);
+  void ellipseOutline (sRgba565 colour, cPoint centre, cPoint radius);
 
   // agg anti aliased
   void aMoveTo (const cPointF& p);
@@ -160,7 +164,7 @@ public:
   void aPointedLine (const cPointF& p1, const cPointF& p2, float width);
   void aEllipseOutline (const cPointF& centre, const cPointF& radius, float width, int steps);
   void aEllipse (const cPointF& centre, const cPointF& radius, int steps);
-  void aRender (const sRgba& rgba, bool fillNonZero = true);
+  void aRender (sRgba565 colour, bool fillNonZero = true);
 
   void start();
   void drawInfo();
@@ -179,7 +183,7 @@ private:
   void reset();
 
   uint8_t calcAlpha (int area, bool fillNonZero) const;
-  void renderScanLine (cScanLine* scanLine, const sRgba& rgba);
+  void renderScanLine (cScanLine* scanLine, sRgba565 colour);
 
   //{{{  vars
   LTDC_HandleTypeDef mLtdcHandle;
@@ -224,7 +228,7 @@ private:
     //}}}
 
     int mTime = 0;
-    int mColour = COL_WHITE;
+    sRgba565 mColour = COL_WHITE;
     std::string mString;
     };
   //}}}

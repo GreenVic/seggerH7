@@ -1,10 +1,12 @@
 // cLcd.cpp
 //{{{  includes
 #include "cLcd.h"
-#include "../freetype/FreeSansBold.h"
-#include "cpuUsage.h"
+
 #include "math.h"
 #include "heap.h"
+
+#include "../freetype/FreeSansBold.h"
+#include "cpuUsage.h"
 //}}}
 //{{{  screen resolution defines
 #ifdef NEXXY_SCREEN
@@ -818,7 +820,7 @@ void cLcd::setShowInfo (bool show) {
   }
 //}}}
 //{{{
-void cLcd::info (uint16_t colour, const std::string& str) {
+void cLcd::info (sRgba565 colour, const std::string& str) {
 
   uint16_t line = mCurLine++ % kMaxLines;
   mLines[line].mTime = HAL_GetTick();
@@ -831,10 +833,10 @@ void cLcd::info (uint16_t colour, const std::string& str) {
 
 // dma2d draw
 //{{{
-void cLcd::rect (uint16_t colour, const cRect& r) {
+void cLcd::rect (sRgba565 colour, const cRect& r) {
 
   uint32_t rectRegs[4];
-  rectRegs[0] = colour;                                                        // OCOLR
+  rectRegs[0] = colour.rgb565;                                                 // OCOLR
   rectRegs[1] = uint32_t (mBuffer[mDrawBuffer] + r.top * getWidth() + r.left); // OMAR
   rectRegs[2] = getWidth() - r.getWidth();                                     // OOR
   rectRegs[3] = (r.getWidth() << 16) | r.getHeight();                          // NLR
@@ -846,14 +848,14 @@ void cLcd::rect (uint16_t colour, const cRect& r) {
   }
 //}}}
 //{{{
-void cLcd::clear (uint16_t colour) {
+void cLcd::clear (sRgba565 colour) {
 
   cRect r (getSize());
   rect (colour, r);
   }
 //}}}
 //{{{
-void cLcd::rectClipped (uint16_t colour, cRect r) {
+void cLcd::rectClipped (sRgba565 colour, cRect r) {
 
   if (r.right <= 0)
     return;
@@ -882,7 +884,7 @@ void cLcd::rectClipped (uint16_t colour, cRect r) {
   }
 //}}}
 //{{{
-void cLcd::rectOutline (uint16_t colour, const cRect& r, uint8_t thickness) {
+void cLcd::rectOutline (sRgba565 colour, const cRect& r, uint8_t thickness) {
 
   rectClipped (colour, cRect (r.left, r.top, r.right, r.top+thickness));
   rectClipped (colour, cRect (r.right-thickness, r.top, r.right, r.bottom));
@@ -891,7 +893,7 @@ void cLcd::rectOutline (uint16_t colour, const cRect& r, uint8_t thickness) {
   }
 //}}}
 //{{{
-void cLcd::ellipse (uint16_t colour, cPoint centre, cPoint radius) {
+void cLcd::ellipse (sRgba565 colour, cPoint centre, cPoint radius) {
 
   if (!radius.x)
     return;
@@ -921,11 +923,11 @@ void cLcd::ellipse (uint16_t colour, cPoint centre, cPoint radius) {
   }
 //}}}
 //{{{
-int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string& str, cRect r, uint8_t alpha) {
+int cLcd::text (sRgba565 colour, uint16_t fontHeight, const std::string& str, cRect r) {
 
   ready();
-  DMA2D->FGPFCCR = (alpha < 255) ? ((alpha << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
-  DMA2D->FGCOLR = ((colour >> 11) << 19) | ((colour & 0x07E0) << 5) | ((colour & 0x001F) << 3);
+  DMA2D->FGPFCCR = (colour.getA() < 255) ? ((colour.getA() << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
+  DMA2D->FGCOLR = (colour.getR() << 16) | (colour.getG() << 8) | colour.getB();
 
   for (auto ch : str) {
     if ((ch >= 0x20) && (ch <= 0x7F)) {
@@ -975,22 +977,22 @@ int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string& str, cR
 
 // cpu draw
 //{{{
-void cLcd::grad (uint16_t colTL, uint16_t colTR, uint16_t colBL, uint16_t colBR, const cRect& r) {
+void cLcd::grad (sRgba565 colTL, sRgba565 colTR, sRgba565 colBL, sRgba565 colBR, const cRect& r) {
 
-  int32_t rTL = (colTL & 0xF800) << 5;
-  int32_t rTR = (colTR & 0xF800) << 5;
-  int32_t rBL = (colBL & 0xF800) << 5;
-  int32_t rBR = (colBR & 0xF800) << 5;
+  int32_t rTL = colTL.getR() << 16;
+  int32_t rTR = colTR.getR() << 16;
+  int32_t rBL = colBL.getR() << 16;
+  int32_t rBR = colBR.getR() << 16;
 
-  int32_t gTL = (colTL & 0x07E0) << 11;
-  int32_t gTR = (colTR & 0x07E0) << 11;
-  int32_t gBL = (colBL & 0x07E0) << 11;
-  int32_t gBR = (colBR & 0x07E0) << 11;
+  int32_t gTL = colTL.getG() << 16;
+  int32_t gTR = colTR.getG() << 16;
+  int32_t gBL = colBL.getG() << 16;
+  int32_t gBR = colBR.getG() << 16;
 
-  int32_t bTL = (colTL & 0x001F) << 16;
-  int32_t bTR = (colTR & 0x001F) << 16;
-  int32_t bBL = (colBL & 0x001F) << 16;
-  int32_t bBR = (colBR & 0x001F) << 16;
+  int32_t bTL = colTL.getB() << 16;
+  int32_t bTR = colTR.getB() << 16;
+  int32_t bBL = colBL.getB() << 16;
+  int32_t bBR = colBR.getB() << 16;
 
   int32_t rl16 = rTL;
   int32_t gl16 = gTL;
@@ -1034,7 +1036,7 @@ void cLcd::grad (uint16_t colTL, uint16_t colTR, uint16_t colBL, uint16_t colBR,
   }
 //}}}
 //{{{
-void cLcd::line (uint16_t colour, cPoint p1, cPoint p2) {
+void cLcd::line (sRgba565 colour, cPoint p1, cPoint p2) {
 
   int16_t deltax = abs(p2.x - p1.x); // The difference between the x's
   int16_t deltay = abs(p2.y - p1.y); // The difference between the y's
@@ -1068,7 +1070,7 @@ void cLcd::line (uint16_t colour, cPoint p1, cPoint p2) {
   }
 //}}}
 //{{{
-void cLcd::ellipseOutline (uint16_t colour, cPoint centre, cPoint radius) {
+void cLcd::ellipseOutline (sRgba565 colour, cPoint centre, cPoint radius) {
 
   int x = 0;
   int y = -radius.y;
@@ -1171,7 +1173,7 @@ void cLcd::aEllipseOutline (const cPointF& centre, const cPointF& radius, float 
   }
 //}}}
 //{{{
-void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
+void cLcd::aRender (sRgba565 colour, bool fillNonZero) {
 
   const sCell* const* sortedCells = mOutline.getSortedCells();
   uint32_t numCells = mOutline.getNumCells();
@@ -1202,7 +1204,7 @@ void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
       uint8_t alpha = calcAlpha ((coverage << 9) - area, fillNonZero);
       if (alpha) {
         if (mScanLine.isReady (y)) {
-          renderScanLine (&mScanLine, rgba);
+          renderScanLine (&mScanLine, colour);
           mScanLine.resetSpans();
           }
         mScanLine.addSpan (x, y, 1, mGamma[alpha]);
@@ -1217,7 +1219,7 @@ void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
       uint8_t alpha = calcAlpha (coverage << 9, fillNonZero);
       if (alpha) {
         if (mScanLine.isReady (y)) {
-           renderScanLine (&mScanLine, rgba);
+           renderScanLine (&mScanLine, colour);
            mScanLine.resetSpans();
            }
          mScanLine.addSpan (x, y, int16_t(cell->mPackedCoord & 0xFFFF) - x, mGamma[alpha]);
@@ -1226,7 +1228,7 @@ void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
     }
 
   if (mScanLine.getNumSpans())
-    renderScanLine (&mScanLine, rgba);
+    renderScanLine (&mScanLine, colour);
 
   printf ("render cells:%d stamps:%d\n", numCells, mNumStamps);
   }
@@ -1639,11 +1641,11 @@ void cLcd::ready() {
     case eWaitIrq:
       if (!xSemaphoreTake (mDma2dSem, 5000))
         printf ("cLcd ready take fail\n");
-       break;
+      break;
 
-     case eWaitNone:
-       break;
-     }
+    case eWaitNone:
+      break;
+    }
 
   mDma2dWait = eWaitNone;
   }
@@ -1669,7 +1671,7 @@ uint8_t cLcd::calcAlpha (int area, bool fillNonZero) const {
   }
 //}}}
 //{{{
-void cLcd::renderScanLine (cScanLine* scanLine, const sRgba& rgba) {
+void cLcd::renderScanLine (cScanLine* scanLine, sRgba565 colour) {
 
   // yclip top
   auto y = scanLine->getY();
@@ -1681,8 +1683,8 @@ void cLcd::renderScanLine (cScanLine* scanLine, const sRgba& rgba) {
     return;
 
   ready();
-  DMA2D->FGPFCCR = (rgba.a < 255) ? ((rgba.a << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
-  DMA2D->FGCOLR = (rgba.r << 16) | (rgba.g << 8) | rgba.b;
+  DMA2D->FGPFCCR = (colour.getA() < 255) ? ((colour.getA() << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
+  DMA2D->FGCOLR = (colour.getR() << 16) | (colour.getG() << 8) | colour.getB();;
 
   int baseX = scanLine->getBaseX();
   uint16_t numSpans = scanLine->getNumSpans();

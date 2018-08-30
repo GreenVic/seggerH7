@@ -180,20 +180,20 @@ void uiThread (void* arg) {
       int steps = 64;
       float width = 4.f;
       lcd->aEllipse (centre, cPointF(radius-width, radius-width), steps);
-      lcd->aRender (sRgba (128,128,128, 192), false);
+      lcd->aRender (sRgba565 (128,128,128, 192), false);
       lcd->aEllipseOutline (centre, cPointF(radius, radius), width, steps);
-      lcd->aRender (sRgba (180,180,0, 255), false);
+      lcd->aRender (sRgba565 (180,180,0, 255), false);
 
       float handWidth = radius > 60.f ? radius / 20.f : 3.f;
       float hourR = radius * 0.75f;
       lcd->aPointedLine (centre, centre + cPointF (hourR * sin (hourA), hourR * cos (hourA)), handWidth);
       float minuteR = radius * 0.9f;
       lcd->aPointedLine (centre, centre + cPointF (minuteR * sin (minuteA), minuteR * cos (minuteA)), handWidth);
-      lcd->aRender (sRgba (255,255,255, 255));
+      lcd->aRender (sRgba565 (255,255,255, 255));
 
       float secondR = radius * 0.95f;
       lcd->aPointedLine (centre, centre + cPointF (secondR * sin (secondA), secondR * cos (secondA)), handWidth);
-      lcd->aRender (sRgba (255,0,0, 180));
+      lcd->aRender (sRgba565 (255,0,0, 180));
 
       lcd->cLcd::text (COL_BLACK, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
       lcd->cLcd::text (COL_WHITE, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600) + cPoint(-2,-2));
