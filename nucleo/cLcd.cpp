@@ -752,10 +752,7 @@ extern "C" { void DMA2D_IRQHandler() {
 //{{{
 cLcd::cLcd()  {
 
-  mBuffer[0] = (uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2, "lcdBuf0");
-  mBuffer[1] = (uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2, "lcdBuf1");
   mLcd = this;
-
   mLockSem = xSemaphoreCreateMutex();
   }
 //}}}
@@ -767,6 +764,9 @@ cLcd::~cLcd() {
 //}}}
 //{{{
 void cLcd::init (const std::string& title) {
+
+  mBuffer[0] = (uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2, "lcdBuf0");
+  mBuffer[1] = (uint16_t*)sdRamAlloc (LCD_WIDTH*LCD_HEIGHT*2, "lcdBuf1");
 
   FT_Init_FreeType (&FTlibrary);
   FT_New_Memory_Face (FTlibrary, (FT_Byte*)freeSansBold, sizeof (freeSansBold), 0, &FTface);
