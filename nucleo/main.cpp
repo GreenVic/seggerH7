@@ -25,9 +25,9 @@ using namespace std;
 #define FMC_PERIOD  FMC_SDRAM_CLOCK_PERIOD_2
 
 const string kHello = "stm32h7 " + string(__TIME__) + " " + string(__DATE__);
-cPointF centre = cPointF (1024.f-125.f, 600.f-125.f-40.f);
+cPointF centre = cPointF (1024.f-105.f, 600.f-105.f-40.f);
 float radius = 12.f;
-float maxRadius = 120.f;
+float maxRadius = 100.f;
 
 // vars
 FATFS fatFs;
@@ -84,7 +84,7 @@ void sdRamTest (uint16_t offset, uint16_t* addr, uint32_t len) {
     }
 
   if (readErr == 0)
-    lcd->info (COL_YELLOW, "sdRam ok " + hex((uint32_t)addr));
+    lcd->info (kYellow, "sdRam ok " + hex((uint32_t)addr));
   else {
     string str = "errors ";
     for (int i = 15; i >= 0; i--)
@@ -94,7 +94,7 @@ void sdRamTest (uint16_t offset, uint16_t* addr, uint32_t len) {
         str += " __";
     float rate = (readErr * 1000.f) / 0x00100000;
     str += "  " + dec(readErr) + " " + dec (int(rate)/10,1) + "." + dec(int(rate) % 10,1) + "%";
-    lcd->info (COL_CYAN, str);
+    lcd->info (kCyan, str);
     }
   }
 //}}}
@@ -141,10 +141,10 @@ void uiThread (void* arg) {
     if (lcd->isChanged() || (count == 1000)) {
       count = 0;
       lcd->start();
-      lcd->clear (COL_BLACK);
+      lcd->clear (kBlack);
 
       const cRect titleRect (0,0, lcd->getWidth() * gCount / mFileVec.size(),22);
-      lcd->grad (COL_BLUE, COL_GREY, COL_GREY, COL_BLACK, titleRect);
+      lcd->grad (kBlue, kGrey, kGrey, kBlack, titleRect);
 
       if (showTile[gShow]) {
         //{{{  show piccy
@@ -189,14 +189,14 @@ void uiThread (void* arg) {
       lcd->aPointedLine (centre, centre + cPointF (hourR * sin (hourA), hourR * cos (hourA)), handWidth);
       float minuteR = radius * 0.9f;
       lcd->aPointedLine (centre, centre + cPointF (minuteR * sin (minuteA), minuteR * cos (minuteA)), handWidth);
-      lcd->aRender (COL_WHITE);
+      lcd->aRender (kWhite);
 
       float secondR = radius * 0.95f;
       lcd->aPointedLine (centre, centre + cPointF (secondR * sin (secondA), secondR * cos (secondA)), handWidth);
       lcd->aRender (sRgba565 (255,0,0, 180));
 
-      lcd->cLcd::text (COL_BLACK_SEMI, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
-      lcd->cLcd::text (COL_WHITE, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600) + cPoint(-2,-2));
+      lcd->cLcd::text (kBlackSemi, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
+      lcd->cLcd::text (kWhite, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600) + cPoint(-2,-2));
       //}}}
       if (radius < maxRadius) {
         radius += 10.f;
@@ -222,13 +222,13 @@ void appThread (void* arg) {
   if (FATFS_LinkDriver (&SD_Driver, sdPath) != 0) {
     //{{{  no driver error
     printf ("sdCard - no driver\n");
-    lcd->info (COL_RED, "sdCard - no driver");
+    lcd->info (kRed, "sdCard - no driver");
     }
     //}}}
   else if (f_mount (&fatFs, (TCHAR const*)sdPath, 1) != FR_OK) {
     //{{{  no sdCard error
     printf ("sdCard - not mounted\n");
-    lcd->info (COL_RED, "sdCard - not mounted");
+    lcd->info (kRed, "sdCard - not mounted");
     }
     //}}}
   else {

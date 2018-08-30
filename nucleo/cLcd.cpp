@@ -712,14 +712,14 @@ extern "C" { void LTDC_ER_IRQHandler() {
   if ((LTDC->ISR &  LTDC_FLAG_TE) != RESET) {
     LTDC->IER &= ~(LTDC_IT_TE | LTDC_IT_FU | LTDC_IT_LI);
     LTDC->ICR = LTDC_IT_TE;
-    cLcd::mLcd->info (COL_RED, "ltdc te IRQ");
+    cLcd::mLcd->info (kRed, "ltdc te IRQ");
     }
 
   // FIFO underrun Interrupt
   if ((LTDC->ISR &  LTDC_FLAG_FU) != RESET) {
     LTDC->IER &= ~(LTDC_IT_TE | LTDC_IT_FU | LTDC_IT_LI);
     LTDC->ICR = LTDC_FLAG_FU;
-    cLcd::mLcd->info (COL_RED, "ltdc fifoUnderrun IRQ");
+    cLcd::mLcd->info (kRed, "ltdc fifoUnderrun IRQ");
     }
   }
 }
@@ -1370,13 +1370,13 @@ void cLcd::drawInfo() {
 
   // draw title
   const cRect titleRect (0,0, getWidth(), kTitleHeight+kGap);
-  text (COL_BLACK_SEMI, kTitleHeight, mTitle, titleRect);
-  text (COL_YELLOW, kTitleHeight, mTitle, titleRect + cPoint(-2,-2));
+  text (kBlackSemi, kTitleHeight, mTitle, titleRect);
+  text (kYellow, kTitleHeight, mTitle, titleRect + cPoint(-2,-2));
 
   if (mShowInfo) {
     // draw footer
     auto y = getHeight() - kFooterHeight - kGap;
-    text (COL_WHITE, kFooterHeight,
+    text (kWhite, kFooterHeight,
           dec(mNumPresents) + ":" + dec (mDrawTime) + ":" + dec (mWaitTime) + " " +
           dec (osGetCPUUsage()) + "%:" + dec (mBrightness) + "% " +
           "dtcm:" + dec (getDtcmFreeSize()/1000) + ":" + dec (getDtcmSize()/1000) + " " +
@@ -1390,7 +1390,7 @@ void cLcd::drawInfo() {
     auto line = mCurLine - 1;
     while ((y > kTitleHeight) && (line >= 0)) {
       int lineIndex = line-- % kMaxLines;
-      auto x = text (COL_GREEN, kInfoHeight,
+      auto x = text (kGreen, kInfoHeight,
                      dec ((mLines[lineIndex].mTime-mBaseTime) / 1000) + "." +
                      dec ((mLines[lineIndex].mTime-mBaseTime) % 1000, 3, '0'),
                      cRect(0, y, getWidth(), 20));

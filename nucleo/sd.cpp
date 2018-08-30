@@ -99,7 +99,7 @@ DSTATUS SD_initialize (BYTE lun) {
   HAL_NVIC_EnableIRQ (SDMMC1_IRQn);
 
   if (HAL_SD_Init (&gSdHandle) != HAL_OK)
-    cLcd::mLcd->info (COL_RED, "HAL_SD_Init failed");
+    cLcd::mLcd->info (kRed, "HAL_SD_Init failed");
 
   osMessageQDef (sdQueue, QUEUE_SIZE, uint16_t);
   gQueue = osMessageCreate (osMessageQ (sdQueue), NULL);

@@ -14,20 +14,6 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 //}}}
-//{{{  colour defines
-#define COL_BLACK         sRgba565 (0,0,0)
-#define COL_BLACK_SEMI    sRgba565 (0,0,0, 128)
-#define COL_GREY          sRgba565 (128,128,128)
-#define COL_WHITE         sRgba565 (255,255,255)
-
-#define COL_BLUE          sRgba565 (0,0,255)
-#define COL_GREEN         sRgba565 (0,255,0)
-#define COL_RED           sRgba565 (255,0,0)
-
-#define COL_CYAN          sRgba565 (0,255,255)
-#define COL_MAGENTA       sRgba565 (255,0,255)
-#define COL_YELLOW        sRgba565 (255,255,0)
-//}}}
 //{{{  screen resolution defines
 #ifdef NEXXY_SCREEN
   // NEXXY 7 inch
@@ -50,13 +36,12 @@
   #define BIG_FONT_HEIGHT    32
 #endif
 //}}}
-
 //{{{
 struct sRgba565 {
   sRgba565 (uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) :
-    rgb565 (((r >> 3) << 11) | ((g >> 2) << 5) | (b>> 3)), alpha(a) {}
+    rgb565 (((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)), alpha(a) {}
 
-  uint8_t getR() { return (rgb565 >> 11) << 3; }
+  uint8_t getR() { return (rgb565 & 0xF800) >> 8; }
   uint8_t getG() { return (rgb565 & 0x07E0) >> 3; }
   uint8_t getB() { return (rgb565 & 0x001F) << 3; }
   uint8_t getA() { return alpha; }
@@ -65,6 +50,21 @@ struct sRgba565 {
   uint8_t alpha;
   };
 //}}}
+//{{{  colour const
+const sRgba565 kBlack (0,0,0);
+const sRgba565 kBlackSemi (0,0,0, 128);
+const sRgba565 kGrey (128,128,128);
+const sRgba565 kWhite (255,255,255);
+
+const sRgba565 kBlue (0,0,255);
+const sRgba565 kGreen (0,255,0);
+const sRgba565 kRed (255,0,0);
+
+const sRgba565 kCyan (0,255,255);
+const sRgba565 kMagenta (255,0,255);
+const sRgba565 kYellow (255,255,0);
+//}}}
+
 //{{{
 class cTile {
 public:
@@ -140,7 +140,7 @@ public:
   //}}}
 
   void info (sRgba565 colour, const std::string& str);
-  void info (const std::string& str) { info (COL_WHITE, str); }
+  void info (const std::string& str) { info (kWhite, str); }
 
   void clear (sRgba565 colour);
   void rect (sRgba565 colour, const cRect& r);
@@ -223,13 +223,13 @@ private:
     //{{{
     void clear() {
       mTime = 0;
-      mColour = COL_WHITE;
+      mColour = kWhite;
       mString = "";
       }
     //}}}
 
     int mTime = 0;
-    sRgba565 mColour = COL_WHITE;
+    sRgba565 mColour = kWhite;
     std::string mString;
     };
   //}}}

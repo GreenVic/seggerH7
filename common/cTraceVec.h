@@ -75,7 +75,7 @@ private:
       auto grid = range > 10000 ? 5000 : 1000;
       for (int i = (mMax/1000) * grid; i > mMin; i -= grid)  {
         auto gridy = (i * height) / (range * 2);
-        lcd->rectClipped (COL_GREY, cRect(0, midy - gridy, lcd->getWidth(), midy - gridy + 1));
+        lcd->rectClipped (kGrey, cRect(0, midy - gridy, lcd->getWidth(), midy - gridy + 1));
         }
 
       int32_t sample = mCurSample - (lcd->getWidth() * mAverageSamples);
@@ -87,18 +87,18 @@ private:
           }
         value = (value * height) / (range * 2 * mAverageSamples);
         if (value > 0)
-          lcd->rectClipped (COL_WHITE, cRect (i, midy - value, i+1, midy));
+          lcd->rectClipped (kWhite, cRect (i, midy - value, i+1, midy));
         else
-          lcd->rectClipped (COL_WHITE, cRect (i, midy, i+1, midy - value));
+          lcd->rectClipped (kWhite, cRect (i, midy, i+1, midy - value));
         }
 
-      lcd->text (COL_GREEN, cLcd::getFontHeight(), dec (mMax),
+      lcd->text (kGreen, cLcd::getFontHeight(), dec (mMax),
                  cRect (lcd->getWidth() - 60, midy - cLcd::getFontHeight()*3/2,
                         lcd->getWidth(), midy - cLcd::getFontHeight()*3/2 + cLcd::getFontHeight()));
-      lcd->text (COL_YELLOW, cLcd::getFontHeight(), dec (mSamples[(mCurSample-1) % mNumSamples]),
+      lcd->text (kYellow, cLcd::getFontHeight(), dec (mSamples[(mCurSample-1) % mNumSamples]),
                  cRect (lcd->getWidth() - 60, midy - cLcd::getFontHeight()/2,
                         lcd->getWidth(), midy - cLcd::getFontHeight()/2 + cLcd::getFontHeight()));
-      lcd->text (COL_RED, cLcd::getFontHeight(), dec (mMin),
+      lcd->text (kWhite, cLcd::getFontHeight(), dec (mMin),
                  cRect (lcd->getWidth() - 60, midy + cLcd::getFontHeight()/2,
                         lcd->getWidth(), midy + cLcd::getFontHeight()/2 + cLcd::getFontHeight()));
       }
