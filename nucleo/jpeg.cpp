@@ -595,17 +595,17 @@ cTile* swJpegDecode (const string& fileName, int scale) {
     mCinfo.scale_denom = scale;
     jpeg_start_decompress (&mCinfo);
 
-    uint8_t* rgb888Pic = (uint8_t*)sdRamAlloc (mCinfo.output_width * mCinfo.output_height*3, "swJpegPic888");
+    auto rgb888Pic = (uint8_t*)sdRamAlloc (mCinfo.output_width * mCinfo.output_height*3, "swJpegPic888");
     if (rgb888Pic) {
       // will not render to rgb88pic in sdram directly ???
-      uint8_t* line = dtcmAlloc (mCinfo.output_width * 3);
+      uint8_t* rgb888Line = (uint8_t*)pvPortMalloc (mCinfo.output_width * 3);
       tile = new cTile (rgb888Pic, cTile::eRgb888, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
       while (mCinfo.output_scanline < mCinfo.output_height) {
-        jpeg_read_scanlines (&mCinfo, &line, 1);
-        memcpy (rgb888Pic, line, mCinfo.output_width * 3);
+        jpeg_read_scanlines (&mCinfo, &rgb888Line, 1);
+        memcpy (rgb888Pic, rgb888Line, mCinfo.output_width * 3);
         rgb888Pic += mCinfo.output_width * 3;
         }
-      dtcmFree (line);
+      vPortFree (rgb888Line);
       }
     else
       printf ("swJpegDecode %s rgb565pic alloc fail\n", fileName.c_str());
