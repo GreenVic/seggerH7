@@ -37,23 +37,23 @@ public:
     }
   //}}}
   //{{{
-  void setCoverage (int c, int a) {
+  void setCoverage (int32_t c, int32_t a) {
 
     mCoverage = c;
     mArea = a;
     }
   //}}}
   //{{{
-  void addCoverage (int c, int a) {
+  void addCoverage (int32_t c, int32_t a) {
 
     mCoverage += c;
     mArea += a;
     }
   //}}}
 
-  int mPackedCoord;
-  int mCoverage;
-  int mArea;
+  int32_t mPackedCoord;
+  int32_t mCoverage;
+  int32_t mArea;
   };
 //}}}
 //{{{
@@ -99,7 +99,7 @@ public:
     }
   //}}}
   //{{{
-  void moveTo (int x, int y) {
+  void moveTo (int32_t x, int32_t y) {
 
     if (!mSortRequired)
       reset();
@@ -116,7 +116,7 @@ public:
     }
   //}}}
   //{{{
-  void lineTo (int x, int y) {
+  void lineTo (int32_t x, int32_t y) {
 
     if (mSortRequired && ((mCurx ^ x) | (mCury ^ y))) {
       int c = mCurx >> 8;
@@ -141,10 +141,10 @@ public:
     }
   //}}}
 
-  int getMinx() const { return mMinx; }
-  int getMiny() const { return mMiny; }
-  int getMaxx() const { return mMaxx; }
-  int getMaxy() const { return mMaxy; }
+  int32_t getMinx() const { return mMinx; }
+  int32_t getMiny() const { return mMiny; }
+  int32_t getMaxx() const { return mMaxx; }
+  int32_t getMaxy() const { return mMaxy; }
 
   //{{{
   const sCell* const* getSortedCells() {
@@ -532,15 +532,15 @@ private:
   sCell mCurCell;
   sCell* mCurCellPtr = nullptr;
 
-  int mCurx = 0;
-  int mCury = 0;
-  int mClosex = 0;
-  int mClosey = 0;
+  int32_t mCurx = 0;
+  int32_t mCury = 0;
+  int32_t mClosex = 0;
+  int32_t mClosey = 0;
 
-  int mMinx;
-  int mMiny;
-  int mMaxx;
-  int mMaxy;
+  int32_t mMinx;
+  int32_t mMiny;
+  int32_t mMaxx;
+  int32_t mMaxy;
 
   bool mClosed;
   bool mSortRequired;
