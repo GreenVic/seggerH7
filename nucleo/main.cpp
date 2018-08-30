@@ -24,7 +24,7 @@ using namespace std;
 #define SW_SCALE 4
 #define FMC_PERIOD  FMC_SDRAM_CLOCK_PERIOD_2
 
-const string kHello = "stm32h7 testbed " + string(__TIME__) + " " + string(__DATE__);
+const string kHello = "stm32h7 " + string(__TIME__) + " " + string(__DATE__);
 const cPointF centre = cPointF (1024.f-125.f, 600.f-125.f-40.f);
 float radius = 120.f;
 
@@ -190,7 +190,7 @@ void uiThread (void* arg) {
       lcd->aRender (sRgba (255,255,255, 255));
 
       float secondR = radius * 0.95f;
-      lcd->aLine (centre, centre + cPointF (secondR * sin (secondA), secondR * cos (secondA)), 3.0f);
+      lcd->aWideLine (centre, centre + cPointF (secondR * sin (secondA), secondR * cos (secondA)), 3.0f);
       lcd->aRender (sRgba (255,0,0, 180));
 
       lcd->cLcd::text (COL_BLACK, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));

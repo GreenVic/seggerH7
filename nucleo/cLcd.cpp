@@ -19,14 +19,6 @@
   #define VERT_SYNC          12  // min   12  typ  25   max  38
 #endif
 //}}}
-//{{{  yuvMcuTo565sw defines
-// YCbCr 4:2:0 : Each MCU is composed of 4 Y 8x8 blocks + 1 Cb 8x8 block + Cr 8x8 block
-// YCbCr 4:2:2 : Each MCU is composed of 2 Y 8x8 blocks + 1 Cb 8x8 block + Cr 8x8 block
-// YCbCr 4:4:4 : Each MCU is composed of 1 Y 8x8 block + 1 Cb 8x8 block + Cr 8x8 block
-#define YCBCR_420_BLOCK_SIZE     384     /* YCbCr 4:2:0 MCU : 4 8x8 blocks of Y + 1 8x8 block of Cb + 1 8x8 block of Cr   */
-#define YCBCR_422_BLOCK_SIZE     256     /* YCbCr 4:2:2 MCU : 2 8x8 blocks of Y + 1 8x8 block of Cb + 1 8x8 block of Cr   */
-#define YCBCR_444_BLOCK_SIZE     192     /* YCbCr 4:4:4 MCU : 1 8x8 block of Y + 1 8x8 block of Cb + 1 8x8 block of Cr   */
-//}}}
 
 //{{{
 struct sCell {
@@ -270,24 +262,23 @@ private:
       return;
       }
 
-    //everything is located in a single cell.  That is easy!
+    // single cell
     if (ex1 == ex2) {
       int delta = y2 - y1;
       mCurCell.addCoverage (delta, (fx1 + fx2) * delta);
       return;
       }
 
-    //ok, we'll have to render a run of adjacent cells on the same
-    //cScanLine...
+    // render a run of adjacent cells on the same scanLine
     int p = (0x100 - fx1) * (y2 - y1);
     int first = 0x100;
     int incr = 1;
     int dx = x2 - x1;
     if (dx < 0) {
-      p     = fx1 * (y2 - y1);
+      p = fx1 * (y2 - y1);
       first = 0;
-      incr  = -1;
-      dx    = -dx;
+      incr = -1;
+      dx = -dx;
       }
 
     int delta = p / dx;
@@ -321,7 +312,7 @@ private:
           }
 
         mCurCell.addCoverage (delta, (0x100) * delta);
-        y1  += delta;
+        y1 += delta;
         ex1 += incr;
         setCurCell (ex1, ey);
         }
@@ -392,7 +383,7 @@ private:
       return;
       }
 
-    // ok, we have to render several cScanLines
+    // render several scanLines
     p  = (0x100 - fy1) * dx;
     first = 0x100;
     if (dy < 0) {
@@ -406,7 +397,7 @@ private:
     mod = p % dy;
     if (mod < 0) {
       delta--;
-        mod += dy;
+      mod += dy;
       }
 
     x_from = x1 + delta;
@@ -549,6 +540,7 @@ private:
   int mMiny;
   int mMaxx;
   int mMaxy;
+
   bool mClosed;
   bool mSortRequired;
   };
@@ -1131,7 +1123,7 @@ void cLcd::aLineTo (const cPointF& p) {
   }
 //}}}
 //{{{
-void cLcd::aLine (const cPointF& p1, const cPointF& p2, float width) {
+void cLcd::aWideLine (const cPointF& p1, const cPointF& p2, float width) {
 
   cPointF vec = p2 - p1;
   vec = vec * width / vec.magnitude();

@@ -93,12 +93,6 @@ public:
     }
   //}}}
   //{{{
-  cPointF (int x, int y) {
-    this->x = x;
-    this->y = y;
-    }
-  //}}}
-  //{{{
   cPointF (float x, float y) {
     this->x = x;
     this->y = y;
@@ -117,12 +111,12 @@ public:
   //}}}
   //{{{
   cPointF operator * (const float s) const {
-    return cPointF (int16_t(x * s), int16_t(y * s));
+    return cPointF (x * s, y * s);
     }
   //}}}
   //{{{
   cPointF operator / (const float s) const {
-    return cPointF (int16_t(x / s), int16_t(y / s));
+    return cPointF (x / s, y / s);
     }
   //}}}
 
@@ -150,7 +144,7 @@ public:
   //{{{
   float magnitude() const {
   // return magnitude of point as vector
-    return sqrt (x*x + y*y);
+    return sqrt ((x*x) + (y*y));
     }
   //}}}
 

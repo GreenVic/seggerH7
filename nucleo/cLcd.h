@@ -155,7 +155,7 @@ public:
   // agg anti aliased
   void aMoveTo (const cPointF& p);
   void aLineTo (const cPointF& p);
-  void aLine (const cPointF& p1, const cPointF& p2, float width);
+  void aWideLine (const cPointF& p1, const cPointF& p2, float width);
   void aPointedLine (const cPointF& p1, const cPointF& p2, float width);
   void aEllipseOutline (const cPointF& centre, const cPointF& radius, float width, int steps);
   void aEllipse (const cPointF& centre, const cPointF& radius, int steps);
