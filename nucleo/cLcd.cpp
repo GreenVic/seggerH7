@@ -953,15 +953,18 @@ int cLcd::text (sRgba565 colour, uint16_t fontHeight, const std::string& str, cR
             charRect.bottom = getHeight();
 
           if ((charRect.left >= 0) && (charRect.bottom > 0) && (charRect.top < getHeight())) {
+            uint32_t dstAddr = uint32_t(mBuffer[mDrawBuffer] + charRect.top * getWidth() + charRect.left);
+            uint32_t stride = getWidth() - charRect.getWidth();
+
             ready();
+            DMA2D->BGPFCCR = DMA2D_INPUT_RGB565;
+            DMA2D->BGMAR = dstAddr;
+            DMA2D->OMAR = dstAddr;
+            DMA2D->BGOR = stride;
+            DMA2D->OOR = stride;
+            DMA2D->NLR = (charRect.getWidth() << 16) | charRect.getHeight();
             DMA2D->FGMAR = (uint32_t)src;
             DMA2D->FGOR = 0;
-            DMA2D->BGPFCCR = DMA2D_INPUT_RGB565;
-            DMA2D->BGMAR = uint32_t(mBuffer[mDrawBuffer] + charRect.top * getWidth() + charRect.left);
-            DMA2D->BGOR = getWidth() - charRect.getWidth();
-            DMA2D->OMAR = uint32_t(mBuffer[mDrawBuffer] + charRect.top * getWidth() + charRect.left);
-            DMA2D->OOR = getWidth() - charRect.getWidth();
-            DMA2D->NLR = (charRect.getWidth() << 16) | charRect.getHeight();
             DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
             mDma2dWait = eWaitIrq;
             }
@@ -1685,8 +1688,6 @@ void cLcd::renderScanLine (cScanLine* scanLine, sRgba565 colour) {
   ready();
   DMA2D->FGPFCCR = (colour.getA() < 255) ? ((colour.getA() << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
   DMA2D->FGCOLR = (colour.getR() << 16) | (colour.getG() << 8) | colour.getB();;
-  DMA2D->FGOR = 0;
-  DMA2D->BGPFCCR = DMA2D_INPUT_RGB565;
 
   int baseX = scanLine->getBaseX();
   uint16_t numSpans = scanLine->getNumSpans();
@@ -1715,15 +1716,17 @@ void cLcd::renderScanLine (cScanLine* scanLine, sRgba565 colour) {
     mNumStamps++;
 
     uint32_t dstAddr = uint32_t(mBuffer[mDrawBuffer] + y * getWidth() + x);
-    uint32_t width = getWidth() - numPix;
+    uint32_t stride = getWidth() - numPix;
 
     ready();
+    DMA2D->BGPFCCR = DMA2D_INPUT_RGB565;
     DMA2D->BGMAR = dstAddr;
     DMA2D->OMAR = dstAddr;
-    DMA2D->BGOR = width;
-    DMA2D->OOR = width;
+    DMA2D->BGOR = stride;
+    DMA2D->OOR = stride;
     DMA2D->NLR = (numPix << 16) | 1;
     DMA2D->FGMAR = (uint32_t)coverage;
+    DMA2D->FGOR = 0;
     DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_START;
     mDma2dWait = eWaitDone;
     } while (--numSpans);
