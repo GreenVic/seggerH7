@@ -91,6 +91,7 @@ public:
     mCurCell.set (0x7FFF, 0x7FFF, 0, 0);
     mSortRequired = true;
     mClosed = true;
+
     mMinx =  0x7FFFFFFF;
     mMiny =  0x7FFFFFFF;
     mMaxx = -0x7FFFFFFF;
@@ -589,11 +590,13 @@ public:
   //{{{
   void resetSpans() {
 
-    mLastX = 0x7FFF;
-    mLastY = 0x7FFF;
+    mNumSpans = 0;
+
     mCurCount = mCounts;
     mCurStartPtr = mStartPtrs;
-    mNumSpans = 0;
+
+    mLastX = 0x7FFF;
+    mLastY = 0x7FFF;
     }
   //}}}
   //{{{
@@ -601,6 +604,9 @@ public:
 
     uint16_t maxLen = maxx - minx + 2;
     if (maxLen > mMaxlen) {
+      // increase allocations
+      mMaxlen = maxLen;
+
       vPortFree (mStartPtrs);
       vPortFree (mCounts);
       vPortFree (mCoverage);
@@ -608,8 +614,6 @@ public:
       mCoverage = (uint8_t*)pvPortMalloc (maxLen);
       mCounts = (uint16_t*)pvPortMalloc (maxLen * 2);
       mStartPtrs = (uint8_t**)pvPortMalloc (maxLen * 4);
-
-      mMaxlen = maxLen;
       }
 
     mMinx = minx;
@@ -1664,14 +1668,21 @@ void cLcd::reset() {
 //{{{
 void cLcd::ready() {
 
-  if (mDma2dWait == eWaitDone) {
-    while (!(DMA2D->ISR & DMA2D_FLAG_TC))
-      taskYIELD();
-    DMA2D->IFCR = DMA2D_FLAG_TC;
-    }
-  else if (mDma2dWait == eWaitIrq)
-    if (!xSemaphoreTake (mDma2dSem, 5000))
-      printf ("cLcd ready take fail\n");
+  switch (mDma2dWait) {
+    case eWaitDone:
+      while (!(DMA2D->ISR & DMA2D_FLAG_TC))
+        taskYIELD();
+      DMA2D->IFCR = DMA2D_FLAG_TC;
+      break;
+
+    case eWaitIrq:
+      if (!xSemaphoreTake (mDma2dSem, 5000))
+        printf ("cLcd ready take fail\n");
+       break;
+
+     case eWaitNone:
+       break;
+     }
 
   mDma2dWait = eWaitNone;
   }
