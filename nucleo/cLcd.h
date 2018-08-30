@@ -16,6 +16,7 @@
 //}}}
 //{{{  colour defines
 #define COL_BLACK         sRgba565 (0,0,0)
+#define COL_BLACK_SEMI    sRgba565 (0,0,0, 128)
 #define COL_GREY          sRgba565 (128,128,128)
 #define COL_WHITE         sRgba565 (255,255,255)
 

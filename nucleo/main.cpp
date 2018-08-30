@@ -195,7 +195,7 @@ void uiThread (void* arg) {
       lcd->aPointedLine (centre, centre + cPointF (secondR * sin (secondA), secondR * cos (secondA)), handWidth);
       lcd->aRender (sRgba565 (255,0,0, 180));
 
-      lcd->cLcd::text (COL_BLACK, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
+      lcd->cLcd::text (COL_BLACK_SEMI, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
       lcd->cLcd::text (COL_WHITE, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600) + cPoint(-2,-2));
       //}}}
       if (radius < maxRadius) {
