@@ -170,26 +170,27 @@ void uiThread (void* arg) {
       mTraceVec.draw (lcd, 20, 450);
       auto startTime = HAL_GetTick();
       //{{{  draw clock
-      float hourAngle;
-      float minuteAngle;
-      float secondAngle;
-      float subSecondAngle;
-      mRtc->getClockAngles (hourAngle, minuteAngle, secondAngle, subSecondAngle);
+      float hourA;
+      float minuteA;
+      float secondA;
+      float subSecondA;
+      mRtc->getClockAngles (hourA, minuteA, secondA, subSecondA);
 
-      float hourRadius = radius * 0.75f;
-      float minuteRadius = radius * 0.85f;
-      float secondRadius = radius * 0.95f;
-
-      lcd->aEllipseThick (centre, cPointF(radius, radius), 4.f, 16);
+      int steps = 64;
+      float width = 4.f;
+      lcd->aEllipse (centre, cPointF(radius-width, radius-width), steps);
+      lcd->aRender (sRgba (128,128,128, 192), false);
+      lcd->aEllipseOutline (centre, cPointF(radius, radius), width, steps);
       lcd->aRender (sRgba (180,180,0, 255), false);
 
-      lcd->aPointedLine (
-        centre, centre + cPointF (hourRadius * sin (hourAngle), hourRadius * cos (hourAngle)), 3.0f);
-      lcd->aPointedLine (
-        centre, centre + cPointF (minuteRadius * sin (minuteAngle), minuteRadius * cos (minuteAngle)), 2.0f);
+      float hourR = radius * 0.75f;
+      lcd->aPointedLine (centre, centre + cPointF (hourR * sin (hourA), hourR * cos (hourA)), 3.0f);
+      float minuteR = radius * 0.85f;
+      lcd->aPointedLine (centre, centre + cPointF (minuteR * sin (minuteA), minuteR * cos (minuteA)), 2.0f);
       lcd->aRender (sRgba (255,255,255, 255));
-      lcd->aLine (
-        centre, centre + cPointF (secondRadius * sin (secondAngle), secondRadius * cos (secondAngle)), 3.0f);
+
+      float secondR = radius * 0.95f;
+      lcd->aLine (centre, centre + cPointF (secondR * sin (secondA), secondR * cos (secondA)), 3.0f);
       lcd->aRender (sRgba (255,0,0, 180));
 
       lcd->cLcd::text (COL_BLACK, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));

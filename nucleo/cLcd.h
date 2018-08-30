@@ -793,7 +793,8 @@ public:
   void aLineTo (const cPointF& p) { mOutline.lineTo (int(p.x * 256.f), int(p.y * 256.f)); }
   void aLine (const cPointF& p1, const cPointF& p2, float width);
   void aPointedLine (const cPointF& p1, const cPointF& p2, float width);
-  void aEllipseThick (const cPointF& centre, const cPointF& radius, float width, int steps);
+  void aEllipseOutline (const cPointF& centre, const cPointF& radius, float width, int steps);
+  void aEllipse (const cPointF& centre, const cPointF& radius, int steps);
   void aRender (const sRgba& rgba, bool fillNonZero = true);
 
   void start();
@@ -801,9 +802,6 @@ public:
   void present();
 
   void display (int brightness);
-
-  static void rgb888toRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize);
-  static void yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
 
   static cLcd* mLcd;
 
@@ -816,7 +814,6 @@ private:
   void reset();
 
   unsigned calcAlpha (int area, bool fillNonZero) const;
-  void aEllipse (const cPointF& centre, const cPointF& radius, int steps);
   void renderScanLine (const cScanLine& scanLine, const sRgba& rgba);
 
   //{{{  vars

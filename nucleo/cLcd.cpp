@@ -588,14 +588,37 @@ void cLcd::aPointedLine (const cPointF& p1, const cPointF& p2, float width) {
   }
 //}}}
 //{{{
-void cLcd::aEllipseThick (const cPointF& centre, const cPointF& radius, float width, int steps) {
-
-  // clockwise ellipse
-  aEllipse (centre, radius, steps);
+void cLcd::aEllipse (const cPointF& centre, const cPointF& radius, int steps) {
 
   // anticlockwise ellipse
-  float angle = 360.f;
+  float angle = 0.f;
   float fstep = 360.f / steps;
+  aMoveTo (centre + cPointF(radius.x, 0.f));
+
+  angle += fstep;
+  while (angle < 360.f) {
+    auto radians = angle * 3.1415926f / 180.0f;
+    aLineTo (centre + cPointF (cos(radians) * radius.x, sin(radians) * radius.y));
+    angle += fstep;
+    }
+  }
+//}}}
+//{{{
+void cLcd::aEllipseOutline (const cPointF& centre, const cPointF& radius, float width, int steps) {
+
+  float angle = 0.f;
+  float fstep = 360.f / steps;
+  aMoveTo (centre + cPointF(radius.x, 0.f));
+
+  // clockwise ellipse
+  angle += fstep;
+  while (angle < 360.f) {
+    auto radians = angle * 3.1415926f / 180.0f;
+    aLineTo (centre + cPointF (cos(radians) * radius.x, sin(radians) * radius.y));
+    angle += fstep;
+    }
+
+  // anti clockwise ellipse
   aMoveTo (centre + cPointF(radius.x - width, 0.f));
 
   angle -= fstep;
@@ -681,7 +704,18 @@ void cLcd::copy (cTile* tile, cPoint p) {
   uint16_t width = p.x + tile->mWidth > getWidth() ? getWidth() - p.x : tile->mWidth;
   uint16_t height = p.y + tile->mHeight > getHeight() ? getHeight() - p.y : tile->mHeight;
 
-  DMA2D->FGPFCCR = tile->mFormat == cTile::eRgb565 ? DMA2D_INPUT_RGB565 : DMA2D_INPUT_RGB888;
+  switch (tile->mFormat) {
+    case cTile::eRgb565 : DMA2D->FGPFCCR = DMA2D_INPUT_RGB565; break;
+    case cTile::eRgb888 : DMA2D->FGPFCCR = DMA2D_INPUT_RGB888; break;
+    case cTile::eYuv422mcu : {
+      DMA2D->FGPFCCR = DMA2D_INPUT_YCBCR | (DMA2D_CSS_422 << POSITION_VAL(DMA2D_FGPFCCR_CSS));
+      auto inputLineOffset = width % 8;
+      if (inputLineOffset != 0)
+        inputLineOffset = 8 - inputLineOffset;
+      DMA2D->FGOR = inputLineOffset;
+      }
+    }
+
   DMA2D->FGMAR = (uint32_t)tile->mPiccy;
   DMA2D->FGOR = tile->mPitch - width;
 
@@ -749,8 +783,19 @@ void cLcd::size (cTile* tile, const cRect& r) {
     }
     //}}}
   else if (tile->mFormat == cTile::eRgb888) {
-    printf ("no rgb888 size yet\n");
+    //{{{  rgb888 size
+    for (uint32_t y16 = (tile->mY << 16); y16 < ((tile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
+      uint8_t* src = tile->mPiccy + ((tile->mY + (y16 >> 16)) * tile->mPitch + tile->mX) * 3;
+      for (uint32_t x16 = tile->mX << 16; x16 < (tile->mX + r.getWidth()) * xStep16; x16 += xStep16) {
+        uint8_t r = *src++;
+        uint8_t g = *src++;
+        uint8_t b = *src++;
+        *dst++ = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+        }
+      dst += getWidth() - r.getWidth();
+      }
     }
+    //}}}
   else {
     // yuv422 size
     for (uint32_t y16 = (tile->mY << 16); y16 < ((tile->mY + r.getHeight()) * yStep16); y16 += yStep16) {
@@ -772,6 +817,51 @@ void cLcd::size (cTile* tile, const cRect& r) {
 
   xSemaphoreGive (mLockSem);
   }
+//}}}
+//{{{
+//void cLcd::yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling) {
+
+  //uint32_t cssMode = DMA2D_CSS_420;
+  //uint32_t inputLineOffset = 0;
+
+  //if (chromaSampling == JPEG_420_SUBSAMPLING) {
+    //cssMode = DMA2D_CSS_420;
+    //inputLineOffset = xsize % 16;
+    //if (inputLineOffset != 0)
+      //inputLineOffset = 16 - inputLineOffset;
+    //}
+  //else if (chromaSampling == JPEG_444_SUBSAMPLING) {
+    //cssMode = DMA2D_NO_CSS;
+    //inputLineOffset = xsize % 8;
+    //if (inputLineOffset != 0)
+      //inputLineOffset = 8 - inputLineOffset;
+    //}
+  //else if (chromaSampling == JPEG_422_SUBSAMPLING) {
+    //cssMode = DMA2D_CSS_422;
+    //inputLineOffset = xsize % 16;
+    //if (inputLineOffset != 0)
+      //inputLineOffset = 16 - inputLineOffset;
+    //}
+
+  //if (!xSemaphoreTake (mLockSem, 5000))
+    //printf ("cLcd take fail\n");
+
+  //DMA2D->FGPFCCR = DMA2D_INPUT_YCBCR | (cssMode << POSITION_VAL(DMA2D_FGPFCCR_CSS));
+  //DMA2D->FGMAR = (uint32_t)src;
+  //DMA2D->FGOR = inputLineOffset;
+
+  //DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
+  //DMA2D->OMAR = (uint32_t)dst;
+  //DMA2D->OOR = 0;
+
+  //DMA2D->NLR = (xsize << 16) | ysize;
+  //DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
+  //mDma2dWait = eWaitIrq;
+
+  //ready();
+
+  //xSemaphoreGive (mLockSem);
+  //}
 //}}}
 
 //{{{
@@ -846,76 +936,6 @@ void cLcd::display (int brightness) {
 
   mBrightness = brightness;
   TIM4->CCR2 = 50 * brightness;
-  }
-//}}}
-
-// static
-//{{{
-void cLcd::rgb888toRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize) {
-
-  if (!xSemaphoreTake (mLockSem, 5000))
-    printf ("cLcd take fail\n");
-
-  DMA2D->FGPFCCR = DMA2D_INPUT_RGB888;
-  DMA2D->FGMAR = uint32_t(src);
-  DMA2D->FGOR = 0;
-
-  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
-  DMA2D->OMAR = uint32_t(dst);
-  DMA2D->OOR = 0;
-
-  DMA2D->NLR = (xsize << 16) | ysize;
-  DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
-  mDma2dWait = eWaitIrq;
-
-  ready();
-
-  xSemaphoreGive (mLockSem);
-  }
-//}}}
-//{{{
-void cLcd::yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling) {
-
-  uint32_t cssMode = DMA2D_CSS_420;
-  uint32_t inputLineOffset = 0;
-
-  if (chromaSampling == JPEG_420_SUBSAMPLING) {
-    cssMode = DMA2D_CSS_420;
-    inputLineOffset = xsize % 16;
-    if (inputLineOffset != 0)
-      inputLineOffset = 16 - inputLineOffset;
-    }
-  else if (chromaSampling == JPEG_444_SUBSAMPLING) {
-    cssMode = DMA2D_NO_CSS;
-    inputLineOffset = xsize % 8;
-    if (inputLineOffset != 0)
-      inputLineOffset = 8 - inputLineOffset;
-    }
-  else if (chromaSampling == JPEG_422_SUBSAMPLING) {
-    cssMode = DMA2D_CSS_422;
-    inputLineOffset = xsize % 16;
-    if (inputLineOffset != 0)
-      inputLineOffset = 16 - inputLineOffset;
-    }
-
-  if (!xSemaphoreTake (mLockSem, 5000))
-    printf ("cLcd take fail\n");
-
-  DMA2D->FGPFCCR = DMA2D_INPUT_YCBCR | (cssMode << POSITION_VAL(DMA2D_FGPFCCR_CSS));
-  DMA2D->FGMAR = (uint32_t)src;
-  DMA2D->FGOR = inputLineOffset;
-
-  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
-  DMA2D->OMAR = (uint32_t)dst;
-  DMA2D->OOR = 0;
-
-  DMA2D->NLR = (xsize << 16) | ysize;
-  DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
-  mDma2dWait = eWaitIrq;
-
-  ready();
-
-  xSemaphoreGive (mLockSem);
   }
 //}}}
 
@@ -1150,22 +1170,6 @@ unsigned cLcd::calcAlpha (int area, bool fillNonZero) const {
     coverage = 0xFF;
 
   return coverage;
-  }
-//}}}
-//{{{
-void cLcd::aEllipse (const cPointF& centre, const cPointF& radius, int steps) {
-
-  // anticlockwise ellipse
-  float angle = 0.f;
-  float fstep = 360.f / steps;
-  aMoveTo (centre + cPointF(radius.x, 0.f));
-
-  angle += fstep;
-  while (angle < 360.f) {
-    auto radians = angle * 3.1415926f / 180.0f;
-    aLineTo (centre + cPointF (cos(radians) * radius.x, sin(radians) * radius.y));
-    angle += fstep;
-    }
   }
 //}}}
 //{{{

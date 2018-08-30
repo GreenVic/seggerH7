@@ -596,23 +596,21 @@ cTile* swJpegDecode (const string& fileName, int scale) {
     mCinfo.scale_denom = scale;
     jpeg_start_decompress (&mCinfo);
 
-    auto rgb565Pic = sdRamAlloc (mCinfo.output_width * mCinfo.output_height*2, "swJpegPic");
-    if (!rgb565Pic)
-      printf ("swJpegDecode %s rgb565pic alloc fail\n", fileName.c_str());
-    else {
-      auto rgb888Line = (uint8_t*)sram123Alloc (mCinfo.output_width * 3);
-      if (!rgb888Line)
-        printf ("swJpegDecode %s rgbLine alloc fail\n", fileName.c_str());
-      else {
-        tile = new cTile (rgb565Pic, cTile::eRgb565, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
-        while (mCinfo.output_scanline < mCinfo.output_height) {
-          jpeg_read_scanlines (&mCinfo, &rgb888Line, 1);
-          cLcd::rgb888toRgb565 (rgb888Line, rgb565Pic, mCinfo.output_width, 1);
-          rgb565Pic += mCinfo.output_width * 2;
-          }
-        sram123Free (rgb888Line);
+    uint8_t* rgb888Pic = (uint8_t*)sdRamAlloc (mCinfo.output_width * mCinfo.output_height*3, "swJpegPic888");
+    if (rgb888Pic) {
+      // will not render to rgb88pic in sdram directly ???
+      uint8_t* line = dtcmAlloc (mCinfo.output_width * 3);
+      tile = new cTile (rgb888Pic, cTile::eRgb888, mCinfo.output_width, 0,0, mCinfo.output_width, mCinfo.output_height);
+      while (mCinfo.output_scanline < mCinfo.output_height) {
+        jpeg_read_scanlines (&mCinfo, &line, 1);
+        memcpy (rgb888Pic, line, mCinfo.output_width * 3);
+        rgb888Pic += mCinfo.output_width * 3;
         }
+      dtcmFree (line);
       }
+    else
+      printf ("swJpegDecode %s rgb565pic alloc fail\n", fileName.c_str());
+
     jpeg_finish_decompress (&mCinfo);
     jpeg_destroy_decompress (&mCinfo);
     f_close (file);
