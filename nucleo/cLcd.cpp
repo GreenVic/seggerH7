@@ -813,6 +813,8 @@ void cLcd::init (const std::string& title) {
   // set gamma 1.2 lut
   for (unsigned i = 0; i < 256; i++)
     mGamma[i] = (uint8_t)(pow(double(i) / 255.0, 1.2) * 255.0);
+
+  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
   }
 //}}}
 
@@ -842,17 +844,16 @@ void cLcd::info (uint16_t colour, const std::string str) {
 //{{{
 void cLcd::rect (uint16_t colour, const cRect& r) {
 
-  uint32_t rectRegs[5];
-  rectRegs[0] = DMA2D_OUTPUT_RGB565;                                           // OPFCCR
-  rectRegs[1] = colour;                                                        // OCOLR
-  rectRegs[2] = uint32_t (mBuffer[mDrawBuffer] + r.top * getWidth() + r.left); // OMAR
-  rectRegs[3] = getWidth() - r.getWidth();                                     // OOR
-  rectRegs[4] = (r.getWidth() << 16) | r.getHeight();                          // NLR
+  uint32_t rectRegs[4];
+  rectRegs[0] = colour;                                                        // OCOLR
+  rectRegs[1] = uint32_t (mBuffer[mDrawBuffer] + r.top * getWidth() + r.left); // OMAR
+  rectRegs[2] = getWidth() - r.getWidth();                                     // OOR
+  rectRegs[3] = (r.getWidth() << 16) | r.getHeight();                          // NLR
 
   if (!xSemaphoreTake (mLockSem, 5000))
     printf ("cLcd take fail\n");
 
-  memcpy ((void*)(&DMA2D->OPFCCR), rectRegs, 5*4);
+  memcpy ((void*)(&DMA2D->OCOLR), rectRegs, 5*4);
   DMA2D->CR = DMA2D_R2M | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
   ready();
@@ -942,7 +943,6 @@ int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string& str, cR
     printf ("cLcd take fail\n");
 
   ready();
-  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
   DMA2D->FGPFCCR = (alpha < 255) ? ((alpha << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
   DMA2D->FGCOLR = ((colour >> 11) << 19) | ((colour & 0x07E0) << 5) | ((colour & 0x001F) << 3);
 
@@ -1292,7 +1292,6 @@ void cLcd::copy (cTile* tile, cPoint p) {
   DMA2D->FGMAR = (uint32_t)tile->mPiccy;
   DMA2D->FGOR = tile->mPitch - width;
 
-  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
   DMA2D->OMAR = uint32_t(mBuffer[mDrawBuffer] + (p.y * getWidth()) + p.x);
   DMA2D->OOR = getWidth() > tile->mWidth ? getWidth() - tile->mWidth : 0;
 
@@ -1317,7 +1316,6 @@ void cLcd::copy90 (cTile* tile, cPoint p) {
   DMA2D->FGPFCCR = DMA2D_INPUT_RGB565;
   DMA2D->FGOR = 0;
 
-  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
   DMA2D->OOR = getWidth() - 1;
   DMA2D->NLR = 0x10000 | (tile->mWidth);
 
@@ -1720,7 +1718,6 @@ void cLcd::renderScanLine (cScanLine* scanLine, const sRgba& rgba) {
     return;
 
   ready();
-  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
   DMA2D->FGPFCCR = (rgba.a < 255) ? ((rgba.a << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
   DMA2D->FGCOLR = (rgba.r << 16) | (rgba.g << 8) | rgba.b;
 
