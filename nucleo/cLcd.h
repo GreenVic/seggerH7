@@ -740,6 +740,8 @@ public:
   enum eDma2dWait { eWaitNone, eWaitDone, eWaitIrq };
   cLcd();
   ~cLcd();
+  void* operator new (std::size_t size) { return pvPortMalloc (size); }
+  void operator delete (void* ptr) { vPortFree (ptr); }
 
   void init (const std::string& title);
   static uint16_t getWidth() { return LCD_WIDTH; }
@@ -791,11 +793,8 @@ public:
   void aLineTo (const cPointF& p) { mOutline.lineTo (int(p.x * 256.f), int(p.y * 256.f)); }
   void aLine (const cPointF& p1, const cPointF& p2, float width);
   void aPointedLine (const cPointF& p1, const cPointF& p2, float width);
-  void aEllipse (const cPointF& centre, const cPointF& radius, float thick, int step);
+  void aEllipseThick (const cPointF& centre, const cPointF& radius, float width, int steps);
   void aRender (const sRgba& rgba, bool fillNonZero = true);
-
-  static void rgb888toRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize);
-  static void yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
 
   void start();
   void drawInfo();
@@ -803,26 +802,22 @@ public:
 
   void display (int brightness);
 
+  static void rgb888toRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize);
+  static void yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling);
+
   static cLcd* mLcd;
-  static uint32_t mShowBuffer;
-
-  static eDma2dWait mDma2dWait;
-  static SemaphoreHandle_t mDma2dSem;
-  static SemaphoreHandle_t mFrameSem;
-
-  void* operator new (std::size_t size) { return pvPortMalloc (size); }
-  void operator delete (void* ptr) { vPortFree (ptr); }
 
 private:
-  unsigned calcAlpha (int area, bool fillNonZero) const;
-  void aEllipse (const cPointF& centre, const cPointF& radius, int step);
-  void renderScanLine (const cScanLine& scanLine, const sRgba& rgba);
+  static void ready();
 
   void ltdcInit (uint16_t* frameBufferAddress);
   cFontChar* loadChar (uint16_t fontHeight, char ch);
 
-  static void ready();
   void reset();
+
+  unsigned calcAlpha (int area, bool fillNonZero) const;
+  void aEllipse (const cPointF& centre, const cPointF& radius, int steps);
+  void renderScanLine (const cScanLine& scanLine, const sRgba& rgba);
 
   //{{{  vars
   LTDC_HandleTypeDef mLtdcHandle;

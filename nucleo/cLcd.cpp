@@ -29,8 +29,16 @@
 //}}}
 
 //{{{  static var inits
+cLcd* cLcd::mLcd = nullptr;
+
 static DMA2D_HandleTypeDef DMA2D_Handle;
+
+static uint32_t mShowBuffer = 0;
+static cLcd::eDma2dWait mDma2dWait = cLcd::eWaitNone;
+
 static SemaphoreHandle_t mLockSem;
+static SemaphoreHandle_t mDma2dSem;
+static SemaphoreHandle_t mFrameSem;
 
 static int32_t* gRedLut = nullptr;
 static int32_t* gBlueLut = nullptr;
@@ -38,14 +46,6 @@ static int32_t* gUGreenLut = nullptr;
 static int32_t* gVGreenLut = nullptr;
 static uint8_t* gClampLut5 = nullptr;
 static uint8_t* gClampLut6 = nullptr;
-
-cLcd* cLcd::mLcd = nullptr;
-
-uint32_t cLcd::mShowBuffer = 0;
-
-cLcd::eDma2dWait cLcd::mDma2dWait = eWaitNone;
-SemaphoreHandle_t cLcd::mDma2dSem;
-SemaphoreHandle_t cLcd::mFrameSem;
 //}}}
 
 //{{{
@@ -56,11 +56,11 @@ extern "C" { void LTDC_IRQHandler() {
     LTDC->IER &= ~(LTDC_IT_TE | LTDC_IT_FU | LTDC_IT_LI);
     LTDC->ICR = LTDC_FLAG_LI;
 
-    LTDC_Layer1->CFBAR = cLcd::mShowBuffer;
+    LTDC_Layer1->CFBAR = mShowBuffer;
     LTDC->SRCR = LTDC_SRCR_IMR;
 
     portBASE_TYPE taskWoken = pdFALSE;
-    if (xSemaphoreGiveFromISR (cLcd::mFrameSem, &taskWoken) == pdTRUE)
+    if (xSemaphoreGiveFromISR (mFrameSem, &taskWoken) == pdTRUE)
       portEND_SWITCHING_ISR (taskWoken);
     }
 
@@ -100,7 +100,7 @@ extern "C" { void DMA2D_IRQHandler() {
     DMA2D->IFCR = DMA2D_FLAG_TC;
 
     portBASE_TYPE taskWoken = pdFALSE;
-    if (xSemaphoreGiveFromISR (cLcd::mDma2dSem, &taskWoken) == pdTRUE)
+    if (xSemaphoreGiveFromISR (mDma2dSem, &taskWoken) == pdTRUE)
       portEND_SWITCHING_ISR (taskWoken);
     }
   if (isr & DMA2D_FLAG_TE) {
@@ -588,16 +588,21 @@ void cLcd::aPointedLine (const cPointF& p1, const cPointF& p2, float width) {
   }
 //}}}
 //{{{
-void cLcd::aEllipse (const cPointF& centre, const cPointF& radius, float thick, int step) {
+void cLcd::aEllipseThick (const cPointF& centre, const cPointF& radius, float width, int steps) {
 
   // clockwise ellipse
-  aEllipse (centre, radius, step);
+  aEllipse (centre, radius, steps);
 
   // anticlockwise ellipse
-  aMoveTo (centre + cPointF(radius.x - thick, 0.f));
-  for (int i = 1; i < 360; i += step) {
-    auto a = (360 - i) * 3.1415926f / 180.0f;
-    aLineTo (centre + cPointF (cos(a) * (radius.x - thick), sin(a) * (radius.y - thick)));
+  float angle = 360.f;
+  float fstep = 360.f / steps;
+  aMoveTo (centre + cPointF(radius.x - width, 0.f));
+
+  angle -= fstep;
+  while (angle > 0.f) {
+    auto radians = angle * 3.1415926f / 180.0f;
+    aLineTo (centre + cPointF (cos(radians) * (radius.x - width), sin(radians) * (radius.y - width)));
+    angle -= fstep;
     }
   }
 //}}}
@@ -662,76 +667,6 @@ void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
     renderScanLine (mScanLine, rgba);
 
   ready();
-  xSemaphoreGive (mLockSem);
-  }
-//}}}
-
-// statics
-//{{{
-void cLcd::rgb888toRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize) {
-
-  if (!xSemaphoreTake (mLockSem, 5000))
-    printf ("cLcd take fail\n");
-
-  DMA2D->FGPFCCR = DMA2D_INPUT_RGB888;
-  DMA2D->FGMAR = uint32_t(src);
-  DMA2D->FGOR = 0;
-
-  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
-  DMA2D->OMAR = uint32_t(dst);
-  DMA2D->OOR = 0;
-
-  DMA2D->NLR = (xsize << 16) | ysize;
-  DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
-  mDma2dWait = eWaitIrq;
-
-  ready();
-
-  xSemaphoreGive (mLockSem);
-  }
-//}}}
-//{{{
-void cLcd::yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling) {
-
-  uint32_t cssMode = DMA2D_CSS_420;
-  uint32_t inputLineOffset = 0;
-
-  if (chromaSampling == JPEG_420_SUBSAMPLING) {
-    cssMode = DMA2D_CSS_420;
-    inputLineOffset = xsize % 16;
-    if (inputLineOffset != 0)
-      inputLineOffset = 16 - inputLineOffset;
-    }
-  else if (chromaSampling == JPEG_444_SUBSAMPLING) {
-    cssMode = DMA2D_NO_CSS;
-    inputLineOffset = xsize % 8;
-    if (inputLineOffset != 0)
-      inputLineOffset = 8 - inputLineOffset;
-    }
-  else if (chromaSampling == JPEG_422_SUBSAMPLING) {
-    cssMode = DMA2D_CSS_422;
-    inputLineOffset = xsize % 16;
-    if (inputLineOffset != 0)
-      inputLineOffset = 16 - inputLineOffset;
-    }
-
-  if (!xSemaphoreTake (mLockSem, 5000))
-    printf ("cLcd take fail\n");
-
-  DMA2D->FGPFCCR = DMA2D_INPUT_YCBCR | (cssMode << POSITION_VAL(DMA2D_FGPFCCR_CSS));
-  DMA2D->FGMAR = (uint32_t)src;
-  DMA2D->FGOR = inputLineOffset;
-
-  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
-  DMA2D->OMAR = (uint32_t)dst;
-  DMA2D->OOR = 0;
-
-  DMA2D->NLR = (xsize << 16) | ysize;
-  DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
-  mDma2dWait = eWaitIrq;
-
-  ready();
-
   xSemaphoreGive (mLockSem);
   }
 //}}}
@@ -914,7 +849,93 @@ void cLcd::display (int brightness) {
   }
 //}}}
 
+// static
+//{{{
+void cLcd::rgb888toRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize) {
+
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
+
+  DMA2D->FGPFCCR = DMA2D_INPUT_RGB888;
+  DMA2D->FGMAR = uint32_t(src);
+  DMA2D->FGOR = 0;
+
+  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
+  DMA2D->OMAR = uint32_t(dst);
+  DMA2D->OOR = 0;
+
+  DMA2D->NLR = (xsize << 16) | ysize;
+  DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
+  mDma2dWait = eWaitIrq;
+
+  ready();
+
+  xSemaphoreGive (mLockSem);
+  }
+//}}}
+//{{{
+void cLcd::yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling) {
+
+  uint32_t cssMode = DMA2D_CSS_420;
+  uint32_t inputLineOffset = 0;
+
+  if (chromaSampling == JPEG_420_SUBSAMPLING) {
+    cssMode = DMA2D_CSS_420;
+    inputLineOffset = xsize % 16;
+    if (inputLineOffset != 0)
+      inputLineOffset = 16 - inputLineOffset;
+    }
+  else if (chromaSampling == JPEG_444_SUBSAMPLING) {
+    cssMode = DMA2D_NO_CSS;
+    inputLineOffset = xsize % 8;
+    if (inputLineOffset != 0)
+      inputLineOffset = 8 - inputLineOffset;
+    }
+  else if (chromaSampling == JPEG_422_SUBSAMPLING) {
+    cssMode = DMA2D_CSS_422;
+    inputLineOffset = xsize % 16;
+    if (inputLineOffset != 0)
+      inputLineOffset = 16 - inputLineOffset;
+    }
+
+  if (!xSemaphoreTake (mLockSem, 5000))
+    printf ("cLcd take fail\n");
+
+  DMA2D->FGPFCCR = DMA2D_INPUT_YCBCR | (cssMode << POSITION_VAL(DMA2D_FGPFCCR_CSS));
+  DMA2D->FGMAR = (uint32_t)src;
+  DMA2D->FGOR = inputLineOffset;
+
+  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
+  DMA2D->OMAR = (uint32_t)dst;
+  DMA2D->OOR = 0;
+
+  DMA2D->NLR = (xsize << 16) | ysize;
+  DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
+  mDma2dWait = eWaitIrq;
+
+  ready();
+
+  xSemaphoreGive (mLockSem);
+  }
+//}}}
+
 // private
+//{{{
+void cLcd::ready() {
+
+  if (mDma2dWait == eWaitDone) {
+    while (!(DMA2D->ISR & DMA2D_FLAG_TC))
+      taskYIELD();
+    DMA2D->IFCR = DMA2D_FLAG_TC;
+    }
+  else if (mDma2dWait == eWaitIrq)
+    if (!xSemaphoreTake (mDma2dSem, 5000))
+      printf ("cLcd ready take fail\n");
+
+  mDma2dWait = eWaitNone;
+  }
+//}}}
+
 //{{{
 void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
 
@@ -1078,22 +1099,6 @@ void cLcd::ltdcInit (uint16_t* frameBufferAddress) {
   __HAL_RCC_DMA2D_CLK_ENABLE();
   }
 //}}}
-
-//{{{
-void cLcd::ready() {
-
-  if (mDma2dWait == eWaitDone) {
-    while (!(DMA2D->ISR & DMA2D_FLAG_TC))
-      taskYIELD();
-    DMA2D->IFCR = DMA2D_FLAG_TC;
-    }
-  else if (mDma2dWait == eWaitIrq)
-    if (!xSemaphoreTake (mDma2dSem, 5000))
-      printf ("cLcd ready take fail\n");
-
-  mDma2dWait = eWaitNone;
-  }
-//}}}
 //{{{
 cFontChar* cLcd::loadChar (uint16_t fontHeight, char ch) {
 
@@ -1117,7 +1122,6 @@ cFontChar* cLcd::loadChar (uint16_t fontHeight, char ch) {
     std::map<uint16_t, cFontChar*>::value_type (fontHeight<<8 | ch, fontChar)).first->second;
   }
 //}}}
-
 //{{{
 void cLcd::reset() {
 
@@ -1149,12 +1153,18 @@ unsigned cLcd::calcAlpha (int area, bool fillNonZero) const {
   }
 //}}}
 //{{{
-void cLcd::aEllipse (const cPointF& centre, const cPointF& radius, int step) {
+void cLcd::aEllipse (const cPointF& centre, const cPointF& radius, int steps) {
 
-  aMoveTo (centre + cPointF (radius.x, 0.f));
-  for (int i = 1; i < 360; i += step) {
-    auto a = i * 3.1415926f / 180.0f;
-    aLineTo (centre + cPointF (cos(a) * radius.x, sin(a) * radius.y));
+  // anticlockwise ellipse
+  float angle = 0.f;
+  float fstep = 360.f / steps;
+  aMoveTo (centre + cPointF(radius.x, 0.f));
+
+  angle += fstep;
+  while (angle < 360.f) {
+    auto radians = angle * 3.1415926f / 180.0f;
+    aLineTo (centre + cPointF (cos(radians) * radius.x, sin(radians) * radius.y));
+    angle += fstep;
     }
   }
 //}}}
