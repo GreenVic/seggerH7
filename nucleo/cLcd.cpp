@@ -828,7 +828,7 @@ void cLcd::setShowInfo (bool show) {
   }
 //}}}
 //{{{
-void cLcd::info (uint16_t colour, const std::string str) {
+void cLcd::info (uint16_t colour, const std::string& str) {
 
   uint16_t line = mCurLine++ % kMaxLines;
   mLines[line].mTime = HAL_GetTick();
@@ -838,7 +838,6 @@ void cLcd::info (uint16_t colour, const std::string str) {
   mChanged = true;
   }
 //}}}
-
 
 // dma2d draw
 //{{{

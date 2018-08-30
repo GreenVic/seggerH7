@@ -133,8 +133,8 @@ public:
     }
   //}}}
 
-  void info (uint16_t colour, const std::string str);
-  void info (const std::string str) { info (COL_WHITE, str); }
+  void info (uint16_t colour, const std::string& str);
+  void info (const std::string& str) { info (COL_WHITE, str); }
 
   void clear (uint16_t colour);
   void rect (uint16_t colour, const cRect& r);
