@@ -25,7 +25,7 @@ using namespace std;
 #define FMC_PERIOD  FMC_SDRAM_CLOCK_PERIOD_2
 
 const string kHello = "stm32h7 " + string(__TIME__) + " " + string(__DATE__);
-const cPointF centre = cPointF (1024.f-125.f, 600.f-125.f-40.f);
+cPointF centre = cPointF (1024.f-125.f, 600.f-125.f-40.f);
 float radius = 12.f;
 float maxRadius = 120.f;
 
@@ -184,14 +184,15 @@ void uiThread (void* arg) {
       lcd->aEllipseOutline (centre, cPointF(radius, radius), width, steps);
       lcd->aRender (sRgba (180,180,0, 255), false);
 
+      float handWidth = radius > 60.f ? radius / 20.f : 3.f;
       float hourR = radius * 0.75f;
-      lcd->aPointedLine (centre, centre + cPointF (hourR * sin (hourA), hourR * cos (hourA)), 3.0f);
+      lcd->aPointedLine (centre, centre + cPointF (hourR * sin (hourA), hourR * cos (hourA)), handWidth);
       float minuteR = radius * 0.9f;
-      lcd->aPointedLine (centre, centre + cPointF (minuteR * sin (minuteA), minuteR * cos (minuteA)), 2.0f);
+      lcd->aPointedLine (centre, centre + cPointF (minuteR * sin (minuteA), minuteR * cos (minuteA)), handWidth);
       lcd->aRender (sRgba (255,255,255, 255));
 
       float secondR = radius * 0.95f;
-      lcd->aPointedLine (centre, centre + cPointF (secondR * sin (secondA), secondR * cos (secondA)), 3.0f);
+      lcd->aPointedLine (centre, centre + cPointF (secondR * sin (secondA), secondR * cos (secondA)), handWidth);
       lcd->aRender (sRgba (255,0,0, 180));
 
       lcd->cLcd::text (COL_BLACK, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
@@ -274,6 +275,9 @@ void appThread (void* arg) {
     //vTaskList (stats);
     //printf ("%s", stats);
     }
+
+  centre = cPointF (1024.f/2.f, 600.f/2.f);
+  maxRadius = 270.f;
 
   //uint32_t offset = 0;
   //while (true)
