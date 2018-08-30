@@ -79,6 +79,33 @@ public:
     }
   //}}}
 
+  int32_t getMinx() const { return mMinx; }
+  int32_t getMiny() const { return mMiny; }
+  int32_t getMaxx() const { return mMaxx; }
+  int32_t getMaxy() const { return mMaxy; }
+
+  uint16_t getNumCells() const { return mNumCells; }
+  //{{{
+  const sCell* const* getSortedCells() {
+
+    if (!mClosed) {
+      lineTo (mClosex, mClosey);
+      mClosed = true;
+      }
+
+    // Perform sort only the first time.
+    if (mSortRequired) {
+      addCurCell();
+      if (mNumCells == 0)
+        return 0;
+      sortCells();
+      mSortRequired = false;
+      }
+
+    return mSortedCells;
+    }
+  //}}}
+
   //{{{
   void reset() {
 
@@ -135,33 +162,6 @@ public:
       }
     }
   //}}}
-
-  int32_t getMinx() const { return mMinx; }
-  int32_t getMiny() const { return mMiny; }
-  int32_t getMaxx() const { return mMaxx; }
-  int32_t getMaxy() const { return mMaxy; }
-
-  //{{{
-  const sCell* const* getSortedCells() {
-
-    if (!mClosed) {
-      lineTo (mClosex, mClosey);
-      mClosed = true;
-      }
-
-    // Perform sort only the first time.
-    if (mSortRequired) {
-      addCurCell();
-      if (mNumCells == 0)
-        return 0;
-      sortCells();
-      mSortRequired = false;
-      }
-
-    return mSortedCells;
-    }
-  //}}}
-  uint16_t getNumCells() const { return mNumCells; }
 
 private:
   //{{{
@@ -636,12 +636,12 @@ public:
   //}}}
 
 private:
-  int16_t   mMinx = 0;
-  uint16_t  mMaxlen = 0;
-  int16_t   mLastX = 0x7FFF;
-  int16_t   mLastY = 0x7FFF;
+  int16_t mMinx = 0;
+  uint16_t mMaxlen = 0;
+  int16_t mLastX = 0x7FFF;
+  int16_t mLastY = 0x7FFF;
 
-  uint8_t*  mCoverage = nullptr;
+  uint8_t* mCoverage = nullptr;
 
   uint8_t** mStartPtrs = nullptr;
   uint8_t** mCurStartPtr = nullptr;
@@ -649,7 +649,7 @@ private:
   uint16_t* mCounts = nullptr;
   uint16_t* mCurCount = nullptr;
 
-  uint16_t  mNumSpans = 0;
+  uint16_t mNumSpans = 0;
   };
 //}}}
 
@@ -1199,7 +1199,7 @@ void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
       }
 
     if (area) {
-      int alpha = calcAlpha ((coverage << 9) - area, fillNonZero);
+      uint8_t alpha = calcAlpha ((coverage << 9) - area, fillNonZero);
       if (alpha) {
         if (mScanLine.isReady (y)) {
           renderScanLine (&mScanLine, rgba);
@@ -1214,7 +1214,7 @@ void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
       break;
 
     if (int16_t(cell->mPackedCoord & 0xFFFF) > x) {
-      int alpha = calcAlpha (coverage << 9, fillNonZero);
+      uint8_t alpha = calcAlpha (coverage << 9, fillNonZero);
       if (alpha) {
         if (mScanLine.isReady (y)) {
            renderScanLine (&mScanLine, rgba);
@@ -1650,7 +1650,7 @@ void cLcd::ready() {
 //}}}
 
 //{{{
-unsigned cLcd::calcAlpha (int area, bool fillNonZero) const {
+uint8_t cLcd::calcAlpha (int area, bool fillNonZero) const {
 
   int coverage = area >> 9;
   if (coverage < 0)

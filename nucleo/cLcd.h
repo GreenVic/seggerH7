@@ -178,7 +178,7 @@ private:
 
   void reset();
 
-  unsigned calcAlpha (int area, bool fillNonZero) const;
+  uint8_t calcAlpha (int area, bool fillNonZero) const;
   void renderScanLine (cScanLine* scanLine, const sRgba& rgba);
 
   //{{{  vars
