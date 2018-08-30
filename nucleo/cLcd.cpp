@@ -661,7 +661,6 @@ static DMA2D_HandleTypeDef DMA2D_Handle;
 static uint32_t mShowBuffer = 0;
 static cLcd::eDma2dWait mDma2dWait = cLcd::eWaitNone;
 
-static SemaphoreHandle_t mLockSem;
 static SemaphoreHandle_t mDma2dSem;
 static SemaphoreHandle_t mFrameSem;
 
@@ -748,7 +747,6 @@ extern "C" { void DMA2D_IRQHandler() {
 cLcd::cLcd()  {
 
   mLcd = this;
-  mLockSem = xSemaphoreCreateMutex();
   }
 //}}}
 //{{{
@@ -844,15 +842,10 @@ void cLcd::rect (uint16_t colour, const cRect& r) {
   rectRegs[2] = getWidth() - r.getWidth();                                     // OOR
   rectRegs[3] = (r.getWidth() << 16) | r.getHeight();                          // NLR
 
-  if (!xSemaphoreTake (mLockSem, 5000))
-    printf ("cLcd take fail\n");
-
+  ready();
   memcpy ((void*)(&DMA2D->OCOLR), rectRegs, 5*4);
   DMA2D->CR = DMA2D_R2M | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
-  ready();
-
-  xSemaphoreGive (mLockSem);
   }
 //}}}
 //{{{
@@ -933,9 +926,6 @@ void cLcd::ellipse (uint16_t colour, cPoint centre, cPoint radius) {
 //{{{
 int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string& str, cRect r, uint8_t alpha) {
 
-  if (!xSemaphoreTake (mLockSem, 5000))
-    printf ("cLcd take fail\n");
-
   ready();
   DMA2D->FGPFCCR = (alpha < 255) ? ((alpha << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
   DMA2D->FGCOLR = ((colour >> 11) << 19) | ((colour & 0x07E0) << 5) | ((colour & 0x001F) << 3);
@@ -981,8 +971,6 @@ int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string& str, cR
         }
       }
     }
-  ready();
-  xSemaphoreGive (mLockSem);
 
   return r.left;
   }
@@ -1193,9 +1181,6 @@ void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
   if (mOutline.getNumCells() == 0)
     return;
 
-  if (!xSemaphoreTake (mLockSem, 5000))
-    printf ("cLcd take fail\n");
-
   mScanLine.reset (mOutline.getMinx(), mOutline.getMaxx());
 
   int coverage = 0;
@@ -1244,9 +1229,6 @@ void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
 
   if (mScanLine.getNumSpans())
     renderScanLine (&mScanLine, rgba);
-
-  ready();
-  xSemaphoreGive (mLockSem);
   }
 //}}}
 
@@ -1254,11 +1236,10 @@ void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
 //{{{
 void cLcd::copy (cTile* tile, cPoint p) {
 
-  if (!xSemaphoreTake (mLockSem, 5000))
-    printf ("cLcd take fail\n");
-
   uint16_t width = p.x + tile->mWidth > getWidth() ? getWidth() - p.x : tile->mWidth;
   uint16_t height = p.y + tile->mHeight > getHeight() ? getHeight() - p.y : tile->mHeight;
+
+  ready();
 
   switch (tile->mFormat) {
     case cTile::eRgb565 : DMA2D->FGPFCCR = DMA2D_INPUT_RGB565; break;
@@ -1293,20 +1274,15 @@ void cLcd::copy (cTile* tile, cPoint p) {
 
   DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
   mDma2dWait = eWaitIrq;
-  ready();
-
-  xSemaphoreGive (mLockSem);
   }
 //}}}
 //{{{
 void cLcd::copy90 (cTile* tile, cPoint p) {
 
-  if (!xSemaphoreTake (mLockSem, 5000))
-    printf ("cLcd take fail\n");
-
   uint32_t src = (uint32_t)tile->mPiccy;
   uint32_t dst = (uint32_t)mBuffer[mDrawBuffer];
 
+  ready();
   DMA2D->FGPFCCR = DMA2D_INPUT_RGB565;
   DMA2D->FGOR = 0;
 
@@ -1323,8 +1299,6 @@ void cLcd::copy90 (cTile* tile, cPoint p) {
     mDma2dWait = eWaitDone;
     ready();
     }
-
-  xSemaphoreGive (mLockSem);
   }
 //}}}
 //{{{
@@ -1333,9 +1307,6 @@ void cLcd::size (cTile* tile, const cRect& r) {
   uint32_t xStep16 = ((tile->mWidth - 1) << 16) / (r.getWidth() - 1);
   uint32_t yStep16 = ((tile->mHeight - 1) << 16) / (r.getHeight() - 1);
   __IO uint16_t* dst = mBuffer[mDrawBuffer] + r.top * getWidth() + r.left;
-
-  if (!xSemaphoreTake (mLockSem, 5000))
-    printf ("cLcd take fail\n");
 
   if (tile->mFormat == cTile::eRgb565) {
     //{{{  rgb565 size
@@ -1379,8 +1350,6 @@ void cLcd::size (cTile* tile, const cRect& r) {
       dst += getWidth() - r.getWidth();
       }
     }
-
-  xSemaphoreGive (mLockSem);
   }
 //}}}
 
@@ -1434,7 +1403,7 @@ void cLcd::drawInfo() {
 //{{{
 void cLcd::present() {
 
-  //ready();
+  ready();
   mDrawTime = HAL_GetTick() - mStartTime;
 
   // enable interrupts
