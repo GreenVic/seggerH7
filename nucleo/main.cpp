@@ -179,7 +179,7 @@ void uiThread (void* arg) {
 
       int steps = 64;
       float width = 4.f;
-      lcd->aEllipse (centre, cPointF(radius-width, radius-width), steps);
+      lcd->aEllipse (centre, cPointF(radius-width, radius), steps);
       lcd->aRender (sRgba565 (128,128,128, 192), false);
       lcd->aEllipseOutline (centre, cPointF(radius, radius), width, steps);
       lcd->aRender (sRgba565 (180,180,0, 255), false);
