@@ -674,6 +674,8 @@ static uint8_t* gClampLut6 = nullptr;
 static cOutline mOutline;
 static cScanLine mScanLine;
 static uint8_t mGamma[256];
+
+static uint32_t mNumStamps = 0;
 //}}}
 
 //{{{
@@ -1172,10 +1174,11 @@ void cLcd::aEllipseOutline (const cPointF& centre, const cPointF& radius, float 
 void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
 
   const sCell* const* sortedCells = mOutline.getSortedCells();
-  printf ("render %d cells\n", mOutline.getNumCells());
-  if (mOutline.getNumCells() == 0)
+  uint32_t numCells = mOutline.getNumCells();
+  if (!numCells)
     return;
 
+  mNumStamps = 0;
   mScanLine.reset (mOutline.getMinx(), mOutline.getMaxx());
 
   int coverage = 0;
@@ -1224,6 +1227,8 @@ void cLcd::aRender (const sRgba& rgba, bool fillNonZero) {
 
   if (mScanLine.getNumSpans())
     renderScanLine (&mScanLine, rgba);
+
+  printf ("render cells:%d stamps:%d\n", numCells, mNumStamps);
   }
 //}}}
 
@@ -1702,6 +1707,8 @@ void cLcd::renderScanLine (cScanLine* scanLine, const sRgba& rgba) {
       if (numPix <= 0)
         continue;
       }
+
+    mNumStamps++;
 
     ready();
     DMA2D->FGMAR = (uint32_t)coverage;
