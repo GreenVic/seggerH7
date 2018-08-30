@@ -189,7 +189,7 @@ void uiThread (void* arg) {
       lcd->aPointedLine (centre, centre + cPointF (hourR * sin (hourA), hourR * cos (hourA)), handWidth);
       float minuteR = radius * 0.9f;
       lcd->aPointedLine (centre, centre + cPointF (minuteR * sin (minuteA), minuteR * cos (minuteA)), handWidth);
-      lcd->aRender (sRgba565 (255,255,255, 255));
+      lcd->aRender (COL_WHITE);
 
       float secondR = radius * 0.95f;
       lcd->aPointedLine (centre, centre + cPointF (secondR * sin (secondA), secondR * cos (secondA)), handWidth);
