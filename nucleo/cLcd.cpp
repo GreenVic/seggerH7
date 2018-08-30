@@ -1113,24 +1113,20 @@ void cLcd::aLineTo (const cPointF& p) {
 //{{{
 void cLcd::aWideLine (const cPointF& p1, const cPointF& p2, float width) {
 
-  cPointF vec = p2 - p1;
-  vec = vec * width / vec.magnitude();
-
-  aMoveTo (cPointF (p1.x - vec.y, p1.y + vec.x));
-  aLineTo (cPointF (p2.x - vec.y, p2.y + vec.x));
-  aLineTo (cPointF (p2.x + vec.y, p2.y - vec.x));
-  aLineTo (cPointF (p1.x + vec.y, p1.y - vec.x));
+  cPointF perp = (p2-p1).perp() * width;
+  aMoveTo (p1 + perp);
+  aLineTo (p2 + perp);
+  aLineTo (p2 - perp);
+  aLineTo (p1 - perp);
   }
 //}}}
 //{{{
 void cLcd::aPointedLine (const cPointF& p1, const cPointF& p2, float width) {
 
-  cPointF vec = p2 - p1;
-  vec = vec * width / vec.magnitude();
-
-  aMoveTo (cPointF (p1.x - vec.y, p1.y + vec.x));
+  cPointF perp = (p2-p1).perp() * width;
+  aMoveTo (p1 + perp);
   aLineTo (p2);
-  aLineTo (cPointF (p1.x + vec.y, p1.y - vec.x));
+  aLineTo (p1 - perp);
   }
 //}}}
 //{{{

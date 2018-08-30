@@ -134,6 +134,20 @@ public:
     return *this;
     }
   //}}}
+  //{{{
+  const cPointF& operator *= (const float s)  {
+    x *= s;
+    y *= s;
+    return *this;
+    }
+  //}}}
+  //{{{
+  const cPointF& operator /= (const float s)  {
+    x /= s;
+    y /= s;
+    return *this;
+    }
+  //}}}
 
   //{{{
   bool inside (const cPointF& pos) const {
@@ -145,6 +159,13 @@ public:
   float magnitude() const {
   // return magnitude of point as vector
     return sqrt ((x*x) + (y*y));
+    }
+  //}}}
+
+  //{{{
+  cPointF perp() {
+    float mag = magnitude();
+    return cPointF (-y / mag, x / mag);
     }
   //}}}
 
