@@ -561,7 +561,7 @@ cTile* hwJpegDecode (const string& fileName) {
 
     printf ("- JPEG decode %p %d:%dx%d - out %d\n",
             mOutYuvBuf, mHandle.mChromaSampling, mHandle.mWidth, mHandle.mHeight, mOutYuvLen);
-    tile = new cTile (mOutYuvBuf, cTile::eYuv422mcu, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
+    tile = new cTile (mOutYuvBuf, cTile::eYuvMcu422, mHandle.mWidth, 0, 0, mHandle.mWidth,  mHandle.mHeight);
     }
 
   vPortFree (mInBuf[0].mBuf);

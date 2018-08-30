@@ -1268,7 +1268,7 @@ void cLcd::copy (cTile* tile, cPoint p) {
   switch (tile->mFormat) {
     case cTile::eRgb565 : DMA2D->FGPFCCR = DMA2D_INPUT_RGB565; break;
     case cTile::eRgb888 : DMA2D->FGPFCCR = DMA2D_INPUT_RGB888; break;
-    case cTile::eYuv422mcu : {
+    case cTile::eYuvMcu422 : {
       DMA2D->FGPFCCR = DMA2D_INPUT_YCBCR | (DMA2D_CSS_422 << POSITION_VAL(DMA2D_FGPFCCR_CSS));
       auto inputLineOffset = width % 8;
       if (inputLineOffset != 0)
