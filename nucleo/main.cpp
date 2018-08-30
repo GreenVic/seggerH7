@@ -185,12 +185,12 @@ void uiThread (void* arg) {
 
       float hourR = radius * 0.75f;
       lcd->aPointedLine (centre, centre + cPointF (hourR * sin (hourA), hourR * cos (hourA)), 3.0f);
-      float minuteR = radius * 0.85f;
+      float minuteR = radius * 0.9f;
       lcd->aPointedLine (centre, centre + cPointF (minuteR * sin (minuteA), minuteR * cos (minuteA)), 2.0f);
       lcd->aRender (sRgba (255,255,255, 255));
 
       float secondR = radius * 0.95f;
-      lcd->aWideLine (centre, centre + cPointF (secondR * sin (secondA), secondR * cos (secondA)), 3.0f);
+      lcd->aPointedLine (centre, centre + cPointF (secondR * sin (secondA), secondR * cos (secondA)), 3.0f);
       lcd->aRender (sRgba (255,0,0, 180));
 
       lcd->cLcd::text (COL_BLACK, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
