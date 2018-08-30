@@ -26,7 +26,8 @@ using namespace std;
 
 const string kHello = "stm32h7 " + string(__TIME__) + " " + string(__DATE__);
 const cPointF centre = cPointF (1024.f-125.f, 600.f-125.f-40.f);
-float radius = 120.f;
+float radius = 12.f;
+float maxRadius = 120.f;
 
 // vars
 FATFS fatFs;
@@ -196,6 +197,10 @@ void uiThread (void* arg) {
       lcd->cLcd::text (COL_BLACK, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
       lcd->cLcd::text (COL_WHITE, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600) + cPoint(-2,-2));
       //}}}
+      if (radius < maxRadius) {
+        radius += 10.f;
+        lcd->change();
+        }
       //lcd->info ("render took" + dec(HAL_GetTick() - startTime));
 
       lcd->present();

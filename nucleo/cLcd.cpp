@@ -812,7 +812,7 @@ void cLcd::init (const std::string& title) {
 
   // set gamma 1.2 lut
   for (unsigned i = 0; i < 256; i++)
-    mGamma[i] = (uint8_t)(pow(double(i) / 255.0, 1.2) * 255.0);
+    mGamma[i] = (uint8_t)(pow(double(i) / 255.0, 1.6) * 255.0);
 
   DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
   }
