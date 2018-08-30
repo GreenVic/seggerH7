@@ -203,7 +203,8 @@ void cLcd::info (uint16_t colour, const std::string str) {
   }
 //}}}
 
-// dmma2d draw
+
+// dma2d draw
 //{{{
 void cLcd::rect (uint16_t colour, const cRect& r) {
 
@@ -270,7 +271,6 @@ void cLcd::rectOutline (uint16_t colour, const cRect& r, uint8_t thickness) {
   rectClipped (colour, cRect (r.left, r.top, r.left+thickness, r.bottom));
   }
 //}}}
-
 //{{{
 void cLcd::ellipse (uint16_t colour, cPoint centre, cPoint radius) {
 
@@ -301,91 +301,16 @@ void cLcd::ellipse (uint16_t colour, cPoint centre, cPoint radius) {
     } while (y1 <= 0);
   }
 //}}}
-
-//{{{
-void cLcd::stamp (uint16_t colour, uint8_t* src, cRect r, uint8_t alpha) {
-//__IO uint32_t FGMAR;    Foreground Memory Address Register,       Address offset: 0x0C
-//__IO uint32_t FGOR;     Foreground Offset Register,               Address offset: 0x10
-//__IO uint32_t BGMAR;    Background Memory Address Register,       Address offset: 0x14
-//__IO uint32_t BGOR;     Background Offset Register,               Address offset: 0x18
-//__IO uint32_t FGPFCCR;  Foreground PFC Control Register,          Address offset: 0x1C
-//__IO uint32_t FGCOLR;   Foreground Color Register,                Address offset: 0x20
-//__IO uint32_t BGPFCCR;  Background PFC Control Register,          Address offset: 0x24
-//__IO uint32_t BGCOLR;   Background Color Register,                Address offset: 0x28
-//__IO uint32_t FGCMAR;   Foreground CLUT Memory Address Register,  Address offset: 0x2C
-//__IO uint32_t BGCMAR;   Background CLUT Memory Address Register,  Address offset: 0x30
-//__IO uint32_t OPFCCR;   Output PFC Control Register,              Address offset: 0x34
-//__IO uint32_t OCOLR;    Output Color Register,                    Address offset: 0x38
-//__IO uint32_t OMAR;     Output Memory Address Register,           Address offset: 0x3C
-//__IO uint32_t OOR;      Output Offset Register,                   Address offset: 0x40
-//__IO uint32_t NLR;      Number of Line Register,                  Address offset: 0x44
-
-  // clip
-  if (!r.getWidth())
-    return;
-  if (!r.getHeight())
-    return;
-  if (r.left < 0)
-    return;
-  if (r.top < 0) {
-    // top clip
-    if (r.bottom <= 0)
-      return;
-    src += -r.top * r.getWidth();
-    r.top = 0;
-    }
-  if (r.bottom > getHeight()) {
-    // bottom yclip
-    if (r.top >= getHeight())
-      return;
-    r.bottom = getHeight();
-    }
-
-  uint32_t stampRegs[15];
-  stampRegs[0] = (uint32_t)src;
-  stampRegs[1] = 0;
-  stampRegs[2] = uint32_t(mBuffer[mDrawBuffer] + r.top * getWidth() + r.left);
-  stampRegs[3] = getWidth() - r.getWidth();
-  stampRegs[4] = (alpha < 255) ? ((alpha << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
-  stampRegs[5] = ((colour >> 11) << 19) | ((colour & 0x07E0) << 5) | ((colour & 0x001F) << 3);
-  stampRegs[6] = DMA2D_INPUT_RGB565;
-  stampRegs[7] = 0;
-  stampRegs[8] = 0;
-  stampRegs[9] = 0;
-  stampRegs[10] = DMA2D_OUTPUT_RGB565;
-  stampRegs[11] = 0;
-  stampRegs[12] = stampRegs[2];
-  stampRegs[13] = stampRegs[3];
-  stampRegs[14] = (r.getWidth() << 16) | r.getHeight();
-
-  if (!xSemaphoreTake (mLockSem, 5000))
-    printf ("cLcd take fail\n");
-
-  memcpy ((void*)(&DMA2D->FGMAR), stampRegs, 15*4);
-  DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
-  mDma2dWait = eWaitIrq;
-  ready();
-
-  xSemaphoreGive (mLockSem);
-  }
-//}}}
 //{{{
 int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string& str, cRect r, uint8_t alpha) {
 
   if (!xSemaphoreTake (mLockSem, 5000))
     printf ("cLcd take fail\n");
 
-  uint32_t stampRegs[15];
-  stampRegs[1] = 0;
-  stampRegs[3] = getWidth() - r.getWidth();
-  stampRegs[4] = (alpha < 255) ? ((alpha << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
-  stampRegs[5] = ((colour >> 11) << 19) | ((colour & 0x07E0) << 5) | ((colour & 0x001F) << 3);
-  stampRegs[6] = DMA2D_INPUT_RGB565;
-  stampRegs[7] = 0;
-  stampRegs[8] = 0;
-  stampRegs[9] = 0;
-  stampRegs[10] = DMA2D_OUTPUT_RGB565;
-  stampRegs[11] = 0;
+  ready();
+  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
+  DMA2D->FGPFCCR = (alpha < 255) ? ((alpha << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
+  DMA2D->FGCOLR = ((colour >> 11) << 19) | ((colour & 0x07E0) << 5) | ((colour & 0x001F) << 3);
 
   for (auto ch : str) {
     if ((ch >= 0x20) && (ch <= 0x7F)) {
@@ -412,13 +337,14 @@ int cLcd::text (uint16_t colour, uint16_t fontHeight, const std::string& str, cR
 
           if ((charRect.left >= 0) && (charRect.bottom > 0) && (charRect.top < getHeight())) {
             ready();
-            stampRegs[0] = (uint32_t)src;
-            stampRegs[2] = uint32_t(mBuffer[mDrawBuffer] + charRect.top * getWidth() + charRect.left);
-            stampRegs[3] = getWidth() - charRect.getWidth();
-            stampRegs[12] = stampRegs[2];
-            stampRegs[13] = stampRegs[3];
-            stampRegs[14] = (charRect.getWidth() << 16) | charRect.getHeight();
-            memcpy ((void*)(&DMA2D->FGMAR), stampRegs, 15*4);
+            DMA2D->FGMAR = (uint32_t)src;
+            DMA2D->FGOR = 0;
+            DMA2D->BGPFCCR = DMA2D_INPUT_RGB565;
+            DMA2D->BGMAR = uint32_t(mBuffer[mDrawBuffer] + charRect.top * getWidth() + charRect.left);
+            DMA2D->BGOR = getWidth() - charRect.getWidth();
+            DMA2D->OMAR = uint32_t(mBuffer[mDrawBuffer] + charRect.top * getWidth() + charRect.left);
+            DMA2D->OOR = getWidth() - charRect.getWidth();
+            DMA2D->NLR = (charRect.getWidth() << 16) | charRect.getHeight();
             DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
             mDma2dWait = eWaitIrq;
             }
@@ -821,51 +747,6 @@ void cLcd::size (cTile* tile, const cRect& r) {
   xSemaphoreGive (mLockSem);
   }
 //}}}
-//{{{
-//void cLcd::yuvMcuToRgb565 (uint8_t* src, uint8_t* dst, uint16_t xsize, uint16_t ysize, uint32_t chromaSampling) {
-
-  //uint32_t cssMode = DMA2D_CSS_420;
-  //uint32_t inputLineOffset = 0;
-
-  //if (chromaSampling == JPEG_420_SUBSAMPLING) {
-    //cssMode = DMA2D_CSS_420;
-    //inputLineOffset = xsize % 16;
-    //if (inputLineOffset != 0)
-      //inputLineOffset = 16 - inputLineOffset;
-    //}
-  //else if (chromaSampling == JPEG_444_SUBSAMPLING) {
-    //cssMode = DMA2D_NO_CSS;
-    //inputLineOffset = xsize % 8;
-    //if (inputLineOffset != 0)
-      //inputLineOffset = 8 - inputLineOffset;
-    //}
-  //else if (chromaSampling == JPEG_422_SUBSAMPLING) {
-    //cssMode = DMA2D_CSS_422;
-    //inputLineOffset = xsize % 16;
-    //if (inputLineOffset != 0)
-      //inputLineOffset = 16 - inputLineOffset;
-    //}
-
-  //if (!xSemaphoreTake (mLockSem, 5000))
-    //printf ("cLcd take fail\n");
-
-  //DMA2D->FGPFCCR = DMA2D_INPUT_YCBCR | (cssMode << POSITION_VAL(DMA2D_FGPFCCR_CSS));
-  //DMA2D->FGMAR = (uint32_t)src;
-  //DMA2D->FGOR = inputLineOffset;
-
-  //DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
-  //DMA2D->OMAR = (uint32_t)dst;
-  //DMA2D->OOR = 0;
-
-  //DMA2D->NLR = (xsize << 16) | ysize;
-  //DMA2D->CR = DMA2D_M2M_PFC | DMA2D_CR_START | DMA2D_CR_TCIE | DMA2D_CR_TEIE | DMA2D_CR_CEIE;
-  //mDma2dWait = eWaitIrq;
-
-  //ready();
-
-  //xSemaphoreGive (mLockSem);
-  //}
-//}}}
 
 //{{{
 void cLcd::start() {
@@ -1187,17 +1068,10 @@ void cLcd::renderScanLine (const cScanLine& scanLine, const sRgba& rgba) {
   if (y >= getHeight())
     return;
 
-  uint32_t stampRegs[15];
-  stampRegs[1] = 0;
-  stampRegs[4] = (rgba.a < 255) ? ((rgba.a << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
-  uint16_t colour = ((rgba.r >> 3) << 11) | ((rgba.g >> 2) << 5) | (rgba.b >> 3);
-  stampRegs[5] = ((colour >> 11) << 19) | ((colour & 0x07E0) << 5) | ((colour & 0x001F) << 3);
-  stampRegs[6] = DMA2D_INPUT_RGB565;
-  stampRegs[7] = 0;
-  stampRegs[8] = 0;
-  stampRegs[9] = 0;
-  stampRegs[10] = DMA2D_OUTPUT_RGB565;
-  stampRegs[11] = 0;
+  ready();
+  DMA2D->OPFCCR = DMA2D_OUTPUT_RGB565;
+  DMA2D->FGPFCCR = (rgba.a < 255) ? ((rgba.a << 24) | 0x20000 | DMA2D_INPUT_A8) : DMA2D_INPUT_A8;
+  DMA2D->FGCOLR = (rgba.r << 16) | (rgba.g << 8) | rgba.b;
 
   int baseX = scanLine.getBaseX();
   uint16_t numSpans = scanLine.getNumSpans();
@@ -1224,13 +1098,14 @@ void cLcd::renderScanLine (const cScanLine& scanLine, const sRgba& rgba) {
       }
 
     ready();
-    stampRegs[0] = (uint32_t)coverage;
-    stampRegs[2] = uint32_t(mBuffer[mDrawBuffer] + y * getWidth() + x);
-    stampRegs[12] = stampRegs[2];
-    stampRegs[3] = getWidth() - numPix;
-    stampRegs[13] = stampRegs[3];
-    stampRegs[14] = (numPix << 16) | 1;
-    memcpy ((void*)(&DMA2D->FGMAR), stampRegs, 15*4);
+    DMA2D->FGMAR = (uint32_t)coverage;
+    DMA2D->FGOR = 0;
+    DMA2D->BGPFCCR = DMA2D_INPUT_RGB565;
+    DMA2D->BGMAR = uint32_t(mBuffer[mDrawBuffer] + y * getWidth() + x);
+    DMA2D->BGOR = getWidth() - numPix;
+    DMA2D->OMAR = uint32_t(mBuffer[mDrawBuffer] + y * getWidth() + x);
+    DMA2D->OOR = getWidth() - numPix;
+    DMA2D->NLR = (numPix << 16) | 1;
     DMA2D->CR = DMA2D_M2M_BLEND | DMA2D_CR_START;
     mDma2dWait = eWaitDone;
     } while (--numSpans);

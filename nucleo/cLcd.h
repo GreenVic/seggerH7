@@ -774,8 +774,6 @@ public:
   void rectClipped (uint16_t colour, cRect r);
   void rectOutline (uint16_t colour, const cRect& r, uint8_t thickness);
   void ellipse (uint16_t colour, cPoint centre, cPoint radius);
-
-  void stamp (uint16_t colour, uint8_t* src, cRect r, uint8_t alpha = 255);
   int text (uint16_t colour, uint16_t fontHeight, const std::string& str, cRect r, uint8_t alpha = 255);
 
   void copy (cTile* tile, cPoint p);
