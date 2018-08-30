@@ -578,7 +578,7 @@ int main() {
   xTaskCreate ((TaskFunction_t)uiThread, "ui", 1024, 0, 4, &uiHandle);
 
   TaskHandle_t appHandle;
-  xTaskCreate ((TaskFunction_t)appThread, "app", 4096, 0, 4, &appHandle);
+  xTaskCreate ((TaskFunction_t)appThread, "app", 8192, 0, 4, &appHandle);
 
   vTaskStartScheduler();
 

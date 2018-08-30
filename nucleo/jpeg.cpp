@@ -3,12 +3,12 @@
 #include "jpeg.h"
 
 #include "cmsis_os.h"
-#include "stm32h7xx_nucleo_144.h"
 #include "heap.h"
 
-#include "cLcd.h"
-#include "../fatFs/ff.h"
+#include "stm32h7xx_nucleo_144.h"
+#include "cLcd.h" // for cTile
 
+#include "../fatFs/ff.h"
 #include "jpeglib.h"
 
 using namespace std;
@@ -570,7 +570,6 @@ cTile* hwJpegDecode (const string& fileName) {
   return tile;
   }
 //}}}
-
 //{{{
 cTile* swJpegDecode (const string& fileName, int scale) {
 
