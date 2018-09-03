@@ -5,10 +5,11 @@
 #include <ctype.h>
 
 #include "cmsis_os.h"
-#include "stm32h7xx_nucleo_144.h"
-#include "../common/heap.h"
 
+#include "../common/stm32h7xx_nucleo_144.h"
+#include "../common/heap.h"
 #include "../common/cRtc.h"
+
 #include "cLcd.h"
 
 using namespace std;

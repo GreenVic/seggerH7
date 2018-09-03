@@ -36,14 +36,14 @@
         Name="Common"
         filter="c;cpp;cxx;cc;h;s;asm;inc"
         macros="STLport=No" />
-      <file file_name="stm32h7xx_nucleo_144.c" />
-      <file file_name="stm32h7xx_it.c" />
       <file file_name="../system/system_stm32h7xx.c" />
       <file file_name="main.cpp" />
       <file file_name="cLcd.cpp" />
       <file file_name="../common/utils.cpp" />
       <file file_name="../common/cRtc.cpp" />
       <file file_name="../common/heap.cpp" />
+      <file file_name="../common/stm32h7xx_it.c" />
+      <file file_name="../common/stm32h7xx_nucleo_144.c" />
     </folder>
     <folder Name="RTT Files">
       <configuration Name="Common" macros="STLport=No" />

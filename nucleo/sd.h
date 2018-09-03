@@ -6,7 +6,7 @@
 //}}}
 
 #include "../FatFs/ff_gen_drv.h"
-#include "stm32h7xx_nucleo_144.h"
+#include "../common/stm32h7xx_nucleo_144.h"
 
 #define BSP_SD_CardInfo HAL_SD_CardInfoTypeDef
 extern const Diskio_drvTypeDef SD_Driver;

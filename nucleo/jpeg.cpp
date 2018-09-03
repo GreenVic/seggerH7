@@ -4,8 +4,7 @@
 
 #include "cmsis_os.h"
 #include "../common/heap.h"
-
-#include "stm32h7xx_nucleo_144.h"
+#include "../common/stm32h7xx_nucleo_144.h"
 #include "cLcd.h" // for cTile
 
 #include "../fatFs/ff.h"
