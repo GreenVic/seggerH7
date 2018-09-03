@@ -22,8 +22,8 @@ float radius = 20.f;
 const float maxRadius = 160.f;
 
 // vars
-cRtc* mRtc;
 cLcd* lcd = nullptr;
+cRtc* rtc = nullptr;
 
 //{{{
 void uiThread (void* arg) {
@@ -44,7 +44,7 @@ void uiThread (void* arg) {
       float minuteA;
       float secondA;
       float subSecondA;
-      mRtc->getClockAngles (hourA, minuteA, secondA, subSecondA);
+      rtc->getClockAngles (hourA, minuteA, secondA, subSecondA);
       //}}}
       //{{{  render clock
       int steps = 64;
@@ -65,7 +65,7 @@ void uiThread (void* arg) {
       lcd->aPointedLine (centre, centre + cPointF (secondR * sin (secondA), secondR * cos (secondA)), handWidth);
       lcd->aRender (sRgba565 (255,0,0, 180));
       //}}}
-      lcd->cLcd::text (kWhite, 30, mRtc->getClockTimeDateString(), cRect (0, 426, 320, 480));
+      lcd->cLcd::text (kWhite, 30, rtc->getClockTimeDateString(), cRect (0, 426, 320, 480));
       lcd->present();
 
       if (radius < maxRadius) {
@@ -235,10 +235,10 @@ int main() {
 
   BSP_LED_Init (LED_RED);
   BSP_PB_Init (BUTTON_KEY, BUTTON_MODE_GPIO);
-  mRtc = new cRtc();
-  mRtc->init();
   lcd = new cLcd();
   lcd->init (kHello);
+  rtc = new cRtc();
+  rtc->init();
 
   TaskHandle_t uiHandle;
   xTaskCreate ((TaskFunction_t)uiThread, "ui", 1024, 0, 4, &uiHandle);

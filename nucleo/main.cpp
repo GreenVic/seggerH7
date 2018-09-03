@@ -31,9 +31,10 @@ float maxRadius = 100.f;
 
 // vars
 FATFS fatFs;
-cRtc* mRtc;
 
 cLcd* lcd = nullptr;
+cRtc* rtc = nullptr;
+
 vector<string> mFileVec;
 int gCount = 0;
 
@@ -175,7 +176,7 @@ void uiThread (void* arg) {
       float minuteA;
       float secondA;
       float subSecondA;
-      mRtc->getClockAngles (hourA, minuteA, secondA, subSecondA);
+      rtc>getClockAngles (hourA, minuteA, secondA, subSecondA);
 
       int steps = 64;
       float width = 4.f;
@@ -195,8 +196,8 @@ void uiThread (void* arg) {
       lcd->aPointedLine (centre, centre + cPointF (secondR * sin (secondA), secondR * cos (secondA)), handWidth);
       lcd->aRender (sRgba565 (255,0,0, 180));
 
-      lcd->cLcd::text (kBlackSemi, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600));
-      lcd->cLcd::text (kWhite, 45, mRtc->getClockTimeDateString(), cRect (567,552, 1024,600) + cPoint(-2,-2));
+      lcd->cLcd::text (kBlackSemi, 45, rtc->getClockTimeDateString(), cRect (567,552, 1024,600));
+      lcd->cLcd::text (kWhite, 45, rtc->getClockTimeDateString(), cRect (567,552, 1024,600) + cPoint(-2,-2));
       //}}}
       if (radius < maxRadius) {
         radius += 10.f;
@@ -553,7 +554,6 @@ void mpuConfig() {
 
 //{{{
 int main() {
-
   HAL_Init();
   clockConfig();
   sdRamConfig();
@@ -568,18 +568,15 @@ int main() {
   printf ("%s\n", kHello.c_str());
   mTraceVec.addTrace (1024, 1, 3);
 
-  mRtc = new cRtc();
-  mRtc->init();
-
   lcd = new cLcd();
   lcd->init (kHello);
+  rtc = new cRtc();
+  rtc->init();
 
   TaskHandle_t uiHandle;
   xTaskCreate ((TaskFunction_t)uiThread, "ui", 1024, 0, 4, &uiHandle);
-
   TaskHandle_t appHandle;
   xTaskCreate ((TaskFunction_t)appThread, "app", 4096, 0, 4, &appHandle);
-
   vTaskStartScheduler();
 
   return 0;
