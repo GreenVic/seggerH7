@@ -69,7 +69,7 @@ void uiThread (void* arg) {
       lcd->present();
 
       if (radius < maxRadius) {
-        radius *= 1.025f;
+        radius *= 1.04f;
         if (radius > maxRadius)
           radius = maxRadius;
         lcd->change();
