@@ -1,2 +1,0 @@
-// agg.h
-#pragma once

@@ -24,7 +24,7 @@ using namespace std;
 #define SW_SCALE 4
 #define FMC_PERIOD  FMC_SDRAM_CLOCK_PERIOD_2
 
-const string kHello = "stm32h7 " + string(__TIME__) + " " + string(__DATE__);
+const string kHello = "largeLcd " + string(__TIME__) + " " + string(__DATE__);
 cPointF centre = cPointF (1024.f-105.f, 600.f-105.f-40.f);
 float radius = 12.f;
 float maxRadius = 100.f;

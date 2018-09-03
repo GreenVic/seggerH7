@@ -1,0 +1,241 @@
+<!DOCTYPE CrossStudio_Project_File>
+<solution Name="nucleo" target="8" version="2">
+  <project Name="nucleo">
+    <configuration
+      Name="Common"
+      STLport="Yes"
+      arm_architecture="v7EM"
+      arm_compiler_variant="gcc"
+      arm_core_type="Cortex-M7"
+      arm_endian="Little"
+      arm_fp_abi="Hard"
+      arm_fpu_type="FPv5-SP-D16"
+      arm_linker_heap_size="56000"
+      arm_linker_process_stack_size="0"
+      arm_linker_stack_size="4096"
+      arm_simulator_memory_simulation_parameter="RX 08000000,00200000,FFFFFFFF;RWX 24000000,00080000,CDCDCDCD"
+      arm_target_device_name="STM32H743ZI"
+      arm_target_interface_type="SWD"
+      c_preprocessor_definitions="FT2_BUILD_LIBRARY"
+      c_user_include_directories=".;../CMSIS;../RTT;../system;../drivers/Inc;../FreeRTOS/include;../FreeRTOS/portable/GCC/ARM_CM7;../FreeRTOS/CMSIS_RTOS;../freetype/Inc;../LibJPEG/include"
+      debug_target_connection="J-Link"
+      debug_type_file="$(StudioDir)/bin/STLport.xml"
+      gcc_c_language_standard="c11"
+      gcc_cplusplus_language_standard="c++11"
+      linker_output_format="hex"
+      linker_printf_fp_enabled="Float"
+      linker_printf_width_precision_supported="Yes"
+      linker_section_placement_file="$(ProjectDir)/flash_placement.xml"
+      linker_section_placements_segments="FLASH RX 0x08000000 0x00200000;SRAM RWX 0x24000000 0x00010000"
+      macros="STLport=No"
+      project_directory=""
+      project_type="Executable"
+      speed="0" />
+    <folder Name="Source Files">
+      <configuration
+        Name="Common"
+        filter="c;cpp;cxx;cc;h;s;asm;inc"
+        macros="STLport=No" />
+      <file file_name="stm32h7xx_nucleo_144.c" />
+      <file file_name="stm32h7xx_it.c" />
+      <file file_name="../system/system_stm32h7xx.c" />
+      <file file_name="main.cpp" />
+      <file file_name="cLcd.cpp" />
+      <file file_name="../common/utils.cpp" />
+      <file file_name="cRtc.cpp" />
+      <file file_name="heap.cpp" />
+    </folder>
+    <folder Name="RTT Files">
+      <configuration Name="Common" macros="STLport=No" />
+      <file file_name="../RTT/SEGGER_RTT.c" />
+      <file file_name="../RTT/SEGGER_RTT_Syscalls_SES.c" />
+      <folder Name="inc">
+        <file file_name="../RTT/SEGGER_RTT.h" />
+        <file file_name="../RTT/SEGGER_RTT_Conf.h" />
+      </folder>
+    </folder>
+    <folder Name="System Files">
+      <configuration Name="Common" macros="STLport=No" />
+      <file file_name="../system/Cortex_M_Startup.s" />
+      <file file_name="../system/HardFaultHandler.S" />
+      <file file_name="../system/SEGGER_HardFaultHandler.c" />
+      <file file_name="../system/thumb_crt0.s" />
+    </folder>
+    <configuration Name="Release" gcc_optimization_level="Level 3" />
+    <folder Name="inc">
+      <file file_name="stm32h7xx_hal_conf.h" />
+      <file file_name="stm32h7xx_it.h" />
+      <file file_name="stm32h7xx_nucleo_144.h" />
+      <file file_name="cLcd.h" />
+      <file file_name="ffconf.h" />
+      <file file_name="FreeRTOSConfig.h" />
+      <file file_name="sd.h" />
+      <file file_name="heap.h" />
+      <file file_name="jpeg.h" />
+      <file file_name="../system/system_stm32h7xx.h" />
+      <file file_name="../system/stm32h743xx.h" />
+      <file file_name="../system/stm32h7xx.h" />
+      <file file_name="../CMSIS/core_cm7.h" />
+      <file file_name="lsm303c.h" />
+    </folder>
+    <folder Name="drivers">
+      <folder Name="inc">
+        <file file_name="../drivers/Inc/stm32h7xx_hal_crc_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_cryp.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_cryp_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_dac.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_dac_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_def.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_dfsdm.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_dma.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_dma_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_dma2d.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_eth.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_eth_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_flash.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_flash_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_gpio.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_gpio_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_hash.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_hash_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_hcd.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_hrtim.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_hsem.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_i2c.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_i2c_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_i2s.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_i2s_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_iwdg.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_jpeg.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_lptim.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_ltdc.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_mdios.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_mdma.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_mmc.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_mmc_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_opamp.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_opamp_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_pcd.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_pcd_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_pwr.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_pwr_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_rcc.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_rcc_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_rng.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_rtc.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_rtc_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_sd.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_sd_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_sdram.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_smbus.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_spdifrx.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_spi.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_spi_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_swpmi.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_tim.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_tim_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_uart.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_uart_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_usart.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_usart_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_wwdg.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_ll_delayblock.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_ll_fmc.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_ll_sdmmc.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_ll_usb.h" />
+        <folder
+          Name="Legacy"
+          exclude=""
+          filter="*.*"
+          path="../drivers/Inc/Legacy"
+          recurse="No" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_adc.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_adc_ex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_cec.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_comp.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_cortex.h" />
+        <file file_name="../drivers/Inc/stm32h7xx_hal_crc.h" />
+      </folder>
+      <file file_name="../drivers/Src/stm32h7xx_hal_dma.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_dma_ex.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_flash.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_flash_ex.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_gpio.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_i2c.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_i2c_ex.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_mdma.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_pwr.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_pwr_ex.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_rcc.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_rcc_ex.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_rtc.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_rtc_ex.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_tim.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_tim_ex.c" />
+      <file file_name="../drivers/Src/stm32h7xx_ll_fmc.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_comp.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_cortex.c" />
+      <file file_name="../drivers/Src/stm32h7xx_hal_sram.c" />
+    </folder>
+    <folder Name="freetype">
+      <folder Name="inc">
+        <file file_name="../freetype/Inc/ft2build.h" />
+        <file file_name="../freetype/FreeSansBold.h" />
+      </folder>
+      <file file_name="../freetype/Src/autofit/autofit.c" />
+      <file file_name="../freetype/Src/base/ftapi.c" />
+      <file file_name="../freetype/Src/base/ftbase.c" />
+      <file file_name="../freetype/Src/base/ftbbox.c" />
+      <file file_name="../freetype/Src/base/ftbitmap.c" />
+      <file file_name="../freetype/Src/base/ftdebug.c" />
+      <file file_name="../freetype/Src/base/ftglyph.c" />
+      <file file_name="../freetype/Src/base/ftinit.c" />
+      <file file_name="../freetype/Src/base/ftlcdfil.c" />
+      <file file_name="../freetype/Src/base/ftpatent.c" />
+      <file file_name="../freetype/Src/base/md5.c" />
+      <file file_name="../freetype/Src/raster/raster.c" />
+      <file file_name="../freetype/Src/sfnt/sfnt.c" />
+      <file file_name="../freetype/Src/smooth/ftsmooth.c" />
+      <file file_name="../freetype/Src/truetype/truetype.c" />
+      <file file_name="../freetype/Src/smooth/ftgrays.c" />
+      <file file_name="../freetype/Src/base/ftsystem.c" />
+    </folder>
+    <folder Name="FreeRTOS">
+      <file file_name="../FreeRTOS/croutine.c" />
+      <file file_name="../FreeRTOS/event_groups.c" />
+      <file file_name="../FreeRTOS/list.c" />
+      <file file_name="../FreeRTOS/timers.c" />
+      <file file_name="../FreeRTOS/CMSIS_RTOS/cmsis_os.c" />
+      <folder Name="inc">
+        <file file_name="../FreeRTOS/include/FreeRTOS.h" />
+        <file file_name="../FreeRTOS/include/croutine.h" />
+        <file file_name="../FreeRTOS/include/event_groups.h" />
+        <file file_name="../FreeRTOS/include/list.h" />
+        <file file_name="../FreeRTOS/include/portable.h" />
+        <file file_name="../FreeRTOS/include/queue.h" />
+        <file file_name="../FreeRTOS/include/semphr.h" />
+        <file file_name="../FreeRTOS/include/task.h" />
+        <file file_name="../FreeRTOS/include/timers.h" />
+        <file file_name="../FreeRTOS/include/cpuUsage.h" />
+      </folder>
+      <file file_name="../FreeRTOS/cpuUsage.c" />
+      <file file_name="../FreeRTOS/queue.c" />
+      <file file_name="../FreeRTOS/tasks.c" />
+      <file file_name="../FreeRTOS/portable/GCC/ARM_CM7/port.c" />
+    </folder>
+    <configuration Name="Debug" gcc_optimization_level="Debug" />
+  </project>
+  <configuration
+    Name="Debug"
+    c_preprocessor_definitions="DEBUG"
+    gcc_debugging_level="Level 3"
+    gcc_optimization_level="None" />
+  <configuration
+    Name="Release"
+    c_preprocessor_definitions="NDEBUG"
+    gcc_debugging_level="None"
+    gcc_omit_frame_pointer="Yes"
+    gcc_optimization_level="Level 1" />
+</solution>
