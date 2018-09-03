@@ -3,7 +3,7 @@
 #include "jpeg.h"
 
 #include "cmsis_os.h"
-#include "heap.h"
+#include "../common/heap.h"
 
 #include "stm32h7xx_nucleo_144.h"
 #include "cLcd.h" // for cTile

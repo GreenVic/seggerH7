@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "../system/stm32h7xx.h"
-#include "heap.h"
+#include "../common/heap.h"
 
 #include <ft2build.h>
 #include FT_FREETYPE_H

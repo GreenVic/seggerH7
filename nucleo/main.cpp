@@ -1,4 +1,4 @@
-//// main.cpp
+// main.cpp
 //{{{  includes
 #include <algorithm>
 #include <string>
@@ -6,16 +6,17 @@
 
 #include "cmsis_os.h"
 #include "stm32h7xx_nucleo_144.h"
-#include "heap.h"
 
-#include "cRtc.h"
+#include "../common/heap.h"
+#include "../common/cRtc.h"
+#include "../common/cTraceVec.h"
+
 #include "cLcd.h"
 #include "sd.h"
 #include "jpeg.h"
 #include "lsm303c.h"
 
 #include "../fatFs/ff.h"
-#include "../common/cTraceVec.h"
 
 using namespace std;
 //}}}

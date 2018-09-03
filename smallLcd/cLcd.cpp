@@ -3,7 +3,7 @@
 #include "cLcd.h"
 
 #include "math.h"
-#include "heap.h"
+#include "../common/heap.h"
 
 #include "../freetype/FreeSansBold.h"
 #include "cpuUsage.h"

@@ -6,9 +6,9 @@
 
 #include "cmsis_os.h"
 #include "stm32h7xx_nucleo_144.h"
-#include "heap.h"
+#include "../common/heap.h"
 
-#include "cRtc.h"
+#include "../common/cRtc.h"
 #include "cLcd.h"
 
 using namespace std;
