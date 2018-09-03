@@ -85,8 +85,10 @@ class cScanLine;
 class cLcd {
 public:
   enum eDma2dWait { eWaitNone, eWaitDone, eWaitIrq };
-  cLcd();
+
+  cLcd()  { mLcd = this; }
   ~cLcd();
+
   void* operator new (std::size_t size) { return pvPortMalloc (size); }
   void operator delete (void* ptr) { vPortFree (ptr); }
 
@@ -142,11 +144,10 @@ public:
   void aEllipse (const cPointF& centre, const cPointF& radius, int steps);
   void aRender (sRgba565 colour, bool fillNonZero = true);
 
+  void display (int brightness);
   void start();
   void drawInfo();
   void present();
-
-  void display (int brightness);
 
   static cLcd* mLcd;
 

@@ -678,6 +678,26 @@ static uint8_t mGamma[256];
 
 static uint32_t mNumStamps = 0;
 //}}}
+SRAM_HandleTypeDef hsram;
+FMC_NORSRAM_TimingTypeDef SRAM_Timing;
+//{{{
+//HAL_StatusTypeDef HAL1_SRAM_Write_16b (SRAM_HandleTypeDef* hsram, uint32_t* address, uint16_t* src, uint32_t BufferSize) {
+
+  //if (hsram->State == HAL_SRAM_STATE_PROTECTED)
+    //return HAL_ERROR;
+
+  //__HAL_LOCK (hsram);
+  //hsram->State = HAL_SRAM_STATE_BUSY;
+
+  //volatile uint16_t* ramaddress = (uint16_t*)address;
+  //for(; BufferSize != 0; BufferSize--)
+    //*(volatile uint16_t*)ramaddress = *src++;
+
+  //hsram->State = HAL_SRAM_STATE_READY;
+  //__HAL_UNLOCK(hsram);
+  //return HAL_OK;
+  //}
+//}}}
 
 //{{{
 extern "C" { void DMA2D_IRQHandler() {
@@ -703,37 +723,52 @@ extern "C" { void DMA2D_IRQHandler() {
 //}}}
 
 //{{{
+//void sendCommand (uint16_t reg) {
+
+  //HAL1_SRAM_Write_16b (&hsram, (uint32_t*)(0x60000000), &reg, 1);
+  //}
+//}}}
+//{{{
 //void cLcd::sendCommandData (uint16_t reg, uint16_t data) {
 
-  //*((volatile uint16_t*)0x60000000) = reg;
-  //*((volatile uint16_t*)0x60080000) = data;
+  //HAL1_SRAM_Write_16b (&hsram, (uint32_t*)(0x60000000), &reg, 1);
+  //HAL1_SRAM_Write_16b (&hsram, (uint32_t*)(0x60080000), &data, 1);
   //}
 //}}}
 //{{{
 //void cLcd::tftInit() {
 
-  //{{{  fmc gpio
+  //{{{  clocks
   //__HAL_RCC_FMC_CLK_ENABLE();
+
   //__HAL_RCC_GPIOC_CLK_ENABLE();
   //__HAL_RCC_GPIOD_CLK_ENABLE();
   //__HAL_RCC_GPIOE_CLK_ENABLE();
-
+  //__HAL_RCC_GPIOG_CLK_ENABLE();
+  //}}}
+  //{{{  gpio
   //GPIO_InitTypeDef gpio_init_structure;
   //gpio_init_structure.Mode = GPIO_MODE_OUTPUT_PP;
   //gpio_init_structure.Pull = GPIO_NOPULL;
   //gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-
   //gpio_init_structure.Pin = GPIO_PIN_12;
   //HAL_GPIO_Init (GPIOD, &gpio_init_structure);
   //HAL_GPIO_WritePin (GPIOD, GPIO_PIN_12, GPIO_PIN_SET); // resetHi
 
   //gpio_init_structure.Mode = GPIO_MODE_AF_PP;
-  //gpio_init_structure.Alternate = GPIO_AF9_FMC;
   //gpio_init_structure.Pull = GPIO_PULLUP;
+  //gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  //gpio_init_structure.Alternate = GPIO_AF9_FMC;
   //gpio_init_structure.Pin = GPIO_PIN_7;
   //HAL_GPIO_Init (GPIOC, &gpio_init_structure); // cs - fmc_ne1
 
+  //gpio_init_structure.Mode = GPIO_MODE_AF_PP;
+  //gpio_init_structure.Pull = GPIO_PULLUP;
+  //gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   //gpio_init_structure.Alternate = GPIO_AF12_FMC;
+  //gpio_init_structure.Pin = GPIO_PIN_10;
+  //HAL_GPIO_Init (GPIOG, &gpio_init_structure); // cs - fmc_ne3
+
   //gpio_init_structure.Pin = GPIO_PIN_4  | GPIO_PIN_5  | GPIO_PIN_13 | // noe->rd, nwe->wr, a18->rs
                             //GPIO_PIN_14 | GPIO_PIN_15 |               // d0:d1
                             //GPIO_PIN_0  | GPIO_PIN_1  |               // d2:d3
@@ -743,28 +778,27 @@ extern "C" { void DMA2D_IRQHandler() {
   //gpio_init_structure.Pin = GPIO_PIN_7  | GPIO_PIN_8  | GPIO_PIN_9  | GPIO_PIN_10 |
                             //GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15; // d4:d12
   //HAL_GPIO_Init (GPIOE, &gpio_init_structure);
-
-  //// reset pulse low
+  //}}}
+  //{{{  reset pulse low
   //HAL_GPIO_WritePin (GPIOD, GPIO_PIN_12, GPIO_PIN_RESET); // resetLo
-  //HAL_Delay (1);
+  //vTaskDelay (1);
   //HAL_GPIO_WritePin (GPIOD, GPIO_PIN_12, GPIO_PIN_SET);   // resetHi
-  //HAL_Delay (120);
+  //vTaskDelay (120);
+  //}}}
 
-  //FMC_NORSRAM_TimingTypeDef SRAM_Timing;
-  //SRAM_HandleTypeDef hsram;
+  //hsram.Instance  = FMC_NORSRAM_DEVICE;
+  //hsram.Extended  = FMC_NORSRAM_EXTENDED_DEVICE;
 
-  //hsram.Instance = FMC_NORSRAM_DEVICE;
-  //hsram.Extended = FMC_NORSRAM_EXTENDED_DEVICE;
+  ///* SRAM device configuration */
+//SRAM_Timing.AddressSetupTime       = 4;
+  //SRAM_Timing.AddressHoldTime        = 1;
+  //SRAM_Timing.DataSetupTime          = 2;
+  //SRAM_Timing.BusTurnAroundDuration  = 1;
+  //SRAM_Timing.CLKDivision            = 2;
+  //SRAM_Timing.DataLatency            = 2;
+  //SRAM_Timing.AccessMode             = FMC_ACCESS_MODE_A;
 
-  //SRAM_Timing.AddressSetupTime = 4;
-  //SRAM_Timing.AddressHoldTime = 3;
-  //SRAM_Timing.DataSetupTime = 8;
-  //SRAM_Timing.BusTurnAroundDuration = 1;
-  //SRAM_Timing.CLKDivision = 2;
-  //SRAM_Timing.DataLatency = 2;
-  //SRAM_Timing.AccessMode = FMC_ACCESS_MODE_A;
-
-  //hsram.Init.NSBank             = FMC_NORSRAM_BANK1;
+  //hsram.Init.NSBank             = FMC_NORSRAM_BANK3;
   //hsram.Init.DataAddressMux     = FMC_DATA_ADDRESS_MUX_DISABLE;
   //hsram.Init.MemoryType         = FMC_MEMORY_TYPE_SRAM;
   //hsram.Init.MemoryDataWidth    = FMC_NORSRAM_MEM_BUS_WIDTH_16;
@@ -773,20 +807,14 @@ extern "C" { void DMA2D_IRQHandler() {
   //hsram.Init.WaitSignalActive   = FMC_WAIT_TIMING_BEFORE_WS;
   //hsram.Init.WriteOperation     = FMC_WRITE_OPERATION_ENABLE;
   //hsram.Init.WaitSignal         = FMC_WAIT_SIGNAL_DISABLE;
-  //hsram.Init.ExtendedMode       = FMC_EXTENDED_MODE_ENABLE;
+  //hsram.Init.ExtendedMode       = FMC_EXTENDED_MODE_DISABLE;
   //hsram.Init.AsynchronousWait   = FMC_ASYNCHRONOUS_WAIT_DISABLE;
-  //hsram.Init.WriteBurst         = FMC_WRITE_BURST_ENABLE;
+  //hsram.Init.WriteBurst         = FMC_WRITE_BURST_DISABLE;
   //hsram.Init.ContinuousClock    = FMC_CONTINUOUS_CLOCK_SYNC_ONLY;
 
-  //if (HAL_SRAM_Init (&hsram, &SRAM_Timing, &SRAM_Timing) != HAL_OK)
-    //printf ("HAL_SRAM_Init failed\n");
-  //}}}
-
-  ////for (int i = 0; i < 100; i++) {
-  ////  printf ("initial looop %d\n", i);
-  ////  *((volatile uint16_t*)0x60000000) = i;
-  ////  *((volatile uint16_t*)0x60080000) = i;
-  ////  }
+  ///* Initialize the SRAM controller */
+  //if (HAL_SRAM_Init(&hsram, &SRAM_Timing, &SRAM_Timing) != HAL_OK)
+    //printf ("init errpr\n");
 
   //// portrait mode with (0,0) being the top left. top is the side opposite the LCD connector.
   //sendCommandData (0x01, 0x023C);
@@ -826,13 +854,13 @@ extern "C" { void DMA2D_IRQHandler() {
   //sendCommandData (0x34, 0x3443);
   //sendCommandData (0x37, 0x0000);
   //sendCommandData (0x38, 0x0000);
-  ////HAL_Delay (100);
+  //vTaskDelay (100);
 
   //sendCommandData (0x12, 0x200E);
-  ////HAL_Delay (100);
+  //vTaskDelay (100);
 
   //sendCommandData (0x12, 0x2003);
-  ////HAL_Delay (100);
+  //vTaskDelay (100);
 
   //sendCommandData (0x44, 0x013F);
   //sendCommandData (0x45, 0x0000);
@@ -841,10 +869,10 @@ extern "C" { void DMA2D_IRQHandler() {
   //sendCommandData (0x20, 0x0000);
   //sendCommandData (0x21, 0x013F);
   //sendCommandData (0x07, 0x0012);
-  ////HAL_Delay (100);
+  //vTaskDelay (100);
 
   //sendCommandData (0x07, 0x0017);
-  ////HAL_Delay (100);
+  //vTaskDelay (100);
   //}
 //}}}
 //{{{
@@ -856,16 +884,18 @@ extern "C" { void DMA2D_IRQHandler() {
   //// enable interrupts
   //mWaitTime = HAL_GetTick() - mStartTime;
 
-  //auto ptr = mBuffer;
-  //for (int y = 0; y < 320; y++)
-    //for (int x = 0; x < 480; x++)
-      //*((volatile uint16_t*)0x60080000) = *ptr++;
+  //sendCommandData (0x20, 0);
+  //sendCommandData (0x21, 0);
+  //sendCommand (0x22);
+  //HAL1_SRAM_Write_16b (&hsram, (uint32_t*)(0x60080000), mBuffer, 320*480);
+  ////auto ptr = mBuffer;
+  ////for (int i = 0; i < 320*480; i++)
+  ////  *((volatile uint16_t*)(0x68080000)) = *ptr++;
 
   //mNumPresents++;
   //}
 //}}}
 
-cLcd::cLcd()  { mLcd = this; }
 //{{{
 cLcd::~cLcd() {
   FT_Done_Face (FTface);
@@ -1580,6 +1610,12 @@ void cLcd::size (cTile* tile, const cRect& r) {
 //}}}
 
 //{{{
+void cLcd::display (int brightness) {
+
+  mBrightness = brightness;
+  }
+//}}}
+//{{{
 void cLcd::start() {
   mStartTime = HAL_GetTick();
   }
@@ -1667,13 +1703,6 @@ void cLcd::present() {
 
   mChanged = false;
   mNumPresents++;
-  }
-//}}}
-//{{{
-void cLcd::display (int brightness) {
-
-  mBrightness = brightness;
-  TIM4->CCR2 = 50 * brightness;
   }
 //}}}
 
