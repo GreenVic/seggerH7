@@ -721,14 +721,11 @@ volatile int j;
 //{{{
 //void cLcd::tftInit() {
 
-  //{{{  clocks
+  //{{{  gpio
   //__HAL_RCC_FMC_CLK_ENABLE();
-
-  //__HAL_RCC_GPIOC_CLK_ENABLE();
   //__HAL_RCC_GPIOD_CLK_ENABLE();
   //__HAL_RCC_GPIOE_CLK_ENABLE();
-  //}}}
-  //{{{  gpio
+
   //GPIO_InitTypeDef gpio_init_structure;
   //gpio_init_structure.Mode = GPIO_MODE_OUTPUT_PP;
   //gpio_init_structure.Pull = GPIO_NOPULL;
@@ -737,19 +734,11 @@ volatile int j;
   //HAL_GPIO_Init (GPIOD, &gpio_init_structure);
   //HAL_GPIO_WritePin (GPIOD, GPIO_PIN_12, GPIO_PIN_SET); // resetHi
 
-  //gpio_init_structure.Mode = GPIO_MODE_AF_PP;
-  //gpio_init_structure.Pull = GPIO_PULLUP;
-  //gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  //gpio_init_structure.Alternate = GPIO_AF9_FMC;
-  //gpio_init_structure.Pin = GPIO_PIN_7;
-  //HAL_GPIO_Init (GPIOC, &gpio_init_structure); // cs - fmc_ne1
-  //HAL_GPIO_WritePin (GPIOC, GPIO_PIN_7, GPIO_PIN_SET); // ne1 hi
-
-  //gpio_init_structure.Mode = GPIO_MODE_AF_PP;
-  //gpio_init_structure.Pull = GPIO_PULLUP;
-  //gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   //gpio_init_structure.Alternate = GPIO_AF12_FMC;
-  //gpio_init_structure.Pin = GPIO_PIN_4  | GPIO_PIN_5  | GPIO_PIN_13 | // noe->rd, nwe->wr, a18->rs
+  //gpio_init_structure.Mode = GPIO_MODE_AF_PP;
+  //gpio_init_structure.Pull = GPIO_PULLUP;
+  //gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  //gpio_init_structure.Pin = GPIO_PIN_4  | GPIO_PIN_5  | GPIO_PIN_7 | GPIO_PIN_13 | // noe->rd, nwe->wr, a18->rs
                             //GPIO_PIN_14 | GPIO_PIN_15 |               // d0:d1
                             //GPIO_PIN_0  | GPIO_PIN_1  |               // d2:d3
                             //GPIO_PIN_8  | GPIO_PIN_9  | GPIO_PIN_10;  // d13:d15
@@ -872,15 +861,13 @@ void cLcd::sendData (uint16_t data) {
 //{{{
 void cLcd::sendCommandData (uint16_t reg, uint16_t data) {
 
-  HAL_GPIO_WritePin (GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);  // csLo
-
-  HAL_GPIO_WritePin (GPIOD, GPIO_PIN_13, GPIO_PIN_RESET); // command
+  HAL_GPIO_WritePin (GPIOD, GPIO_PIN_7 | GPIO_PIN_13, GPIO_PIN_RESET);  // csLo, command
   sendData (reg);
 
   HAL_GPIO_WritePin (GPIOD, GPIO_PIN_13, GPIO_PIN_SET);   // data
   sendData (data);
 
-  HAL_GPIO_WritePin (GPIOC, GPIO_PIN_7, GPIO_PIN_SET);    // csHi
+  HAL_GPIO_WritePin (GPIOD, GPIO_PIN_7, GPIO_PIN_SET);    // csHi
   }
 //}}}
 //{{{
@@ -889,9 +876,7 @@ void cLcd::present() {
   ready();
   mDrawTime = HAL_GetTick() - mStartTime;
 
-  HAL_GPIO_WritePin (GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);  // csLo
-
-  HAL_GPIO_WritePin (GPIOD, GPIO_PIN_13, GPIO_PIN_RESET); // command
+  HAL_GPIO_WritePin (GPIOD, GPIO_PIN_7 | GPIO_PIN_13, GPIO_PIN_RESET);  // csLo, command
   sendData (0x20);
 
   HAL_GPIO_WritePin (GPIOD, GPIO_PIN_13, GPIO_PIN_SET);   // data
@@ -908,10 +893,10 @@ void cLcd::present() {
 
   auto ptr = mBuffer;
   auto end = mBuffer + 320*480;
-
   //do {
     //sendData (*ptr++);
   //  } while (ptr != end);
+
   uint16_t gpiod = GPIOD->ODR;
   do {
     uint16_t data = *ptr++;
@@ -923,7 +908,7 @@ void cLcd::present() {
     GPIOD->BSRRL = GPIO_PIN_5; // wrHi
     } while (ptr != end);
 
-  HAL_GPIO_WritePin (GPIOC, GPIO_PIN_7, GPIO_PIN_SET);    // csHi
+  HAL_GPIO_WritePin (GPIOD, GPIO_PIN_7, GPIO_PIN_SET);    // csHi
 
   mWaitTime = HAL_GetTick() - mStartTime;
 
@@ -934,40 +919,35 @@ void cLcd::present() {
 //{{{
 void cLcd::tftInit() {
 
-  //{{{  gpio clocks
-  __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOE_CLK_ENABLE();
-  //}}}
   //{{{  config lcd gpio
-  //  reset       PD12
-  //  FMC_A18     PD13
-
-  //  FMC_NE1     PC7
   //  FMC_NOE     PD4
   //  FMC_NWE     PD5
+  //  FMC_NE1     PD7
+  //  reset       PD12
+  //  FMC_A18     PD13
 
   //  FMC_D0:D1   PD14:15
   //  FMC_D2:D3   PD0:1
   //  FMC_D4:D12  PE7:15
   //  FMC_D13:D15 PD8:10
-  //__HAL_RCC_FMC_CLK_ENABLE();
 
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+
+  // gpioD - FMC_D0:D1,FMC_D2:D3,FMC_D4:D12 FMC_NOE,FMC_NWE,FMC_NE1,reset,FMC_A18
   GPIO_InitTypeDef gpio_init_structure;
   gpio_init_structure.Pull = GPIO_NOPULL;
   gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   gpio_init_structure.Mode = GPIO_MODE_OUTPUT_PP;
-  gpio_init_structure.Pin = GPIO_PIN_7;
-  HAL_GPIO_Init (GPIOC, &gpio_init_structure);
-  HAL_GPIO_WritePin (GPIOC, GPIO_PIN_7, GPIO_PIN_SET); // csHi
-
   gpio_init_structure.Pin = GPIO_PIN_14 | GPIO_PIN_15 |
                             GPIO_PIN_0  | GPIO_PIN_1  |
                             GPIO_PIN_8  | GPIO_PIN_9  | GPIO_PIN_10 |
-                            GPIO_PIN_4  | GPIO_PIN_5  | GPIO_PIN_12 | GPIO_PIN_13;
+                            GPIO_PIN_4  | GPIO_PIN_5  | GPIO_PIN_7  | GPIO_PIN_12 | GPIO_PIN_13;
   HAL_GPIO_Init (GPIOD, &gpio_init_structure);
-  HAL_GPIO_WritePin (GPIOD, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_12 | GPIO_PIN_13, GPIO_PIN_SET); // wr rd reset Hi
+  // rd,wr,cs,a18,reset Hi
+  HAL_GPIO_WritePin (GPIOD, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_7 | GPIO_PIN_12 | GPIO_PIN_13, GPIO_PIN_SET); 
 
+  // gpioE - FMC_D4:D12
   gpio_init_structure.Pin = GPIO_PIN_7  | GPIO_PIN_8  | GPIO_PIN_9  | GPIO_PIN_10 |
                             GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
   HAL_GPIO_Init (GPIOE, &gpio_init_structure);
