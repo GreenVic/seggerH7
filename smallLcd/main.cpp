@@ -14,12 +14,7 @@
 
 using namespace std;
 //}}}
-
 const string kHello = "smallLcd " + string(__TIME__) + " " + string(__DATE__);
-
-cPointF centre = cPointF (160.f, 240.f);
-float radius = 20.f;
-const float maxRadius = 160.f;
 
 // vars
 cLcd* lcd = nullptr;
@@ -27,6 +22,10 @@ cRtc* rtc = nullptr;
 
 //{{{
 void uiThread (void* arg) {
+
+  cPointF centre = cPointF (160.f, 240.f);
+  float radius = 20.f;
+  const float maxRadius = 160.f;
 
   lcd->tftInit();
   lcd->display (70);

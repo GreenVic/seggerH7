@@ -678,8 +678,9 @@ static uint8_t mGamma[256];
 
 static uint32_t mNumStamps = 0;
 //}}}
-SRAM_HandleTypeDef hsram;
-FMC_NORSRAM_TimingTypeDef SRAM_Timing;
+//{{{  fmc
+//SRAM_HandleTypeDef hsram;
+//FMC_NORSRAM_TimingTypeDef SRAM_Timing;
 //{{{
 //HAL_StatusTypeDef HAL1_SRAM_Write_16b (SRAM_HandleTypeDef* hsram, uint32_t* address, uint16_t* src, uint32_t BufferSize) {
 
@@ -698,30 +699,6 @@ FMC_NORSRAM_TimingTypeDef SRAM_Timing;
   //return HAL_OK;
   //}
 //}}}
-
-//{{{
-extern "C" { void DMA2D_IRQHandler() {
-
-  uint32_t isr = DMA2D->ISR;
-  if (isr & DMA2D_FLAG_TC) {
-    DMA2D->IFCR = DMA2D_FLAG_TC;
-
-    portBASE_TYPE taskWoken = pdFALSE;
-    if (xSemaphoreGiveFromISR (mDma2dSem, &taskWoken) == pdTRUE)
-      portEND_SWITCHING_ISR (taskWoken);
-    }
-  if (isr & DMA2D_FLAG_TE) {
-    printf ("DMA2D_IRQHandler transfer error\n");
-    DMA2D->IFCR = DMA2D_FLAG_TE;
-    }
-  if (isr & DMA2D_FLAG_CE) {
-    printf ("DMA2D_IRQHandler config error\n");
-    DMA2D->IFCR = DMA2D_FLAG_CE;
-    }
-  }
-}
-//}}}
-
 //{{{
 //void sendCommand (uint16_t reg) {
 
@@ -895,6 +872,30 @@ extern "C" { void DMA2D_IRQHandler() {
   //mNumPresents++;
   //}
 //}}}
+//}}}
+
+//{{{
+extern "C" { void DMA2D_IRQHandler() {
+
+  uint32_t isr = DMA2D->ISR;
+  if (isr & DMA2D_FLAG_TC) {
+    DMA2D->IFCR = DMA2D_FLAG_TC;
+
+    portBASE_TYPE taskWoken = pdFALSE;
+    if (xSemaphoreGiveFromISR (mDma2dSem, &taskWoken) == pdTRUE)
+      portEND_SWITCHING_ISR (taskWoken);
+    }
+  if (isr & DMA2D_FLAG_TE) {
+    printf ("DMA2D_IRQHandler transfer error\n");
+    DMA2D->IFCR = DMA2D_FLAG_TE;
+    }
+  if (isr & DMA2D_FLAG_CE) {
+    printf ("DMA2D_IRQHandler config error\n");
+    DMA2D->IFCR = DMA2D_FLAG_CE;
+    }
+  }
+}
+//}}}
 
 //{{{
 cLcd::~cLcd() {
@@ -957,6 +958,11 @@ void cLcd::init (const std::string& title) {
 //{{{
 void cLcd::tftInit() {
 
+  //{{{  gpio clocks
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+  //}}}
   //{{{  config lcd gpio
   //  reset       PD12
   //  FMC_A18     PD13
@@ -970,16 +976,12 @@ void cLcd::tftInit() {
   //  FMC_D4:D12  PE7:15
   //  FMC_D13:D15 PD8:10
   //__HAL_RCC_FMC_CLK_ENABLE();
-  __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOE_CLK_ENABLE();
 
   GPIO_InitTypeDef gpio_init_structure;
   gpio_init_structure.Pull = GPIO_NOPULL;
   gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   gpio_init_structure.Mode = GPIO_MODE_OUTPUT_PP;
   gpio_init_structure.Pin = GPIO_PIN_7;
-
   HAL_GPIO_Init (GPIOC, &gpio_init_structure);
   HAL_GPIO_WritePin (GPIOC, GPIO_PIN_7, GPIO_PIN_SET); // csHi
 
@@ -988,21 +990,18 @@ void cLcd::tftInit() {
                             GPIO_PIN_8  | GPIO_PIN_9  | GPIO_PIN_10 |
                             GPIO_PIN_4  | GPIO_PIN_5  | GPIO_PIN_12 | GPIO_PIN_13;
   HAL_GPIO_Init (GPIOD, &gpio_init_structure);
-
-  HAL_GPIO_WritePin (GPIOD, GPIO_PIN_5, GPIO_PIN_SET);    // wrHi
-  HAL_GPIO_WritePin (GPIOD, GPIO_PIN_4, GPIO_PIN_SET);    // rdHi
-  HAL_GPIO_WritePin (GPIOD, GPIO_PIN_12, GPIO_PIN_SET);   // resetHi
-  HAL_GPIO_WritePin (GPIOD, GPIO_PIN_13, GPIO_PIN_RESET); // command
+  HAL_GPIO_WritePin (GPIOD, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_12 | GPIO_PIN_13, GPIO_PIN_SET); // wr rd reset Hi
 
   gpio_init_structure.Pin = GPIO_PIN_7  | GPIO_PIN_8  | GPIO_PIN_9  | GPIO_PIN_10 |
                             GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
   HAL_GPIO_Init (GPIOE, &gpio_init_structure);
-
-  // reset pulse low
+  //}}}
+  //{{{  reset pulse low
   HAL_GPIO_WritePin (GPIOD, GPIO_PIN_12, GPIO_PIN_RESET); // resetLo
-  HAL_Delay (1);
+  vTaskDelay (1);
+
   HAL_GPIO_WritePin (GPIOD, GPIO_PIN_12, GPIO_PIN_SET);   // resetHi
-  HAL_Delay (120);
+  vTaskDelay (120);
   //}}}
 
   // portrait mode with (0,0) being the top left. top is the side opposite the LCD connector.
@@ -1687,7 +1686,7 @@ void cLcd::present() {
   auto ptr = mBuffer;
   auto end = mBuffer + 320*480;
   uint16_t gpiod = GPIOD->ODR;
-  while (ptr < end) {
+  do {
     uint16_t data = *ptr++;
     // FMC_D4:D12  PE7:15
     GPIOE->ODR = data << 3;
@@ -1695,7 +1694,7 @@ void cLcd::present() {
     gpiod = (gpiod & 0x38DC) | (data << 14) | ((data & 0x000C) >> 2) | ((data >> 13) << 8);
     GPIOD->ODR = gpiod;
     GPIOD->BSRRL = GPIO_PIN_5; // wrHi
-    }
+    } while (ptr != end);
 
   HAL_GPIO_WritePin (GPIOC, GPIO_PIN_7, GPIO_PIN_SET);    // csHi
 
